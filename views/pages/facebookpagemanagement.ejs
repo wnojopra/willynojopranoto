@@ -112,6 +112,7 @@
 
     FB.api('/297440533921751/promotable_posts', {access_token: accessToken, is_published: false}, function(response) {
       var stage = $('#unpublishedContent');
+      stage.empty();
       for (var i = 0; i < response.data.length; i++) {
         if (response.data[i].message) {
           stage.append('<div>'+ response.data[i].message + '</div>');
