@@ -13,6 +13,9 @@ app.get('/', function(request, response) {
   response.render('pages/index');
 });
 
+app.get('/facebookpagemanagement', function(request, response) {
+  response.render('pages/facebookpagemanagement');
+});
 app.listen(app.get('port'), function() {
   console.log('Node app is running on port', app.get('port'));
 });

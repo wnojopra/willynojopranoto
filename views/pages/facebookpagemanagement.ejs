@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<% include ../partials/header.ejs %>
+</head>
+<body>
+<script>
+  // This is called with the results from from FB.getLoginStatus().
+  function statusChangeCallback(response) {
+    // The response object is returned with a status field that lets the
+    // app know the current login status of the person.
+    // Full docs on the response object can be found in the documentation
+    // for FB.getLoginStatus().
+    if (response.status === 'connected') {
+      // Logged into your app and Facebook.
+      testAPI();
+      testPagesAPI();
+    } else if (response.status === 'not_authorized') {
+      // The person is logged into Facebook, but not your app.
+      document.getElementById('status').innerHTML = 'Please log ' +
+        'into this app.';
+    } else {
+      // The person is not logged into Facebook, so we're not sure if
+      // they are logged into this app or not.
+      document.getElementById('status').innerHTML = 'Please log ' +
+        'into Facebook.';
+    }
+  }
+
+  // This function is called when someone finishes with the Login
+  // Button.  See the onlogin handler attached to it in the sample
+  // code below.
+  function checkLoginState() {
+    FB.getLoginStatus(function(response) {
+      statusChangeCallback(response);
+    });
+  }
+
+  window.fbAsyncInit = function() {
+  FB.init({
+    appId      : '254002284964797',
+    cookie     : true,  // enable cookies to allow the server to access 
+                        // the session
+    xfbml      : true,  // parse social plugins on this page
+    version    : 'v2.5' // use graph api version 2.5
+  });
+  // Pointer the cat page id is 297440533921751
+  // Now that we've initialized the JavaScript SDK, we call 
+  // FB.getLoginStatus().  This function gets the state of the
+  // person visiting this page and can return one of three states to
+  // the callback you provide.  They can be:
+  //
+  // 1. Logged into your app ('connected')
+  // 2. Logged into Facebook, but not your app ('not_authorized')
+  // 3. Not logged into Facebook and can't tell if they are logged into
+  //    your app or not.
+  //
+  // These three cases are handled in the callback function.
+
+  FB.getLoginStatus(function(response) {
+    statusChangeCallback(response);
+  });
+
+  };
+
+  // Load the SDK asynchronously
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/sdk.js";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+
+  // Here we run a very simple test of the Graph API after login is
+  // successful.  See statusChangeCallback() for when this call is made.
+  function testAPI() {
+    FB.api('/me', function(response) {
+      console.log('Successful login for: ' + response.name);
+      document.getElementById('status').innerHTML =
+        'Thanks for logging in, ' + response.name + '!';
+    });
+  }
+  function getViews(postId, accessToken) {
+    var endpoint = '/' + postId +'/insights/post_story_adds_unique';
+    FB.api(endpoint, {access_token: accessToken}, function(response) {
+      // console.log( response.data[0].values[0].value);
+    });
+  }
+  function testPagesAPI() {
+    var accessToken;
+    FB.api('/297440533921751', {fields: 'access_token'}, function(response) {
+      accessToken = response.access_token
+    });
+
+    FB.api('/297440533921751/posts', {access_token: accessToken}, function(response) {
+      var stage = $('#publishedContent');
+      stage.empty();
+      for (var i = 0; i < response.data.length; i++) {
+        if (response.data[i].message) {
+          
+          var message = response.data[i].message;
+          var postId = response.data[i].id;
+          var views = getViews(postId, accessToken);
+          // stage.append('<div>'+  message + ' ----- VIEWS: ' + views + '</div>');
+          stage.append('<div>'+  message + '</div>')
+          
+        }
+      }
+    });
+
+    FB.api('/297440533921751/promotable_posts', {access_token: accessToken, is_published: false}, function(response) {
+      var stage = $('#unpublishedContent');
+      for (var i = 0; i < response.data.length; i++) {
+        if (response.data[i].message) {
+          stage.append('<div>'+ response.data[i].message + '</div>');
+        }
+      }
+    });
+  }
+  function publish_form(){
+    var input_value = document.getElementById("publishForm").value;
+    var accessToken = 'EAADnA4P3q70BAKUFr2P8RYFNock8vqDMyayQZCofaxOcFuPxR7ZCnFsbd1RZA6MZB3keXMOrDZBq1NvIbjZC8ZAfZBrp3O9wSZBxHVKxgTHY3XDEtSgSj9S8pF0rFnwTQtUQXKlpwyegPRKqlzvZAO1IQp8LRX4ZB4oZCELZBRh4NHCEGXsqkCr4QIkDS'
+    FB.api('/297440533921751/feed', "POST", {access_token: accessToken, message: input_value}, function(response) {
+      console.log(response);
+      testPagesAPI();
+    });
+    
+ }
+
+ function unpublish_form(){
+    var input_value = document.getElementById("unpublishForm").value;
+    var accessToken = 'EAADnA4P3q70BAKUFr2P8RYFNock8vqDMyayQZCofaxOcFuPxR7ZCnFsbd1RZA6MZB3keXMOrDZBq1NvIbjZC8ZAfZBrp3O9wSZBxHVKxgTHY3XDEtSgSj9S8pF0rFnwTQtUQXKlpwyegPRKqlzvZAO1IQp8LRX4ZB4oZCELZBRh4NHCEGXsqkCr4QIkDS'
+    FB.api('/297440533921751/feed', "POST", {access_token: accessToken, message: input_value, published:false}, function(response) {
+      console.log(response);
+      testPagesAPI();
+    });
+    
+ }
+
+</script>
+<% include ../partials/nav.ejs %>
+<!--
+  Below we include the Login Button social plugin. This button uses
+  the JavaScript SDK to present a graphical Login button that triggers
+  the FB.login() function when clicked.
+-->
+<div class="jumbotron text-center">
+  <div class="container">
+  <h1>Facebook Page Management</h1>
+    <fb:login-button scope="public_profile,email,manage_pages,publish_pages,read_insights" onlogin="checkLoginState();">
+    </fb:login-button>
+    <div id="status">
+    </div>
+    <div id="feed-container">
+      <div id="feedWidget">
+        <div id="activeTab">
+          Published posts
+        </div>
+        <div class="line"></div>
+        <div id="publishedContent">
+        </div>
+      </div>
+      <div id="feedWidget">
+        <div id="activeTab">
+          Unpublished posts
+        </div>
+        <div class="line"></div>
+        <div id="unpublishedContent">
+        </div>
+      </div>
+    </div>
+    <form>
+Enter a post (to publish):<br> <input style="color:black" id="publishForm" type="text" value="" />
+<input style="color:black" type="button" value="Go" onclick="publish_form()" />
+</form>
+<form>
+Enter a post (unpublished):<br> <input style="color:black" id="unpublishForm" type="text" value="" />
+<input style="color:black" type="button" value="Go" onclick="unpublish_form()" />
+</form>
+<!-- </form>
+    <form action=>
+      Enter a post (to publish!):<br>
+      <input type="text" name="firstname"><br>
+      Enter a post (unpublished!):<br>
+      <input type="text" name="lastname">
+    </form> -->
+  </div>
+</div>
+
+
+
+</body>
+</html>

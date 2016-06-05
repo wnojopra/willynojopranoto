@@ -38,4 +38,81 @@
     border: 2px solid white; }
     .jumbotron .lang-logo img {
       max-width: 100%; }
+  #feedWidget {
+      display:inline-block;
+      background:url(bg.png) repeat-x #47525c;
+      border:2px solid #48535e;
+      margin:0 auto;
+      width:200px;
+      padding:5px;
 
+      /* Remains hidden if JS is not enabled: */
+      /*z-index:20;*/
+  }
+#feedcontainer {
+  text-align:center;
+    margin: auto;
+}
+#activeTab{
+  background: no-repeat 95% 50% #47525c;
+  border:1px solid #38434d;
+  /*cursor:pointer;*/
+  font-size:20px;
+  margin:0 2px 0 0;
+  padding:5px;
+}
+
+.line{
+  height:1px;
+  overflow:hidden;
+  background-color:#2b353d;
+  border-bottom:1px solid #687581;
+  margin:10px 0;
+}
+
+#publishedContent div{
+  background-color:#EEEEEE;
+  color:#555555;
+  font-size:10px;
+  margin-bottom:10px;
+  padding:5px;
+  position:relative;
+
+  -moz-border-radius:5px;
+  -webkit-border-radius:5px;
+  border-radius:5px;
+
+  /* CSS3 box shadow: */
+  -moz-box-shadow:0 1px 1px black;
+  -webkit-box-shadow:0 1px 1px black;
+  box-shadow:0 1px 1px black;
+}
+
+#view div{
+  background-color: orange;
+  color:orange;
+  /*-moz-box-shadow:;
+  -webkit-box-shadow:;
+  box-shadow:;*/
+
+}
+
+#unpublishedContent div{
+  /* The feed entry divs */
+
+  background-color:#EEEEEE;
+  color:#555555;
+  font-size:10px;
+  margin-bottom:10px;
+  padding:5px;
+  position:relative;
+
+  -moz-border-radius:5px;
+  -webkit-border-radius:5px;
+  border-radius:5px;
+
+  /* CSS3 box shadow: */
+  -moz-box-shadow:0 1px 1px black;
+  -webkit-box-shadow:0 1px 1px black;
+  box-shadow:0 1px 1px black;
+}
