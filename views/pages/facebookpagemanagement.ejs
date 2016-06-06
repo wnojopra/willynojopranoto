@@ -6,6 +6,9 @@
 </head>
 <body>
 <script>
+
+  var accessToken;
+
   // This is called with the results from from FB.getLoginStatus().
   function statusChangeCallback(response) {
     // The response object is returned with a status field that lets the
@@ -89,11 +92,15 @@
     });
   }
   function testPagesAPI() {
-    var accessToken;
     FB.api('/297440533921751', {fields: 'access_token'}, function(response) {
-      accessToken = response.access_token
+      accessToken = response.access_token;
+      refresh_post_listings();
     });
 
+
+  }
+
+  function refresh_post_listings(){
     FB.api('/297440533921751/posts', {access_token: accessToken}, function(response) {
       var stage = $('#publishedContent');
       stage.empty();
@@ -120,22 +127,21 @@
       }
     });
   }
+
   function publish_form(){
     var input_value = document.getElementById("publishForm").value;
-    var accessToken = 'EAADnA4P3q70BAKUFr2P8RYFNock8vqDMyayQZCofaxOcFuPxR7ZCnFsbd1RZA6MZB3keXMOrDZBq1NvIbjZC8ZAfZBrp3O9wSZBxHVKxgTHY3XDEtSgSj9S8pF0rFnwTQtUQXKlpwyegPRKqlzvZAO1IQp8LRX4ZB4oZCELZBRh4NHCEGXsqkCr4QIkDS'
     FB.api('/297440533921751/feed', "POST", {access_token: accessToken, message: input_value}, function(response) {
       console.log(response);
-      testPagesAPI();
+      refresh_post_listings();
     });
     
  }
 
  function unpublish_form(){
     var input_value = document.getElementById("unpublishForm").value;
-    var accessToken = 'EAADnA4P3q70BAKUFr2P8RYFNock8vqDMyayQZCofaxOcFuPxR7ZCnFsbd1RZA6MZB3keXMOrDZBq1NvIbjZC8ZAfZBrp3O9wSZBxHVKxgTHY3XDEtSgSj9S8pF0rFnwTQtUQXKlpwyegPRKqlzvZAO1IQp8LRX4ZB4oZCELZBRh4NHCEGXsqkCr4QIkDS'
     FB.api('/297440533921751/feed', "POST", {access_token: accessToken, message: input_value, published:false}, function(response) {
       console.log(response);
-      testPagesAPI();
+      refresh_post_listings();
     });
     
  }
