@@ -155,6 +155,21 @@
     
  }
 
+  $(document).ready(function(){
+    $('#publishForm').keypress(function(e){
+      if(e.keyCode==13)
+      $('#publishButton').click();
+    });
+  });
+
+  $(document).ready(function(){
+    $('#unpublishForm').keypress(function(e){
+      if(e.keyCode==13)
+      $('#unpublishButton').click();
+    });
+  });
+
+
 </script>
 <% include ../partials/nav.ejs %>
 <!--
@@ -181,7 +196,7 @@
         </div>
         <form>
           Enter a post (to publish):<br> <input style="color:black" id="publishForm" type="text" value="" />
-          <input style="color:black" type="button" value="Go" onclick="publish_form()" />
+          <input id="publishButton" style="color:black" type="button" value="Go" onclick="publish_form()" />
         </form>
       </div>
     </div>
@@ -195,7 +210,7 @@
         </div>
         <form>
           Enter a post (unpublished):<br> <input style="color:black" id="unpublishForm" type="text" value="" />
-          <input style="color:black" type="button" value="Go" onclick="unpublish_form()" />
+          <input id="unpublishButton" style="color:black" type="button" value="Go" onclick="unpublish_form()" />
         </form>
       </div>
     </div>
