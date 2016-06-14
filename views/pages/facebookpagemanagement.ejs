@@ -8,6 +8,8 @@
 <script>
 
   var accessToken;
+  //var pageId = 45987272557; // Maru
+  var pageId = 297440533921751; //Pointer
 
   // This is called with the results from from FB.getLoginStatus().
   function statusChangeCallback(response) {
@@ -86,9 +88,14 @@
     });
   }
   function getViews(postId, accessToken) {
-    var endpoint = '/' + postId +'/insights/post_story_adds_unique';
+    var endpoint = '/' + postId +'/insights/post_video_views';
     FB.api(endpoint, {access_token: accessToken}, function(response) {
-      // console.log( response.data[0].values[0].value);
+      for (var i = 0; i < response.data.length; i++) {
+        if (response.data[i].title == "Lifetime Total Video Views"){
+          divElement = document.getElementById(postId);
+          divElement.innerHTML = divElement.innerHTML + ' VIEWS: ' + response.data[i].values[0].value
+        }
+      }
     });
   }
   function testPagesAPI() {
@@ -101,7 +108,7 @@
   }
 
   function refresh_post_listings(){
-    FB.api('/297440533921751/posts', {access_token: accessToken}, function(response) {
+    FB.api('/' + pageId + '/posts', {access_token: accessToken}, function(response) {
       var stage = $('#publishedContent');
       stage.empty();
       for (var i = 0; i < response.data.length; i++) {
@@ -109,16 +116,19 @@
           
           var message = response.data[i].message;
           var postId = response.data[i].id;
+          stage.append('<div id=' + postId + '>'+ message + '</div>')
           var views = getViews(postId, accessToken);
+
           // stage.append('<div>'+  message + ' ----- VIEWS: ' + views + '</div>');
-          stage.append('<div>'+  message + '</div>')
+          
           
         }
       }
     });
 
-    FB.api('/297440533921751/promotable_posts', {access_token: accessToken, is_published: false}, function(response) {
+    FB.api('/' + pageId + '/promotable_posts', {access_token: accessToken, is_published: false}, function(response) {
       var stage = $('#unpublishedContent');
+      //var stage = document.getElementsByTagName('#unpublishedContent')
       stage.empty();
       for (var i = 0; i < response.data.length; i++) {
         if (response.data[i].message) {
@@ -139,7 +149,7 @@
 
  function unpublish_form(){
     var input_value = document.getElementById("unpublishForm").value;
-    FB.api('/297440533921751/feed', "POST", {access_token: accessToken, message: input_value, published:false}, function(response) {
+    FB.api('/' + pageId + '/feed', "POST", {access_token: accessToken, message: input_value, published:false}, function(response) {
       console.log(response);
       refresh_post_listings();
     });
@@ -156,11 +166,13 @@
 <div class="jumbotron text-center">
   <div class="container">
   <h1>Facebook Page Management</h1>
-    <fb:login-button scope="public_profile,email,manage_pages,publish_pages,read_insights" onlogin="checkLoginState();">
-    </fb:login-button>
-    <div id="status">
+    <div id="loginBox">
+      <fb:login-button scope="public_profile,email,manage_pages,publish_pages,read_insights" onlogin="checkLoginState();">
+      </fb:login-button>
+      <div id="status">
+      </div>
     </div>
-    <div id="feed-container">
+    <div class="feed-container">
       <div id="feedWidget">
         <div id="activeTab">
           Published posts
@@ -168,7 +180,13 @@
         <div class="line"></div>
         <div id="publishedContent">
         </div>
+        <form>
+Enter a post (to publish):<br> <input style="color:black" id="publishForm" type="text" value="" />
+<input style="color:black" type="button" value="Go" onclick="publish_form()" />
+</form>
       </div>
+    </div>
+    <div class="feed-container">
       <div id="feedWidget">
         <div id="activeTab">
           Unpublished posts
@@ -176,16 +194,15 @@
         <div class="line"></div>
         <div id="unpublishedContent">
         </div>
-      </div>
-    </div>
-    <form>
-Enter a post (to publish):<br> <input style="color:black" id="publishForm" type="text" value="" />
-<input style="color:black" type="button" value="Go" onclick="publish_form()" />
-</form>
-<form>
+        <form>
 Enter a post (unpublished):<br> <input style="color:black" id="unpublishForm" type="text" value="" />
 <input style="color:black" type="button" value="Go" onclick="unpublish_form()" />
 </form>
+      </div>
+
+    </div>
+    
+
 <!-- </form>
     <form action=>
       Enter a post (to publish!):<br>
