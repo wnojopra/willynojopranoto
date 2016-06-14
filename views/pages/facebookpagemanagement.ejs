@@ -21,8 +21,8 @@
     // for FB.getLoginStatus().
     if (response.status === 'connected') {
       // Logged into your app and Facebook.
-      testAPI();
-      testPagesAPI();
+      initFacebookLogin();
+      getPageAccessToken();
     } else if (response.status === 'not_authorized') {
       // The person is logged into Facebook, but not your app.
       document.getElementById('status').innerHTML = 'Please log ' +
@@ -82,7 +82,7 @@
 
   // Here we run a very simple test of the Graph API after login is
   // successful.  See statusChangeCallback() for when this call is made.
-  function testAPI() {
+  function initFacebookLogin() {
     FB.api('/me', function(response) {
       console.log('Successful login for: ' + response.name);
       document.getElementById('status').innerHTML =
@@ -101,9 +101,13 @@
       }
     });
   }
-  function testPagesAPI() {
-    FB.api('/297440533921751', {fields: 'access_token'}, function(response) {
+  function getPageAccessToken() {
+    FB.api('/' + pageId, {fields: 'access_token,name'}, function(response) {
       accessToken = response.access_token;
+      if (response.name) {
+        var divElement = document.getElementById('managing');
+        divElement.innerHTML = divElement.innerHTML + response.name;
+      }
       refresh_post_listings();
       refresh_unpublished_post_listings();
     });
@@ -150,7 +154,7 @@
 
   function publish_form(){
     var input_value = document.getElementById("publishForm").value;
-    FB.api('/297440533921751/feed', "POST", {access_token: accessToken, message: input_value}, function(response) {
+    FB.api('/' + pageId + '/feed', "POST", {access_token: accessToken, message: input_value}, function(response) {
       console.log(response);
       refresh_post_listings();
     });
@@ -239,6 +243,7 @@
 <div class="jumbotron text-center">
   <div class="container">
   <h1>Facebook Page Management</h1>
+  <p id="managing">Currently managing: </p>
     <div id="loginBox">
       <fb:login-button scope="public_profile,email,manage_pages,publish_pages,read_insights" onlogin="checkLoginState();">
       </fb:login-button>
