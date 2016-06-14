@@ -8,6 +8,8 @@
 <script>
 
   var accessToken;
+  var publishedNextToken;
+  var publishedPrevToken;
   //var pageId = 45987272557; // Maru
   var pageId = 297440533921751; //Pointer
 
@@ -103,6 +105,7 @@
     FB.api('/297440533921751', {fields: 'access_token'}, function(response) {
       accessToken = response.access_token;
       refresh_post_listings();
+      refresh_unpublished_post_listings();
     });
 
 
@@ -112,6 +115,12 @@
     FB.api('/' + pageId + '/posts', {access_token: accessToken}, function(response) {
       var stage = $('#publishedContent');
       stage.empty();
+      if (response.paging.next){
+        publishedNextToken = response.paging.next
+      }
+      if(response.paging.previous){
+          publishedPrevToken = response.paging.previous;
+      }
       for (var i = 0; i < response.data.length; i++) {
         if (response.data[i].message) {
           
@@ -124,7 +133,9 @@
         }
       }
     });
+  }
 
+  function refresh_unpublished_post_listings(){
     FB.api('/' + pageId + '/promotable_posts', {access_token: accessToken, is_published: false}, function(response) {
       var stage = $('#unpublishedContent');
       //var stage = document.getElementsByTagName('#unpublishedContent')
@@ -150,9 +161,57 @@
     var input_value = document.getElementById("unpublishForm").value;
     FB.api('/' + pageId + '/feed', "POST", {access_token: accessToken, message: input_value, published:false}, function(response) {
       console.log(response);
-      refresh_post_listings();
+      refresh_unpublished_post_listings();
     });
     
+ }
+
+ function page_published_posts(){
+    FB.api(publishedNextToken, {access_token: accessToken}, function(response) {
+      var stage = $('#publishedContent');
+      if (response.data[0]){
+        if (response.paging.next){
+          publishedNextToken = response.paging.next;
+        }
+        if(response.paging.previous){
+          publishedPrevToken = response.paging.previous;
+        }
+        stage.empty();
+        for (var i = 0; i < response.data.length; i++) {
+          if (response.data[i].message) {
+            
+            var message = response.data[i].message;
+            var postId = response.data[i].id;
+            stage.append('<div id=' + postId + '>'+ message + '</div>')
+            var views = getViews(postId, accessToken);
+          }
+        }
+      }
+    });
+ }
+
+ function page_back_published_posts(){
+  FB.api(publishedPrevToken, {access_token: accessToken}, function(response) {
+      var stage = $('#publishedContent');
+      if (response.data[0]){
+        stage.empty();
+        if (response.paging.next){
+          publishedNextToken = response.paging.next;
+        }
+        if(response.paging.previous){
+          publishedPrevToken = response.paging.previous;
+        }
+        for (var i = 0; i < response.data.length; i++) {
+          if (response.data[i].message) {
+            
+            var message = response.data[i].message;
+            var postId = response.data[i].id;
+            stage.append('<div id=' + postId + '>'+ message + '</div>')
+            var views = getViews(postId, accessToken);
+          }
+        }
+      }
+    });
  }
 
   $(document).ready(function(){
@@ -194,6 +253,8 @@
         <div class="line"></div>
         <div id="publishedContent">
         </div>
+        <input id="prevPostsButton" style="color:black" type="button" value="Previous" onclick="page_back_published_posts()" />
+        <input id="morePostsButton" style="color:black" type="button" value="Next" onclick="page_published_posts()" />
         <form>
           Enter a post (to publish):<br> <input style="color:black" id="publishForm" type="text" value="" />
           <input id="publishButton" style="color:black" type="button" value="Go" onclick="publish_form()" />
