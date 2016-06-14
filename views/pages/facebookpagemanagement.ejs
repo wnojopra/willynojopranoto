@@ -92,8 +92,9 @@
     FB.api(endpoint, {access_token: accessToken}, function(response) {
       for (var i = 0; i < response.data.length; i++) {
         if (response.data[i].title == "Lifetime Total Video Views"){
+          var viewCount = response.data[i].values[0].value;
           divElement = document.getElementById(postId);
-          divElement.innerHTML = divElement.innerHTML + ' VIEWS: ' + response.data[i].values[0].value
+          divElement.innerHTML = divElement.innerHTML + '<br><br>' + 'Views: ' + response.data[i].values[0].value;
         }
       }
     });
@@ -118,8 +119,6 @@
           var postId = response.data[i].id;
           stage.append('<div id=' + postId + '>'+ message + '</div>')
           var views = getViews(postId, accessToken);
-
-          // stage.append('<div>'+  message + ' ----- VIEWS: ' + views + '</div>');
           
           
         }
@@ -181,9 +180,9 @@
         <div id="publishedContent">
         </div>
         <form>
-Enter a post (to publish):<br> <input style="color:black" id="publishForm" type="text" value="" />
-<input style="color:black" type="button" value="Go" onclick="publish_form()" />
-</form>
+          Enter a post (to publish):<br> <input style="color:black" id="publishForm" type="text" value="" />
+          <input style="color:black" type="button" value="Go" onclick="publish_form()" />
+        </form>
       </div>
     </div>
     <div class="feed-container">
@@ -195,21 +194,11 @@ Enter a post (to publish):<br> <input style="color:black" id="publishForm" type=
         <div id="unpublishedContent">
         </div>
         <form>
-Enter a post (unpublished):<br> <input style="color:black" id="unpublishForm" type="text" value="" />
-<input style="color:black" type="button" value="Go" onclick="unpublish_form()" />
-</form>
+          Enter a post (unpublished):<br> <input style="color:black" id="unpublishForm" type="text" value="" />
+          <input style="color:black" type="button" value="Go" onclick="unpublish_form()" />
+        </form>
       </div>
-
     </div>
-    
-
-<!-- </form>
-    <form action=>
-      Enter a post (to publish!):<br>
-      <input type="text" name="firstname"><br>
-      Enter a post (unpublished!):<br>
-      <input type="text" name="lastname">
-    </form> -->
   </div>
 </div>
 
