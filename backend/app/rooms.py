@@ -27,8 +27,9 @@ log = logging.getLogger(__name__)
 MAX_PLAYERS = 10
 MIN_PLAYERS_TO_START = 2
 MAX_ROOMS = 20
-QUESTION_SECONDS = 4.0
+QUESTION_SECONDS = 12.0  # read the question + place your secret bet
 PULL_SECONDS = 20.0
+POT_PER_PLAYER = 50  # playtest knob: pot = POT_PER_PLAYER x players
 INPUT_STALE_SECONDS = 0.5
 TICK_HZ = 30
 PHONE_TICK_EVERY = 2  # phones get ticks at TICK_HZ / 2
@@ -108,18 +109,26 @@ class Player:
     connected: bool = True
     pull: tuple[float, float] = (0.0, 0.0)
     pull_at: float = 0.0
+    score: int = 0
+    # Secret bet for the current round (a spot id), and whether the spirits
+    # had to bet for them because they didn't.
+    bet: str | None = None
+    auto_bet: bool = False
     # Bot brain.
     bot_target: str | None = None
     bot_strength: float = 1.0
     bot_next_think: float = 0.0
 
-    def to_dict(self) -> dict:
+    def to_dict(self, phase: str) -> dict:
         return {
             "id": self.id,
             "name": self.name,
             "color": self.color,
             "isBot": self.is_bot,
             "connected": self.connected,
+            "score": self.score,
+            # Only *whether* someone bet is public before the reveal.
+            "hasBet": self.bet is not None if phase == "question" else None,
         }
 
 
@@ -142,6 +151,12 @@ class Room:
         self.planchette = physics.Planchette()
         self.phase_ends_at = 0.0
         self.result_spot_id: str | None = None
+        # Spirit Bets.
+        self.pot = 0
+        self.pot_bonus = 0  # the part of the pot that rolled over
+        self.carryover = 0  # rolled-over pot waiting for the next round
+        self.last_payout: dict[str, int] = {}
+        self.last_rolled_over = False
         self._used_questions: set[int] = set()
         self._player_subject_history: set[str] = set()
         self.tv_conns: set[Conn] = set()
@@ -221,8 +236,15 @@ class Room:
         self.spots = physics.layout_spots(labels)
         self.planchette.reset()
         self.result_spot_id = None
+        self.last_payout = {}
+        self.last_rolled_over = False
+        self.pot = POT_PER_PLAYER * len(self.players) + self.carryover
+        self.pot_bonus = self.carryover
+        self.carryover = 0
         for p in self.players.values():
             p.pull = (0.0, 0.0)
+            p.bet = None
+            p.auto_bet = False
             p.bot_target = None
             p.bot_next_think = 0.0
         self.round_no += 1
@@ -239,6 +261,25 @@ class Room:
         self.result_spot_id = None
         self.planchette.reset()
 
+    def reset_scores(self) -> None:
+        if self.phase != "lobby":
+            return
+        for p in self.players.values():
+            p.score = 0
+        self.carryover = 0
+        self.round_no = 0
+
+    def place_bet(self, player_id: str, spot_id: object) -> bool:
+        """Records (or changes) a secret bet. Only allowed before the pull."""
+        p = self.players.get(player_id)
+        if p is None or p.is_bot or self.phase != "question":
+            return False
+        if not isinstance(spot_id, str) or not any(s.id == spot_id for s in self.spots):
+            return False
+        p.bet = spot_id
+        p.auto_bet = False
+        return True
+
     def set_pull(self, player_id: str, dx: object, dy: object) -> None:
         p = self.players.get(player_id)
         if p is None or p.is_bot or self.phase != "pull":
@@ -250,6 +291,7 @@ class Room:
         """Advances the game by dt seconds. Returns True if phase changed."""
         now = self._clock()
         if self.phase == "question" and now >= self.phase_ends_at:
+            self._lock_bets()
             self.phase = "pull"
             self.phase_ends_at = now + PULL_SECONDS
             return True
@@ -285,7 +327,31 @@ class Room:
         self.planchette.fx = self.planchette.fy = 0.0
         self.planchette.hover_spot = spot_id
         self.planchette.hover_time = physics.LOCK_SECONDS
+        self._pay_out(spot_id)
         self.phase = "reveal"
+
+    def _lock_bets(self) -> None:
+        """Bets close when the pull starts. The spirits bet for stragglers."""
+        if not self.spots:
+            return
+        for p in self.players.values():
+            if p.bet is None:
+                p.bet = self._rng.choice(self.spots).id
+                p.auto_bet = not p.is_bot
+
+    def _pay_out(self, spot_id: str) -> None:
+        winners = [p for p in self.players.values() if p.bet == spot_id]
+        if not winners:
+            # "The spirits keep the candy": the pot rolls into the next round.
+            self.carryover = self.pot
+            self.last_rolled_over = True
+            self.last_payout = {}
+            return
+        share = self.pot // len(winners)
+        self.last_payout = {p.id: share for p in winners}
+        for p in winners:
+            p.score += share
+        self.last_rolled_over = False
 
     def _pick_question(self) -> Question:
         available = [i for i in range(len(DECK)) if i not in self._used_questions]
@@ -312,7 +378,11 @@ class Room:
             if not p.is_bot:
                 continue
             if p.bot_target is None or now >= p.bot_next_think:
-                p.bot_target = self._rng.choice(self.spots).id if self.spots else None
+                # Mostly fight for their own bet; sometimes wander off.
+                if p.bet and self._rng.random() < 0.75:
+                    p.bot_target = p.bet
+                else:
+                    p.bot_target = self._rng.choice(self.spots).id if self.spots else None
                 p.bot_strength = self._rng.uniform(0.5, 1.0)
                 p.bot_next_think = now + self._rng.uniform(2.0, 5.0)
             target = next((s for s in self.spots if s.id == p.bot_target), None)
@@ -344,7 +414,7 @@ class Room:
             "code": self.code,
             "phase": self.phase,
             "roundNo": self.round_no,
-            "players": [p.to_dict() for p in self.players.values()],
+            "players": [p.to_dict(self.phase) for p in self.players.values()],
             "question": (
                 {"kind": self.question.kind, "text": self.question_text}
                 if self.question
@@ -353,11 +423,23 @@ class Room:
             "spots": [s.to_dict() for s in self.spots],
             "phaseEndsIn": ends_in,
             "resultSpotId": self.result_spot_id,
+            "pot": self.pot,
+            "potBonus": self.pot_bonus,
+            "carryover": self.carryover,
+            "reveal": self._reveal_dict() if self.phase == "reveal" else None,
             "canStart": self.can_start,
             "minPlayers": MIN_PLAYERS_TO_START,
             "maxPlayers": MAX_PLAYERS,
             "board": {"w": physics.BOARD_W, "h": physics.BOARD_H},
             "planchette": self._planchette_dict(),
+        }
+
+    def _reveal_dict(self) -> dict:
+        return {
+            "bets": {p.id: p.bet for p in self.players.values() if p.bet},
+            "autoBets": [p.id for p in self.players.values() if p.auto_bet],
+            "payout": self.last_payout,
+            "rolledOver": self.last_rolled_over,
         }
 
     def tick_dict(self) -> dict:
@@ -388,6 +470,25 @@ class Room:
     async def broadcast_tick(self, include_phones: bool) -> None:
         phones = list(self.player_conns.values()) if include_phones else []
         await self._send_all(self.tick_dict(), list(self.tv_conns), phones)
+
+    def bet_msg(self, player: Player) -> dict:
+        """A player's own bet. Only ever sent to that player's phone."""
+        return {
+            "type": "bet_ok",
+            "spotId": player.bet,
+            "roundNo": self.round_no,
+            "auto": player.auto_bet,
+        }
+
+    async def send_auto_bets(self) -> None:
+        """Tells phones the spirits bet for them (bets are secret until reveal)."""
+        for pid, conn in list(self.player_conns.items()):
+            p = self.players.get(pid)
+            if p and p.auto_bet and p.bet:
+                try:
+                    await conn.send_json(self.bet_msg(p))
+                except Exception:
+                    log.debug("auto-bet send failed")
 
     @staticmethod
     async def _send_all(msg: dict, *groups: list[Conn]) -> None:
@@ -446,6 +547,8 @@ class RoomManager:
                 changed = room.tick(elapsed)
                 if changed:
                     await room.broadcast_state()
+                    if room.phase == "pull":
+                        await room.send_auto_bets()
                 if room.phase == "pull":
                     n += 1
                     await room.broadcast_tick(include_phones=n % PHONE_TICK_EVERY == 0)

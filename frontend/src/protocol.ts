@@ -8,6 +8,9 @@ export interface Player {
   color: string;
   isBot: boolean;
   connected: boolean;
+  score: number;
+  /** Whether they've placed a bet; only set during the question phase. */
+  hasBet: boolean | null;
 }
 
 export interface Spot {
@@ -27,6 +30,14 @@ export interface PlanchetteState {
   timeLeft: number | null;
 }
 
+/** Everyone's bets, published only once the board has spoken. */
+export interface Reveal {
+  bets: Record<string, string>;
+  autoBets: string[];
+  payout: Record<string, number>;
+  rolledOver: boolean;
+}
+
 export interface StateMsg {
   type: 'state';
   code: string;
@@ -37,6 +48,11 @@ export interface StateMsg {
   spots: Spot[];
   phaseEndsIn: number | null;
   resultSpotId: string | null;
+  pot: number;
+  /** How much of the pot is rollover from earlier rounds. */
+  potBonus: number;
+  carryover: number;
+  reveal: Reveal | null;
   canStart: boolean;
   minPlayers: number;
   maxPlayers: number;
@@ -53,4 +69,5 @@ export type ServerMsg =
   | TickMsg
   | { type: 'created'; code: string }
   | { type: 'joined'; playerId: string; code: string }
+  | { type: 'bet_ok'; spotId: string; roundNo: number; auto: boolean }
   | { type: 'error'; message: string };

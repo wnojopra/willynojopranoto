@@ -120,3 +120,105 @@ def test_normalize_code():
     assert rooms.normalize_code("ABCD") is None  # vowels never used
     assert rooms.normalize_code("BCD") is None
     assert rooms.normalize_code(None) is None
+
+
+# ---- Spirit Bets ------------------------------------------------------------
+
+
+def start_two(room, clock):
+    a = room.add_player("A")
+    b = room.add_player("B")
+    assert room.start_round()
+    return a, b
+
+
+def to_pull(room, clock):
+    clock.t += rooms.QUESTION_SECONDS
+    assert room.tick(1 / 30)
+    assert room.phase == "pull"
+
+
+def test_bets_only_valid_spots_and_only_during_question():
+    room, clock = make_room()
+    a, b = room.add_player("A"), room.add_player("B")
+    assert not room.place_bet(a.id, "yes")  # lobby
+    room.start_round()
+    spot = room.spots[0].id
+    assert not room.place_bet(a.id, "not-a-spot")
+    assert not room.place_bet(a.id, 123)
+    assert not room.place_bet("ghost", spot)
+    assert room.place_bet(a.id, spot)
+    assert room.place_bet(a.id, room.spots[1].id)  # can change mind
+    assert a.bet == room.spots[1].id
+    to_pull(room, clock)
+    assert not room.place_bet(a.id, spot)  # locked
+    assert a.bet == room.spots[1].id
+
+
+def test_bets_hidden_until_reveal():
+    room, clock = make_room()
+    a, b = start_two(room, clock)
+    room.place_bet(a.id, room.spots[0].id)
+    state = room.state_dict()
+    assert state["reveal"] is None
+    pa = next(p for p in state["players"] if p["id"] == a.id)
+    pb = next(p for p in state["players"] if p["id"] == b.id)
+    assert pa["hasBet"] is True and pb["hasBet"] is False
+    assert "bet" not in pa
+    to_pull(room, clock)
+    assert all(p["hasBet"] is None for p in room.state_dict()["players"])
+    assert room.state_dict()["reveal"] is None
+
+
+def test_spirits_bet_for_stragglers():
+    room, clock = make_room()
+    a, b = start_two(room, clock)
+    room.place_bet(a.id, room.spots[0].id)
+    to_pull(room, clock)
+    assert b.bet is not None and b.auto_bet
+    assert not a.auto_bet
+
+
+def test_pot_split_between_winners():
+    room, clock = make_room()
+    a, b = start_two(room, clock)
+    c = room.add_player("C")  # joins mid-round: not in this pot
+    assert room.pot == 2 * rooms.POT_PER_PLAYER
+    spot = room.spots[0].id
+    for p in (a, b):
+        room.place_bet(p.id, spot)
+    room.place_bet(c.id, room.spots[1].id)
+    to_pull(room, clock)
+    room._finish_round(spot)
+    share = room.pot // 2
+    assert a.score == b.score == share and c.score == 0
+    reveal = room.state_dict()["reveal"]
+    assert reveal["payout"] == {a.id: share, b.id: share}
+    assert reveal["bets"][c.id] == room.spots[1].id
+    assert reveal["rolledOver"] is False
+
+
+def test_no_winner_rolls_pot_over():
+    room, clock = make_room()
+    a, b = start_two(room, clock)
+    room.place_bet(a.id, room.spots[0].id)
+    room.place_bet(b.id, room.spots[0].id)
+    to_pull(room, clock)
+    room._finish_round(room.spots[1].id)
+    assert a.score == b.score == 0
+    assert room.carryover == 2 * rooms.POT_PER_PLAYER
+    assert room.state_dict()["reveal"]["rolledOver"] is True
+    room.start_round()
+    assert room.pot == 4 * rooms.POT_PER_PLAYER
+    assert room.carryover == 0
+
+
+def test_reset_scores_only_in_lobby():
+    room, clock = make_room()
+    a, b = start_two(room, clock)
+    a.score = 300
+    room.reset_scores()
+    assert a.score == 300
+    room.back_to_lobby()
+    room.reset_scores()
+    assert a.score == 0 and room.round_no == 0

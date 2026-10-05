@@ -52,6 +52,16 @@ def test_tv_creates_room_and_phone_joins():
                     if st["phase"] == "question":
                         break
                 assert st["question"]["text"]
+                assert st["pot"] == 100
+                spot = st["spots"][0]["id"]
+                phone.send_json({"type": "bet", "spotId": spot})
+                assert recv_until(phone, "bet_ok")["spotId"] == spot
+                for _ in range(20):
+                    st = recv_until(tv, "state")
+                    me = next(p for p in st["players"] if p["name"] == "Kevin")
+                    if me["hasBet"]:
+                        break
+                assert me["hasBet"] is True
 
 
 def test_phone_bad_code_gets_error():

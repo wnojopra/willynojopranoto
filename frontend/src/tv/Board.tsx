@@ -4,12 +4,20 @@ import type { PlanchetteState, Spot } from '../protocol';
 const S = 1000; // board units -> SVG units
 const SPOT_R = 0.085 * S;
 
+export interface Bettor {
+  id: string;
+  color: string;
+  auto: boolean;
+}
+
 interface BoardProps {
   board: { w: number; h: number };
   spots: Spot[];
   planchetteRef: RefObject<PlanchetteState | null>;
   resultSpotId: string | null;
   colorsBySpot: Record<string, string>;
+  /** Revealed bets, keyed by spot id. */
+  bettors?: Record<string, Bettor[]>;
 }
 
 /**
@@ -17,7 +25,7 @@ interface BoardProps {
  * and lock ring are animated imperatively at display refresh rate from the
  * latest server tick, so 30Hz network updates still look smooth.
  */
-export function Board({ board, spots, planchetteRef, resultSpotId, colorsBySpot }: BoardProps) {
+export function Board({ board, spots, planchetteRef, resultSpotId, colorsBySpot, bettors }: BoardProps) {
   const planchetteEl = useRef<SVGGElement>(null);
   const auraEl = useRef<SVGLineElement>(null);
   const ringEl = useRef<SVGCircleElement>(null);
@@ -156,6 +164,31 @@ export function Board({ board, spots, planchetteRef, resultSpotId, colorsBySpot 
         <path d="M-60,70 Q0,96 60,70" fill="none" stroke="#9c7a4f" strokeWidth="4" opacity="0.6" />
         <circle cx="0" cy="-86" r="7" fill="#7a5a35" />
       </g>
+
+      {/* Revealed bets sit above the planchette so the winning spot's are visible. */}
+      {bettors &&
+        spots.map((s) => (
+          <g key={s.id} transform={`translate(${s.x * S} ${s.y * S})`}>
+            {bettors[s.id]?.map((b, i, all) => {
+              // Fan the bettors' tokens along the bottom of the well.
+              const spread = Math.min(0.46, 2.4 / Math.max(1, all.length - 1));
+              const a = Math.PI / 2 + (i - (all.length - 1) / 2) * spread;
+              const r = SPOT_R + 28;
+              return (
+                <circle
+                  key={b.id}
+                  className="spot__bettor"
+                  data-auto={b.auto ? '' : undefined}
+                  cx={Math.cos(a) * r}
+                  cy={Math.sin(a) * r}
+                  r={24}
+                  fill={b.color}
+                  style={{ animationDelay: `${3500 + i * 120}ms` }}
+                />
+              );
+            })}
+          </g>
+        ))}
     </svg>
   );
 }

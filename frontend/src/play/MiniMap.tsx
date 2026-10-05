@@ -7,10 +7,12 @@ interface MiniMapProps {
   board: { w: number; h: number };
   spots: Spot[];
   planchetteRef: RefObject<PlanchetteState | null>;
+  /** This player's secret bet, ringed so they know where to drag. */
+  betSpotId?: string | null;
 }
 
 /** Small board on the phone so players don't have to stare at the TV. */
-export function MiniMap({ board, spots, planchetteRef }: MiniMapProps) {
+export function MiniMap({ board, spots, planchetteRef, betSpotId = null }: MiniMapProps) {
   const dot = useRef<SVGCircleElement>(null);
 
   useEffect(() => {
@@ -38,7 +40,12 @@ export function MiniMap({ board, spots, planchetteRef }: MiniMapProps) {
     <svg className="minimap" viewBox={`0 0 ${board.w * S} ${board.h * S}`} aria-hidden="true">
       <rect width={board.w * S} height={board.h * S} rx="60" className="minimap__bg" />
       {spots.map((s) => (
-        <g key={s.id} transform={`translate(${s.x * S} ${s.y * S})`}>
+        <g
+          key={s.id}
+          transform={`translate(${s.x * S} ${s.y * S})`}
+          className="minimap__spotg"
+          data-bet={s.id === betSpotId ? '' : undefined}
+        >
           <circle r="85" className="minimap__spot" />
           <text className="minimap__label" y="20">
             {s.label}
