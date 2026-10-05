@@ -18,6 +18,8 @@ interface BoardProps {
   colorsBySpot: Record<string, string>;
   /** Revealed bets, keyed by spot id. */
   bettors?: Record<string, Bettor[]>;
+  /** A spot to ring (the Medium's real answer), in the Medium's color. */
+  markSpot?: { id: string; color: string };
 }
 
 /**
@@ -25,7 +27,7 @@ interface BoardProps {
  * and lock ring are animated imperatively at display refresh rate from the
  * latest server tick, so 30Hz network updates still look smooth.
  */
-export function Board({ board, spots, planchetteRef, resultSpotId, colorsBySpot, bettors }: BoardProps) {
+export function Board({ board, spots, planchetteRef, resultSpotId, colorsBySpot, bettors, markSpot }: BoardProps) {
   const planchetteEl = useRef<SVGGElement>(null);
   const auraEl = useRef<SVGLineElement>(null);
   const ringEl = useRef<SVGCircleElement>(null);
@@ -166,6 +168,17 @@ export function Board({ board, spots, planchetteRef, resultSpotId, colorsBySpot,
       </g>
 
       {/* Revealed bets sit above the planchette so the winning spot's are visible. */}
+      {markSpot &&
+        spots
+          .filter((s) => s.id === markSpot.id)
+          .map((s) => (
+            <g key="mark" className="spot__mark" transform={`translate(${s.x * S} ${s.y * S})`}>
+              <circle r={SPOT_R + 34} fill="none" stroke={markSpot.color} strokeWidth={9} strokeDasharray="22 14" />
+              <text y={-SPOT_R - 46} className="spot__marklabel">
+                🔮
+              </text>
+            </g>
+          ))}
       {bettors &&
         spots.map((s) => (
           <g key={s.id} transform={`translate(${s.x * S} ${s.y * S})`}>

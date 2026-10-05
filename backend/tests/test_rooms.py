@@ -2,7 +2,7 @@ import random
 
 import pytest
 
-from app import rooms
+from app import game, rooms
 from app.rooms import JoinError, Room
 
 
@@ -105,14 +105,21 @@ def test_pulling_moves_planchette_to_a_name():
     assert room.result_spot_id == b.id
 
 
-def test_yesno_question_substitutes_player():
-    room, _ = make_room()
+def test_player_placeholder_always_substituted():
+    room, clock = make_room()
     room.add_player("Zed")
     room.add_bot()
-    for _ in range(len(rooms.DECK)):
-        room.phase = "lobby"
-        room.start_round()
+    room.add_bot()
+    room.set_length("long")
+    room.new_game()
+    for _ in range(len(rooms.DECK) + 5):
         assert "{player}" not in room.question_text
+        if room.question.kind == "pick":
+            assert [s.label for s in room.spots] == list(room.question.options)
+        play_round(room, clock)
+        room.start_round()
+        if room.phase == "results":
+            room.new_game()
 
 
 def test_normalize_code():
@@ -213,12 +220,170 @@ def test_no_winner_rolls_pot_over():
     assert room.carryover == 0
 
 
-def test_reset_scores_only_in_lobby():
+def test_new_game_resets_scores_and_stats():
     room, clock = make_room()
     a, b = start_two(room, clock)
-    a.score = 300
-    room.reset_scores()
-    assert a.score == 300
+    a.score, a.haunted, a.solo_wins = 300, 2, 1
     room.back_to_lobby()
-    room.reset_scores()
-    assert a.score == 0 and room.round_no == 0
+    assert room.game_active  # mid-game trip to the lobby keeps the game
+    assert a.score == 300
+    assert room.new_game()
+    assert (a.score, a.haunted, a.solo_wins) == (0, 0, 0)
+    assert room.game_round == 1
+
+
+# ---- Game structure ---------------------------------------------------------
+
+
+def play_round(room, clock, answer=None):
+    """Runs the current round to the reveal; lands on `answer` (or spot 0)."""
+    if room.phase == "medium":
+        medium = room.players[room.medium_id]
+        if medium.is_bot:
+            clock.t += 5
+            room.tick(1 / 30)
+        else:
+            room.medium_answers(medium.id, room.spots[0].id)
+    assert room.phase == "question"
+    clock.t += rooms.QUESTION_SECONDS
+    room.tick(1 / 30)
+    assert room.phase == "pull"
+    room._finish_round(answer or room.spots[0].id)
+    assert room.phase == "reveal"
+
+
+def test_plan_lengths_and_medium_slots():
+    assert game.make_plan("short") == ["bets", "bets", "medium", "bets", "medium", "bets", "final"]
+    std = game.make_plan("standard")
+    assert len(std) == 10 and std[2] == std[6] == "medium" and std[-1] == "final"
+    assert game.make_plan("long").count("medium") == 3
+    assert game.make_plan("bogus") == std
+
+
+def test_set_length_only_in_lobby_between_games():
+    room, clock = make_room()
+    room.add_player("A")
+    room.add_player("B")
+    room.set_length("short")
+    room.set_length("nonsense")
+    assert room.game_length == "short"
+    room.new_game()
+    room.set_length("long")
+    assert room.game_length == "short"
+
+
+def test_full_short_game_reaches_results_with_final_pot():
+    room, clock = make_room()
+    for n in ("A", "B", "C"):
+        room.add_player(n)
+    room.set_length("short")
+    assert room.new_game()
+    kinds = []
+    while True:
+        kinds.append(room.round_kind)
+        if room.round_kind == "final":
+            assert room.pot >= 3 * rooms.POT_PER_PLAYER * 3
+            assert room.question == rooms.FINAL_QUESTION
+        play_round(room, clock)
+        assert room.start_round()
+        if room.phase == "results":
+            break
+    assert kinds == game.make_plan("short")
+    state = room.state_dict()
+    assert state["awards"] and state["awards"][0]["key"] == "grand_medium"
+    assert not room.game_active
+    # Play again from the results screen.
+    assert room.new_game() and room.phase == "question" and room.game_round == 1
+
+
+def test_medium_round_hides_answer_and_scores():
+    room, clock = make_room()
+    a, b, c = (room.add_player(n) for n in ("A", "B", "C"))
+    room.plan = ["medium", "final"]
+    room.game_active = True
+    assert room.start_round()
+    assert room.phase == "medium"
+    medium = room.players[room.medium_id]
+    others = [p for p in (a, b, c) if p is not medium]
+    if room.question.kind == "who":
+        assert medium.id not in {s.id for s in room.spots}
+    # Only the Medium can answer, and only with a real spot.
+    assert not room.medium_answers(others[0].id, room.spots[0].id)
+    assert not room.medium_answers(medium.id, "nope")
+    assert room.medium_answers(medium.id, room.spots[1].id)
+    assert room.phase == "question"
+    state = room.state_dict()
+    assert state["medium"] == {"playerId": medium.id, "answered": True}
+    assert state["reveal"] is None  # the answer stays secret until the reveal
+    assert "mediumAnswer" not in str(state)
+    # The Medium can't bet or pull.
+    assert not room.place_bet(medium.id, room.spots[0].id)
+    room.place_bet(others[0].id, room.spots[1].id)  # right
+    room.place_bet(others[1].id, room.spots[0].id)  # wrong
+    clock.t += rooms.GUESS_SECONDS
+    room.tick(1 / 30)
+    room.set_pull(medium.id, 1, 0)
+    assert medium.pull == (0.0, 0.0)
+    room._finish_round(room.spots[1].id)  # board lands on the answer too
+    assert others[0].score == 200  # guess + board
+    assert others[1].score == 100  # board
+    assert medium.score == 150  # board + 1 correct guesser
+    reveal = room.state_dict()["reveal"]
+    assert reveal["mediumAnswer"] == room.spots[1].id
+    assert reveal["correct"] == [others[0].id] and reveal["boardMatched"]
+    assert medium.open_book == 1 and others[0].mind_reads == 1
+
+
+def test_medium_times_out_and_spirits_answer():
+    room, clock = make_room()
+    for n in ("A", "B", "C"):
+        room.add_player(n)
+    room.plan = ["medium", "final"]
+    room.game_active = True
+    room.start_round()
+    clock.t += rooms.MEDIUM_ANSWER_SECONDS
+    assert room.tick(1 / 30)
+    assert room.phase == "question" and room.medium_auto and room.medium_answer
+
+
+def test_medium_falls_back_to_bets_with_two_players():
+    room, clock = make_room()
+    room.add_player("A")
+    room.add_player("B")
+    room.plan = ["medium", "final"]
+    room.game_active = True
+    room.start_round()
+    assert room.round_kind == "bets" and room.medium_id is None
+
+
+def test_everyone_bet_shortens_timer():
+    room, clock = make_room()
+    a, b = start_two(room, clock)
+    room.place_bet(a.id, room.spots[0].id)
+    room.place_bet(b.id, room.spots[0].id)
+    assert room.phase_ends_at - clock.t <= rooms.ALL_IN_SECONDS
+
+
+def test_haunted_marks_and_awards():
+    room, clock = make_room()
+    a, b = start_two(room, clock)
+    room.place_bet(a.id, b.id)
+    room.place_bet(b.id, a.id)
+    to_pull(room, clock)
+    room._finish_round(b.id)
+    assert b.haunted == 1 and a.solo_wins == 1
+    awards = {aw["key"]: aw for aw in game.compute_awards(room.players.values())}
+    assert awards["most_haunted"]["playerIds"] == [b.id]
+    assert awards["lone_wolf"]["playerIds"] == [a.id]
+    assert awards["grand_medium"]["playerIds"] == [a.id]
+    assert "mind_reader" not in awards  # nobody scored it
+
+
+def test_abandoned_round_is_replayed():
+    room, clock = make_room()
+    start_two(room, clock)
+    assert room.game_round == 1
+    room.back_to_lobby()
+    assert room.game_round == 0
+    room.start_round()
+    assert room.game_round == 1

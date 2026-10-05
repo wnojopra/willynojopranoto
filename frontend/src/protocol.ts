@@ -1,6 +1,8 @@
 // Wire protocol shared with backend/app/rooms.py and backend/app/main.py.
 
-export type Phase = 'lobby' | 'question' | 'pull' | 'reveal';
+export type Phase = 'lobby' | 'medium' | 'question' | 'pull' | 'reveal' | 'results';
+export type RoundKind = 'bets' | 'medium' | 'final';
+export type GameLength = 'short' | 'standard' | 'long';
 
 export interface Player {
   id: string;
@@ -9,6 +11,7 @@ export interface Player {
   isBot: boolean;
   connected: boolean;
   score: number;
+  haunted: number;
   /** Whether they've placed a bet; only set during the question phase. */
   hasBet: boolean | null;
 }
@@ -36,6 +39,30 @@ export interface Reveal {
   autoBets: string[];
   payout: Record<string, number>;
   rolledOver: boolean;
+  // Medium rounds only.
+  mediumAnswer?: string;
+  mediumAuto?: boolean;
+  correct?: string[];
+  boardMatched?: boolean;
+}
+
+export interface GameInfo {
+  length: GameLength;
+  lengths: Record<GameLength, number>;
+  active: boolean;
+  round: number;
+  totalRounds: number;
+  roundKind: RoundKind | null;
+  isLastRound: boolean;
+}
+
+export interface Award {
+  key: string;
+  emoji: string;
+  title: string;
+  blurb: string;
+  playerIds: string[];
+  value: number;
 }
 
 export interface StateMsg {
@@ -44,7 +71,7 @@ export interface StateMsg {
   phase: Phase;
   roundNo: number;
   players: Player[];
-  question: { kind: 'who' | 'yesno'; text: string } | null;
+  question: { kind: 'who' | 'yesno' | 'pick'; text: string } | null;
   spots: Spot[];
   phaseEndsIn: number | null;
   resultSpotId: string | null;
@@ -53,6 +80,9 @@ export interface StateMsg {
   potBonus: number;
   carryover: number;
   reveal: Reveal | null;
+  game: GameInfo;
+  medium: { playerId: string; answered: boolean } | null;
+  awards: Award[] | null;
   canStart: boolean;
   minPlayers: number;
   maxPlayers: number;
@@ -64,10 +94,17 @@ export interface TickMsg extends PlanchetteState {
   type: 'tick';
 }
 
+export interface PrivatePick {
+  spotId: string;
+  roundNo: number;
+  auto: boolean;
+}
+
 export type ServerMsg =
   | StateMsg
   | TickMsg
   | { type: 'created'; code: string }
   | { type: 'joined'; playerId: string; code: string }
-  | { type: 'bet_ok'; spotId: string; roundNo: number; auto: boolean }
+  | ({ type: 'bet_ok' } & PrivatePick)
+  | ({ type: 'answer_ok' } & PrivatePick)
   | { type: 'error'; message: string };

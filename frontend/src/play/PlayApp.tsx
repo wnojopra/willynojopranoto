@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import type { PlanchetteState, ServerMsg, StateMsg } from '../protocol';
+import type { PlanchetteState, Player, PrivatePick, ServerMsg, StateMsg } from '../protocol';
 import { useGameSocket } from '../useGameSocket';
 import { MiniMap } from './MiniMap';
 import { Touchpad } from './Touchpad';
@@ -23,7 +23,9 @@ export function PlayApp() {
   const [me, setMe] = useState<string | null>(null);
   const [state, setState] = useState<StateMsg | null>(null);
   // Our own secret bet. Only this phone (and the server) knows it before the reveal.
-  const [myBet, setMyBet] = useState<{ spotId: string; roundNo: number; auto: boolean } | null>(null);
+  const [myBet, setMyBet] = useState<PrivatePick | null>(null);
+  // Our secret answer, when we're the Medium.
+  const [myAnswer, setMyAnswer] = useState<PrivatePick | null>(null);
   const planchetteRef = useRef<PlanchetteState | null>(null);
 
   const onMessage = useCallback((msg: ServerMsg) => {
@@ -35,6 +37,9 @@ export function PlayApp() {
         break;
       case 'bet_ok':
         setMyBet({ spotId: msg.spotId, roundNo: msg.roundNo, auto: msg.auto });
+        break;
+      case 'answer_ok':
+        setMyAnswer({ spotId: msg.spotId, roundNo: msg.roundNo, auto: msg.auto });
         break;
       case 'state':
         setState(msg);
@@ -139,14 +144,30 @@ export function PlayApp() {
   const self = state.players.find((p) => p.id === me);
   const result = state.spots.find((s) => s.id === state.resultSpotId);
   const liveBet = myBet && myBet.roundNo === state.roundNo ? myBet : null;
+  const liveAnswer = myAnswer && myAnswer.roundNo === state.roundNo ? myAnswer : null;
   const betSpot = state.spots.find((s) => s.id === (state.reveal?.bets[me] ?? liveBet?.spotId));
   const betLabel = (id: string | undefined) => (id === me ? 'Yourself' : state.spots.find((s) => s.id === id)?.label);
+  const kind = state.game.roundKind ?? 'bets';
+  const medium = state.players.find((p) => p.id === state.medium?.playerId);
+  const iAmMedium = medium?.id === me;
 
   const placeBet = (spotId: string) => {
     setMyBet({ spotId, roundNo: state.roundNo, auto: false });
     send({ type: 'bet', spotId });
     vibrate(15);
   };
+  const answer = (spotId: string) => {
+    setMyAnswer({ spotId, roundNo: state.roundNo, auto: false });
+    send({ type: 'answer', spotId });
+    vibrate(15);
+  };
+
+  const roundTag =
+    state.game.roundKind === 'final'
+      ? '🕯️ Final Séance'
+      : state.game.roundKind
+        ? `${kind === 'medium' ? '🔮 ' : ''}Round ${state.game.round}/${state.game.totalRounds - 1}`
+        : null;
 
   return (
     <main className="phone" data-phase={state.phase}>
@@ -158,6 +179,7 @@ export function PlayApp() {
         </span>
         <span className="phone__code">{state.code}</span>
       </header>
+      {roundTag && <p className="phone__round">{roundTag}</p>}
 
       {state.phase === 'lobby' && (
         <section className="phone__panel phone--center">
@@ -167,43 +189,78 @@ export function PlayApp() {
         </section>
       )}
 
-      {state.phase === 'question' && (
-        <section className="phone__panel phone__bet">
-          <p className="phone__question">{state.question?.text}</p>
-          <p className="phone__pot">
-            Pot <strong>🍬 {state.pot}</strong>
-          </p>
-          <p className="phone__sub">Secretly bet on where the board will land.</p>
-          <div className="betgrid" role="group" aria-label="Your bet">
-            {state.spots.map((s) => (
-              <button
-                key={s.id}
-                id={`bet-${s.id}`}
-                className="betgrid__btn"
-                aria-pressed={liveBet?.spotId === s.id}
-                onClick={() => placeBet(s.id)}
-              >
-                {s.id === me ? `${s.label} (you)` : s.label}
-              </button>
-            ))}
-          </div>
-          <p className="phone__sub phone__betnote" aria-live="polite">
-            {liveBet ? 'Locked in… until you change your mind.' : 'No bet? The spirits will pick for you.'}
-          </p>
-        </section>
-      )}
+      {state.phase === 'medium' &&
+        (iAmMedium ? (
+          <section className="phone__panel phone__bet">
+            <p className="phone__medium">🔮 You are the Medium</p>
+            <p className="phone__question">{state.question?.text}</p>
+            <p className="phone__sub">Answer honestly. Everyone else will try to guess it.</p>
+            <SpotButtons state={state} me={me} selected={liveAnswer?.spotId} onPick={answer} label="Your answer" />
+          </section>
+        ) : (
+          <section className="phone__panel phone--center">
+            <p className="phone__big phone__summoning">
+              🔮 {medium?.name ?? 'The Medium'} is consulting the spirits…
+            </p>
+            <p className="phone__question phone__question--small">{state.question?.text}</p>
+            <p className="phone__sub">Get ready to guess what they pick.</p>
+          </section>
+        ))}
+
+      {state.phase === 'question' &&
+        (iAmMedium ? (
+          <section className="phone__panel phone--center">
+            <p className="phone__medium">🔮 You answered</p>
+            <p className="phone__answer">{betLabel(liveAnswer?.spotId) ?? '…'}</p>
+            <p className="phone__sub">
+              {liveAnswer?.auto ? 'You froze, so the spirits answered for you. ' : ''}Now they’re guessing. Keep a straight face.
+            </p>
+          </section>
+        ) : (
+          <section className="phone__panel phone__bet">
+            <p className="phone__question">{state.question?.text}</p>
+            {medium ? (
+              <p className="phone__pot">
+                What did <strong style={{ color: medium.color }}>{medium.name}</strong> answer?
+              </p>
+            ) : (
+              <p className="phone__pot">
+                Pot <strong>🍬 {state.pot}</strong>
+              </p>
+            )}
+            <p className="phone__sub">
+              {medium ? 'Guess right for +100. Then pull the board there for +100 more.' : 'Secretly bet on where the board will land.'}
+            </p>
+            <SpotButtons state={state} me={me} selected={liveBet?.spotId} onPick={placeBet} label={medium ? 'Your guess' : 'Your bet'} />
+            <p className="phone__sub phone__betnote" aria-live="polite">
+              {liveBet ? 'Locked in… until you change your mind.' : 'No pick? The spirits will pick for you.'}
+            </p>
+          </section>
+        ))}
 
       {state.phase === 'pull' && (
         <section className="phone__pull">
           <p className="phone__question phone__question--small">{state.question?.text}</p>
-          <p className="phone__betchip" data-auto={liveBet?.auto ? '' : undefined}>
-            {liveBet
-              ? `${liveBet.auto ? 'The spirits bet for you' : 'Your bet'}: ${betLabel(liveBet.spotId) ?? '?'}`
-              : 'Pull for what you believe.'}
-            <span className="phone__betpot">🍬 {state.pot}</span>
-          </p>
-          <MiniMap board={state.board} spots={state.spots} planchetteRef={planchetteRef} betSpotId={liveBet?.spotId ?? null} />
-          <Touchpad onPull={(dx, dy) => send({ type: 'pull', dx, dy })} color={self?.color ?? '#e8a33d'} />
+          {iAmMedium ? (
+            <>
+              <p className="phone__betchip">
+                Your answer: {betLabel(liveAnswer?.spotId) ?? '?'}
+              </p>
+              <MiniMap board={state.board} spots={state.spots} planchetteRef={planchetteRef} betSpotId={liveAnswer?.spotId ?? null} />
+              <p className="phone__big phone--center phone__watch">Hands off. You can’t touch the planchette. Just watch.</p>
+            </>
+          ) : (
+            <>
+              <p className="phone__betchip" data-auto={liveBet?.auto ? '' : undefined}>
+                {liveBet
+                  ? `${liveBet.auto ? 'The spirits picked for you' : medium ? 'Your guess' : 'Your bet'}: ${betLabel(liveBet.spotId) ?? '?'}`
+                  : 'Pull for what you believe.'}
+                {!medium && <span className="phone__betpot">🍬 {state.pot}</span>}
+              </p>
+              <MiniMap board={state.board} spots={state.spots} planchetteRef={planchetteRef} betSpotId={liveBet?.spotId ?? null} />
+              <Touchpad onPull={(dx, dy) => send({ type: 'pull', dx, dy })} color={self?.color ?? '#e8a33d'} />
+            </>
+          )}
         </section>
       )}
 
@@ -211,11 +268,88 @@ export function PlayApp() {
         <section className="phone__panel phone--center">
           <p className="phone__sub">The spirits have spoken…</p>
           <p className="phone__answer">{result.id === me ? 'YOU' : result.label}</p>
-          {result.id === me && <p className="phone__sub">The board has chosen you. Sorry.</p>}
-          <RevealOutcome state={state} me={me} betLabel={betLabel(betSpot?.id)} />
+          {result.id === me && <p className="phone__sub">The board has chosen you. 💀 Haunted.</p>}
+          {kind === 'medium' && medium ? (
+            <MediumOutcome state={state} me={me} medium={medium} />
+          ) : (
+            <RevealOutcome state={state} me={me} betLabel={betLabel(betSpot?.id)} />
+          )}
         </section>
       )}
+
+      {state.phase === 'results' && <PhoneResults state={state} me={me} />}
     </main>
+  );
+}
+
+function SpotButtons({
+  state,
+  me,
+  selected,
+  onPick,
+  label,
+}: {
+  state: StateMsg;
+  me: string;
+  selected: string | undefined;
+  onPick: (spotId: string) => void;
+  label: string;
+}) {
+  return (
+    <div className="betgrid" role="group" aria-label={label}>
+      {state.spots.map((s) => (
+        <button key={s.id} id={`bet-${s.id}`} className="betgrid__btn" aria-pressed={selected === s.id} onClick={() => onPick(s.id)}>
+          {s.id === me ? `${s.label} (you)` : s.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MediumOutcome({ state, me, medium }: { state: StateMsg; me: string; medium: Player }) {
+  const reveal = state.reveal;
+  if (!reveal) return null;
+  const answer = state.spots.find((s) => s.id === reveal.mediumAnswer)?.label ?? '?';
+  const won = reveal.payout[me] ?? 0;
+  const iAmMedium = medium.id === me;
+  const correct = reveal.correct?.includes(me);
+  return (
+    <div className="outcome" data-won={won ? '' : undefined}>
+      <p className="outcome__miss">
+        {iAmMedium ? 'You' : medium.name} answered <strong>{answer}</strong>.
+      </p>
+      {won > 0 && <p className="outcome__big">+🍬 {won}</p>}
+      <p className="phone__sub">
+        {iAmMedium
+          ? `${reveal.correct?.length ?? 0} read your mind.${reveal.boardMatched ? ' The board agreed!' : ''} Now explain yourself.`
+          : `${correct ? 'You read their mind!' : 'Wrong guess.'}${reveal.boardMatched ? ' The board agreed: +100 for everyone.' : ''}`}
+      </p>
+    </div>
+  );
+}
+
+function PhoneResults({ state, me }: { state: StateMsg; me: string }) {
+  const ranked = [...state.players].sort((a, b) => b.score - a.score);
+  const rank = ranked.findIndex((p) => p.id === me) + 1;
+  const mine = (state.awards ?? []).filter((a) => a.playerIds.includes(me));
+  return (
+    <section className="phone__panel phone--center">
+      <p className="phone__sub">The séance is over</p>
+      <p className="phone__answer">#{rank}</p>
+      <p className="phone__big">of {ranked.length} spirits</p>
+      {mine.length > 0 ? (
+        <ul className="phone__awards">
+          {mine.map((a) => (
+            <li key={a.key}>
+              <span aria-hidden="true">{a.emoji}</span> {a.title}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="phone__sub">No awards. The spirits barely noticed you.</p>
+      )}
+      {mine.some((a) => a.key === 'most_haunted') && <p className="phone__curse">💀 The Final Curse is yours.</p>}
+    </section>
   );
 }
 

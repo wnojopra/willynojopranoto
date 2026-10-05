@@ -170,8 +170,10 @@ async def tv_socket(ws: WebSocket) -> None:
                 room.remove_bot()
             elif kind == "back_to_lobby":
                 room.back_to_lobby()
-            elif kind == "reset_scores":
-                room.reset_scores()
+            elif kind == "new_game":
+                room.new_game()
+            elif kind == "set_length":
+                room.set_length(msg.get("length"))
             elif kind == "kick":
                 pid = msg.get("playerId")
                 if isinstance(pid, str):
@@ -228,6 +230,8 @@ async def play_socket(ws: WebSocket) -> None:
         if player.bet is not None and room.phase != "lobby":
             # Rejoined mid-round: remind this phone (only) of its secret bet.
             await ws.send_json(room.bet_msg(player))
+        if player.id == room.medium_id and room.medium_answer is not None:
+            await ws.send_json(room.answer_msg())
         await room.broadcast_state()
 
         while True:
@@ -239,6 +243,10 @@ async def play_socket(ws: WebSocket) -> None:
             elif msg["type"] == "bet":
                 if room.place_bet(player.id, msg.get("spotId")):
                     await ws.send_json(room.bet_msg(player))
+                    await room.broadcast_state()
+            elif msg["type"] == "answer":
+                if room.medium_answers(player.id, msg.get("spotId")):
+                    await ws.send_json(room.answer_msg())
                     await room.broadcast_state()
     except (WebSocketDisconnect, ClientGone, asyncio.TimeoutError):
         pass

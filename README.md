@@ -5,18 +5,20 @@ drags the planchette together from their phones.
 
 Design doc: [`docs/design.md`](docs/design.md)
 
-## Status: pull prototype
+## Status: playable game (no Relics yet)
 
-This milestone covers the core feel:
-
-- TV creates a room and shows a 4-letter code
+- TV creates a room with a 4-letter code and a **join QR** (scanning it pre-fills the code)
 - Phones join with the code and a name (up to 10 players)
 - **Bots** can be added from the TV for solo testing
-- Each round: question → 20s pull → planchette locks in after resting on an
-  answer for 2s (or times out) → reveal
-- "Who in this room" boards (every player is a spot) and Yes/No boards
+- **Game length**: Short (6), Standard (9), or Long (12) rounds, then the **Final Séance** (3× pot)
+- **Spirit Bets** rounds: secret bet → 20s pull → the planchette locks in →
+  the pot (50 × players) is split among correct bettors, with rollover if nobody wins
+- **Medium** rounds: one player answers privately, the others guess (+100) and
+  pull; +100 to everyone if the board agrees; then "explain yourself"
+- **Haunted** marks when the board lands on you; most marks gets the Final Curse
+- **Results**: standings + awards (Grand Medium, Most Haunted, Lone Wolf, …), play again
 
-Not yet: bets, payouts, Medium rounds, Relics, curses, audio.
+Not yet: curse cards, Relics, hunt QR claiming, audio.
 
 ## Layout
 
@@ -24,6 +26,8 @@ Not yet: bets, payouts, Medium rounds, Relics, curses, audio.
 backend/    Python 3.12+ / FastAPI. Authoritative game loop at 30Hz.
   app/physics.py   planchette physics + lock-in (tuning knobs at the top)
   app/rooms.py     room state machine, bots, broadcasting
+  app/game.py      game plan (lengths, Medium slots) + end-of-game awards
+  app/questions.py question decks (Spirit Bets, Medium, Final)
   app/main.py      WebSocket endpoints (/ws/tv, /ws/play), security headers
 frontend/   React + TypeScript + Vite
   src/tv/          TV screens (lobby, board, reveal)
