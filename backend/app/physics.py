@@ -121,10 +121,14 @@ def layout_spots(labels: list[tuple[str, str]]) -> list[Spot]:
     return spots
 
 
-def nearest_spot(p: Planchette, spots: list[Spot]) -> tuple[Spot | None, float]:
+def nearest_spot(
+    p: Planchette, spots: list[Spot], blocked: frozenset[str] | set[str] = frozenset()
+) -> tuple[Spot | None, float]:
     best: Spot | None = None
     best_d = math.inf
     for s in spots:
+        if s.id in blocked:
+            continue
         d = math.hypot(s.x - p.x, s.y - p.y)
         if d < best_d:
             best, best_d = s, d
@@ -136,8 +140,12 @@ def step(
     force: tuple[float, float],
     dt: float,
     spots: list[Spot],
+    blocked: frozenset[str] | set[str] = frozenset(),
 ) -> str | None:
     """Advances the planchette by dt seconds.
+
+    Args:
+      blocked: spot ids the planchette can't rest on (Salt Circle).
 
     Returns:
       The id of the spot the planchette locked onto, or None if it hasn't
@@ -166,7 +174,7 @@ def step(
     elif p.y > BOARD_H - EDGE_MARGIN:
         p.y, p.vy = BOARD_H - EDGE_MARGIN, min(0.0, p.vy)
 
-    spot, dist = nearest_spot(p, spots)
+    spot, dist = nearest_spot(p, spots, blocked)
     if spot is not None and dist <= SPOT_RADIUS:
         if spot.id == p.hover_spot:
             p.hover_time += dt

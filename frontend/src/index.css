@@ -828,6 +828,13 @@
     stroke-opacity: 1;
     stroke-width: 14;
   }
+  .minimap__spotg[data-salted] :is(.minimap__spot, .minimap__label) {
+    opacity: 0.35;
+  }
+  .minimap__icon {
+    font-size: 80px;
+    text-anchor: middle;
+  }
 
   .phone__score {
     color: var(--candle-hot);
@@ -1340,6 +1347,329 @@
     color: hsl(355 90% 85%);
     font-weight: 700;
   }
+
+  /* --- Relics: TV --- */
+  .seance__board {
+    container-type: size;
+  }
+  .relicfeed {
+    position: absolute;
+    z-index: 3;
+    display: grid;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    pointer-events: none;
+  }
+  .relicfeed--center {
+    inset-block-start: 0.5rem;
+    inset-inline: 0;
+    justify-items: center;
+  }
+  .relicfeed--side {
+    /* The gutter beside the 1.6:1 board (it's letterboxed inside .seance__board). */
+    --gutter: calc((100cqw - 100cqh * 1.6) / 2);
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: max(15rem, var(--gutter) - 1rem);
+    justify-items: stretch;
+
+    & .reliccard {
+      inline-size: auto;
+      padding: 0.7rem 0.9rem;
+      text-align: start;
+    }
+    & .reliccard__head {
+      font-size: clamp(1rem, 1.5vw, 1.45rem);
+    }
+    & .reliccard__blurb {
+      font-size: clamp(0.85rem, 1.1vw, 1.05rem);
+    }
+  }
+  .reliccard {
+    --tier: var(--brass);
+    display: grid;
+    gap: 0.15rem;
+    inline-size: fit-content;
+    max-inline-size: min(92%, 52rem);
+    padding: 0.7rem 1.4rem;
+    border-radius: 20px;
+    background: radial-gradient(140% 120% at 50% 0%, hsl(30 40% 15% / 0.96), hsl(24 40% 6% / 0.96));
+    box-shadow:
+      var(--shadow-deep),
+      inset 0 0 0 1px color-mix(in oklab, var(--tier) 70%, transparent),
+      0 0 50px -12px var(--tier);
+    text-align: center;
+    animation:
+      slam 550ms cubic-bezier(0.2, 1.4, 0.4, 1) both,
+      recede 600ms 3.9s ease forwards;
+
+    &[data-tier='rare'] {
+      --tier: hsl(200 45% 62%);
+    }
+    &[data-tier='cursed'] {
+      --tier: var(--blood);
+    }
+  }
+  .reliccard--whisper {
+    --tier: hsl(170 25% 70%);
+    background: radial-gradient(140% 120% at 50% 0%, hsl(170 12% 16% / 0.96), hsl(200 15% 6% / 0.96));
+    animation:
+      fade-in 900ms ease both,
+      recede 800ms 6.2s ease forwards;
+  }
+  .reliccard__head {
+    font-size: clamp(1.1rem, 2vw, 1.9rem);
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+  .reliccard__emoji {
+    font-size: 1.3em;
+  }
+  .reliccard__name {
+    color: var(--tier);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .reliccard__blurb {
+    color: var(--bone-dim);
+    font-size: clamp(0.9rem, 1.3vw, 1.2rem);
+    font-style: italic;
+  }
+  .reliccard__whisper {
+    max-inline-size: 32ch;
+    color: var(--bone);
+    font-size: clamp(1.6rem, 3.2vw, 3rem);
+    font-style: italic;
+    line-height: 1.2;
+    text-wrap: balance;
+    text-shadow: 0 0 24px hsl(170 40% 70% / 0.45);
+    overflow-wrap: anywhere;
+  }
+  .seance[data-scare] .seance__board {
+    animation: scare 700ms cubic-bezier(0.3, 0, 0.3, 1) both;
+  }
+  .seance[data-scare] .seance__board::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 48px;
+    background: hsl(40 100% 96%);
+    pointer-events: none;
+    animation: flash 500ms ease-out forwards;
+  }
+  .spot[data-salted] :is(.spot__well, .spot__label, .spot__pip) {
+    opacity: 0.35;
+  }
+  .spot__salt circle {
+    fill: none;
+    stroke: hsl(40 30% 92%);
+    stroke-width: 10;
+    stroke-dasharray: 3 14;
+    stroke-linecap: round;
+  }
+  .spot__magnet circle {
+    fill: none;
+    stroke: var(--blood);
+    stroke-width: 5;
+    stroke-opacity: 0.8;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: magnet 1.4s ease-in-out infinite;
+  }
+  .spot__relicicon {
+    font-size: 44px;
+    text-anchor: middle;
+  }
+  .spot__salt,
+  .spot__magnet {
+    animation: pop 380ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .effects {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.4rem 1.5rem;
+    font-size: clamp(1rem, 1.5vw, 1.4rem);
+  }
+  .effects__item {
+    animation: fade-in 300ms ease both;
+  }
+
+  /* --- Relics: phone --- */
+  .relics {
+    display: grid;
+    gap: 0.4rem;
+    margin-block-start: auto;
+  }
+  .relics__row {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-block: 0.25rem;
+    scrollbar-width: none;
+  }
+  .relic {
+    --tier: var(--brass);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: 'emoji name count' 'emoji why why';
+    align-items: center;
+    column-gap: 0.45rem;
+    flex: 0 0 auto;
+    min-block-size: 52px;
+    padding: 0.35rem 0.8rem 0.35rem 0.6rem;
+    border: 1px solid color-mix(in oklab, var(--tier) 60%, transparent);
+    border-radius: var(--radius);
+    background: hsl(24 30% 11%);
+    box-shadow: 0 0 18px -8px var(--tier);
+    color: var(--bone);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+    transition: transform 100ms ease, opacity 150ms ease;
+
+    &[data-tier='rare'] {
+      --tier: hsl(200 45% 62%);
+    }
+    &[data-tier='cursed'] {
+      --tier: var(--blood);
+    }
+    &:active:not(:disabled) {
+      transform: scale(0.96);
+    }
+    &:disabled {
+      opacity: 0.45;
+      box-shadow: none;
+      cursor: default;
+    }
+  }
+  .relic__emoji {
+    grid-area: emoji;
+    font-size: 1.5rem;
+  }
+  .relic__name {
+    grid-area: name;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .relic__count {
+    grid-area: count;
+    color: var(--candle-hot);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .relic__why {
+    grid-area: why;
+    color: var(--bone-dim);
+    font-size: 0.75rem;
+    font-style: italic;
+  }
+  .relics__error {
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--radius);
+    background: hsl(355 50% 30% / 0.35);
+    color: hsl(355 90% 85%);
+    font-size: 0.95rem;
+    animation: fade-in 200ms ease both;
+  }
+  .sheet {
+    inline-size: min(100% - 1.5rem, 480px);
+    max-block-size: 85dvh;
+    margin: auto auto max(0.75rem, env(safe-area-inset-bottom));
+    padding: 1.25rem 1rem 1rem;
+    border: 0;
+    border-radius: 22px;
+    background: radial-gradient(140% 100% at 50% 0%, hsl(30 40% 15%), hsl(24 40% 7%));
+    box-shadow: var(--shadow-deep), inset 0 0 0 1px hsl(36 45% 60% / 0.3);
+    color: var(--bone);
+
+    &[open] {
+      display: grid;
+      gap: 0.75rem;
+      animation: rise 220ms ease both;
+    }
+    &::backdrop {
+      background: hsl(24 40% 4% / 0.7);
+    }
+  }
+  .sheet__title {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+  .sheet__blurb {
+    color: var(--bone-dim);
+    font-style: italic;
+    text-align: center;
+  }
+  .sheet__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+
+    & .betgrid__btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+  }
+  .sheet__whisper {
+    display: grid;
+    gap: 0.6rem;
+  }
+  .phone__effect {
+    padding: 0.5rem 0.8rem;
+    border-radius: var(--radius);
+    background: hsl(355 45% 16% / 0.85);
+    box-shadow: inset 0 0 0 1px hsl(355 55% 48% / 0.6);
+    font-weight: 600;
+    text-align: center;
+    animation: slam 450ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  }
+  .phone__effect--hex {
+    background: hsl(200 40% 16% / 0.85);
+    box-shadow: inset 0 0 0 1px hsl(200 45% 62% / 0.6);
+  }
+  .phone__crystal {
+    color: hsl(200 60% 82%);
+    font-size: 0.95rem;
+    text-align: center;
+  }
+  .betgrid__btn[data-crossed] {
+    opacity: 0.35;
+    text-decoration: line-through;
+    cursor: default;
+  }
+  .betgrid__count {
+    margin-inline-start: 0.4em;
+    color: hsl(200 60% 82%);
+    font-size: 0.85em;
+  }
+  [aria-pressed='true'] > .betgrid__count {
+    color: hsl(220 50% 20%);
+  }
+}
+
+@keyframes scare {
+  0%, 100% { transform: none; }
+  15% { transform: translate(-14px, 6px) rotate(-1.2deg) scale(1.03); }
+  30% { transform: translate(12px, -8px) rotate(1deg); }
+  45% { transform: translate(-8px, 4px) rotate(-0.6deg); }
+  60% { transform: translate(6px, -2px); }
+  80% { transform: translate(-2px, 1px); }
+}
+@keyframes flash {
+  from { opacity: 0.85; }
+  to { opacity: 0; }
+}
+@keyframes magnet {
+  0%, 100% { transform: scale(1); stroke-opacity: 0.8; }
+  50% { transform: scale(0.88); stroke-opacity: 0.35; }
 }
 
 @keyframes flicker {

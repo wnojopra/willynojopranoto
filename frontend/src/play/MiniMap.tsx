@@ -9,10 +9,14 @@ interface MiniMapProps {
   planchetteRef: RefObject<PlanchetteState | null>;
   /** This player's secret bet, ringed so they know where to drag. */
   betSpotId?: string | null;
+  /** Spots the planchette can't land on (Salt Circle). */
+  salted?: string[];
+  /** Spots with a Cursed Magnet. */
+  magnets?: string[];
 }
 
 /** Small board on the phone so players don't have to stare at the TV. */
-export function MiniMap({ board, spots, planchetteRef, betSpotId = null }: MiniMapProps) {
+export function MiniMap({ board, spots, planchetteRef, betSpotId = null, salted = [], magnets = [] }: MiniMapProps) {
   const dot = useRef<SVGCircleElement>(null);
 
   useEffect(() => {
@@ -45,11 +49,22 @@ export function MiniMap({ board, spots, planchetteRef, betSpotId = null }: MiniM
           transform={`translate(${s.x * S} ${s.y * S})`}
           className="minimap__spotg"
           data-bet={s.id === betSpotId ? '' : undefined}
+          data-salted={salted.includes(s.id) ? '' : undefined}
         >
           <circle r="85" className="minimap__spot" />
           <text className="minimap__label" y="20">
             {s.label}
           </text>
+          {salted.includes(s.id) && (
+            <text className="minimap__icon" y="-100">
+              🧂
+            </text>
+          )}
+          {magnets.includes(s.id) && (
+            <text className="minimap__icon" y="170">
+              🧲
+            </text>
+          )}
         </g>
       ))}
       <circle ref={dot} r="55" className="minimap__planchette" cx={board.w * S * 0.5} cy={520} />

@@ -5,7 +5,7 @@ drags the planchette together from their phones.
 
 Design doc: [`docs/design.md`](docs/design.md)
 
-## Status: playable game (no Relics yet)
+## Status: playable game with Relics (Wave 1)
 
 - TV creates a room with a 4-letter code and a **join QR** (scanning it pre-fills the code)
 - Phones join with the code and a name (up to 10 players)
@@ -18,23 +18,33 @@ Design doc: [`docs/design.md`](docs/design.md)
 - **Haunted** marks when the board lands on you, plus a **curse card** the TV reads out
   (deck: `backend/app/curses.py`; 🍺 cards always offer a non-drinking option).
   Most marks gets the Final Curse. The host can turn curses off in the lobby
+- **Relics** (`backend/app/relics.py`): one-shot powers used from a tray on the phone.
+  One per round (unlimited in the Final Séance). The TV announces who used what on whom,
+  except Ghost Whisper, which is anonymous.
+  - Pull: 🙃 Mirror Curse, 🧊 Hex of Stillness, 🧂 Salt Circle, 🧲 Cursed Magnet
+  - Betting: 🔮 Crystal Ball (see live bets / cross out 2 wrong answers), ✖️ Double Down
+  - Any time: 👻 Ghost Whisper, 😱 Jump Scare
+  - **Starter Relics** (lobby toggle, on by default): each human gets one random Relic per game.
+    An unused starter expires when the next game starts (other Relics carry over)
+  - `/tv?dev=1` shows a "Give everyone all Relics" button for playtesting
 - **Results**: standings + awards (Grand Medium, Most Haunted, Lone Wolf, …), play again
 
-Not yet: Relics, hunt QR claiming, audio.
+Not yet: hunt QR claiming, Relics Wave 2, audio.
 
 ## Layout
 
 ```
 backend/    Python 3.12+ / FastAPI. Authoritative game loop at 30Hz.
   app/physics.py   planchette physics + lock-in (tuning knobs at the top)
-  app/rooms.py     room state machine, bots, broadcasting
+  app/rooms.py     room state machine, bots, Relic effects, broadcasting
   app/game.py      game plan (lengths, Medium slots) + end-of-game awards
   app/questions.py question decks (Spirit Bets, Medium, Final)
   app/curses.py    curse cards + Final Curses (edit these!)
+  app/relics.py    Relic catalog, starter odds, tuning (Hex length, magnet strength)
   app/main.py      WebSocket endpoints (/ws/tv, /ws/play), security headers
 frontend/   React + TypeScript + Vite
-  src/tv/          TV screens (lobby, board, reveal)
-  src/play/        phone screens (join, touchpad, minimap)
+  src/tv/          TV screens (lobby, board, reveal, Relic cards)
+  src/play/        phone screens (join, touchpad, minimap, Relic tray)
 ```
 
 ## Run it locally

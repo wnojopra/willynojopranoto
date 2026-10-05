@@ -21,14 +21,16 @@ import re
 import secrets
 import time
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol
 
-from app import game, physics
+from app import game, physics, relics
 from app.curses import CURSE_DECK, FINAL_CURSES
 from app.questions import DECK, FINAL_QUESTION, MEDIUM_DECK, YES_NO_SPOTS, Question
 
 log = logging.getLogger(__name__)
+
+RELIC_CATALOG_DICT = {k: r.to_dict() for k, r in relics.CATALOG.items()}
 
 MAX_PLAYERS = 10
 MIN_PLAYERS_TO_START = 2
@@ -142,6 +144,27 @@ class Player:
     bot_target: str | None = None
     bot_strength: float = 1.0
     bot_next_think: float = 0.0
+    # Relics: inventory (keys; duplicates allowed) and the round they last
+    # used one in. Private to the owner's phone.
+    relics: list[str] = field(default_factory=list)
+    relic_round: int = -1
+    relics_dirty: bool = False
+    # This game's starter Relic, while unused. It expires when a new game starts
+    # (hunt-found Relics carry over between games; starters don't).
+    starter: str | None = None
+    # Relic effects on this player, for the current round.
+    mirrored: bool = False
+    frozen_until: float = 0.0
+    double_down: bool = False
+    crystal: bool = False
+    crystal_crossed: tuple[str, ...] = ()
+
+    def reset_round_effects(self) -> None:
+        self.mirrored = False
+        self.frozen_until = 0.0
+        self.double_down = False
+        self.crystal = False
+        self.crystal_crossed = ()
 
     def reset_stats(self) -> None:
         self.score = 0
@@ -210,6 +233,12 @@ class Room:
         self.curse: dict | None = None
         self.final_curse: dict | None = None
         self._curse_order: list[int] = []
+        # Relics.
+        self.starter_relics = True  # deal one per player per game (no hunt yet)
+        self.salted: set[str] = set()
+        self.magnets: list[str] = []  # spot ids; stacking allowed
+        self.relic_events: list[dict] = []  # this round, for the TV
+        self._relic_seq = 0
         self.tv_conns: set[Conn] = set()
         self.player_conns: dict[str, Conn] = {}
         self.last_activity = clock()
@@ -226,6 +255,7 @@ class Room:
                 # Let a human who dropped (e.g. refreshed) rejoin by name.
                 if not p.connected and not p.is_bot and not is_bot:
                     p.connected = True
+                    p.relics_dirty = True
                     return p
                 raise JoinError("That name is taken.")
         if len(self.players) >= MAX_PLAYERS:
@@ -236,8 +266,26 @@ class Room:
             id=secrets.token_hex(4), name=name, color=color, is_bot=is_bot
         )
         self.players[player.id] = player
+        if self.game_active and self.starter_relics and not is_bot:
+            self._deal_starter(player)
         self.touch()
         return player
+
+    def _grant(self, p: Player, key: str) -> None:
+        p.relics.append(key)
+        p.relics_dirty = True
+
+    def _deal_starter(self, p: Player) -> None:
+        key = relics.starter_relic(self._rng)
+        self._grant(p, key)
+        p.starter = key
+
+    def _expire_starter(self, p: Player) -> None:
+        """Takes back last game's unused starter Relic."""
+        if p.starter is not None and p.starter in p.relics:
+            p.relics.remove(p.starter)
+            p.relics_dirty = True
+        p.starter = None
 
     def remove_player(self, player_id: str) -> None:
         self.players.pop(player_id, None)
@@ -278,6 +326,17 @@ class Room:
             if not on:
                 self.curse = None
 
+    def set_starter_relics(self, on: object) -> None:
+        if isinstance(on, bool):
+            self.starter_relics = on
+
+    def dev_grant_all(self) -> None:
+        """Playtesting: every human gets one of each Relic."""
+        for p in self.players.values():
+            if not p.is_bot:
+                for key in relics.WAVE_1:
+                    self._grant(p, key)
+
     @property
     def total_rounds(self) -> int:
         return len(self.plan)
@@ -305,6 +364,12 @@ class Room:
         self.curse = None
         self.final_curse = None
         self._used_mediums.clear()
+        for p in self.players.values():
+            self._expire_starter(p)
+        if self.starter_relics:
+            for p in self.players.values():
+                if not p.is_bot:
+                    self._deal_starter(p)
         self.phase = "lobby"
         return self.start_round()
 
@@ -363,6 +428,10 @@ class Room:
             p.round_toward = p.round_effort = 0.0
             p.bot_target = None
             p.bot_next_think = 0.0
+            p.reset_round_effects()
+        self.salted.clear()
+        self.magnets.clear()
+        self.relic_events = []
         if medium and medium.is_bot:
             medium.bot_next_think = now + self._rng.uniform(2.0, 4.0)
 
@@ -459,6 +528,93 @@ class Room:
         p.pull = physics.sanitize_pull(dx, dy)
         p.pull_at = self._clock()
 
+    def use_relic(self, player_id: str, key: object, target: object = None, text: object = None) -> str | None:
+        """Casts a Relic. Returns None on success, or a player-facing reason."""
+        p = self.players.get(player_id)
+        relic = relics.CATALOG.get(key) if isinstance(key, str) else None
+        if p is None or p.is_bot or relic is None:
+            return "Unknown Relic."
+        if relic.key not in p.relics:
+            return "You don’t have that Relic."
+        if self.phase not in ("medium", "question", "pull", "reveal"):
+            return "Relics only work during a round."
+        if p.relic_round == self.round_no and self.round_kind != "final":
+            return "One Relic per round (except in the Final Séance)."
+        is_medium = p.id == self.medium_id
+        if relic.timing == relics.PULL and (self.phase != "pull" or is_medium):
+            return "That Relic only works during the pull."
+        if relic.timing == relics.BET:
+            if is_medium:
+                return "The Medium can’t use that one."
+            if self.phase not in ("question", "pull"):
+                return "That Relic only works while bets are open or during the pull."
+        event: dict[str, Any] = {"key": relic.key, "by": p.id, "target": None, "text": None}
+
+        if relic.key in ("mirror", "hex"):
+            victim = self.players.get(target) if isinstance(target, str) else None
+            if victim is None or victim.id == p.id or victim.id == self.medium_id:
+                return "Pick another player who’s pulling."
+            if relic.key == "mirror":
+                if victim.mirrored:
+                    return f"{victim.name} is already mirrored."
+                victim.mirrored = True
+            else:
+                victim.frozen_until = max(victim.frozen_until, self._clock()) + relics.HEX_SECONDS
+            event["target"] = victim.id
+        elif relic.key in ("salt", "magnet"):
+            if not self._valid_spot(target):
+                return "Pick a spot on the board."
+            if relic.key == "salt":
+                if target in self.salted:
+                    return "That spot is already salted."
+                if len(self.salted) + 1 >= len(self.spots):
+                    return "The spirits need at least one spot left open."
+                self.salted.add(target)  # type: ignore[arg-type]
+                if self.planchette.hover_spot == target:
+                    self.planchette.hover_spot, self.planchette.hover_time = None, 0.0
+            else:
+                self.magnets.append(target)  # type: ignore[arg-type]
+            event["target"] = target
+        elif relic.key == "crystal":
+            if p.crystal:
+                return "Your Crystal Ball is already glowing."
+            if self.round_kind == "medium":
+                if self.phase != "question":
+                    return "Use it while you’re guessing."
+                wrong = [s.id for s in self.spots if s.id != self.medium_answer]
+                self._rng.shuffle(wrong)
+                p.crystal_crossed = tuple(wrong[: min(2, len(self.spots) - 1)])
+            p.crystal = True
+        elif relic.key == "double":
+            if self.round_kind == "medium":
+                return "Double Down only works on Spirit Bets."
+            if p.double_down:
+                return "You already doubled down."
+            p.double_down = True
+        elif relic.key == "whisper":
+            clean = relics.clean_whisper(text)
+            if clean is None:
+                return f"Whispers are 1–{relics.WHISPER_MAX} characters."
+            event["by"] = None  # anonymous, even to the TV
+            event["text"] = clean
+        elif relic.key == "jumpscare":
+            if self.phase == "pull":
+                angle = self._rng.uniform(0, 2 * math.pi)
+                self.planchette.vx += math.cos(angle) * relics.JUMP_SCARE_SPEED
+                self.planchette.vy += math.sin(angle) * relics.JUMP_SCARE_SPEED
+                self.planchette.hover_spot, self.planchette.hover_time = None, 0.0
+
+        p.relics.remove(relic.key)
+        if p.starter == relic.key and relic.key not in p.relics:
+            p.starter = None
+        p.relic_round = self.round_no
+        p.relics_dirty = True
+        self._relic_seq += 1
+        event["seq"] = self._relic_seq
+        self.relic_events.append(event)
+        self.touch()
+        return None
+
     def _valid_spot(self, spot_id: object) -> bool:
         return isinstance(spot_id, str) and any(s.id == spot_id for s in self.spots)
 
@@ -491,16 +647,28 @@ class Room:
         pulls = []
         for p in self._bettors():
             if p.is_bot or (p.connected and now - p.pull_at <= INPUT_STALE_SECONDS):
-                pulls.append(p.pull)
+                if now < p.frozen_until:
+                    pulls.append((0.0, 0.0))  # Hexed: still counts toward 1/sqrt(n)
+                    continue
+                pulls.append((-p.pull[0], -p.pull[1]) if p.mirrored else p.pull)
                 self._track_pull(p, dt)
             else:
                 # Players not touching the pad still count toward 1/sqrt(n),
                 # so idle players act like a little friction.
                 pulls.append((0.0, 0.0))
-        force = physics.combine_pulls(pulls)
-        locked = physics.step(self.planchette, force, dt, self.spots)
+        fx, fy = physics.combine_pulls(pulls)
+        for spot_id in self.magnets:
+            spot = next((s for s in self.spots if s.id == spot_id), None)
+            if spot is None:
+                continue
+            dx, dy = spot.x - self.planchette.x, spot.y - self.planchette.y
+            d = math.hypot(dx, dy)
+            if d > 1e-3:
+                fx += dx / d * relics.MAGNET_STRENGTH
+                fy += dy / d * relics.MAGNET_STRENGTH
+        locked = physics.step(self.planchette, (fx, fy), dt, self.spots, self.salted)
         if locked is None and now >= self.phase_ends_at:
-            spot, _ = physics.nearest_spot(self.planchette, self.spots)
+            spot, _ = physics.nearest_spot(self.planchette, self.spots, self.salted)
             locked = spot.id if spot else None
         if locked is not None:
             self._finish_round(locked)
@@ -592,9 +760,10 @@ class Room:
             self.last_payout = {}
             return
         share = self.pot // len(winners)
-        self.last_payout = {p.id: share for p in winners}
+        # Double Down pays its bonus on top; it never shrinks anyone else's share.
+        self.last_payout = {p.id: share * (2 if p.double_down else 1) for p in winners}
         for p in winners:
-            p.score += share
+            p.score += self.last_payout[p.id]
         if len(winners) == 1:
             winners[0].solo_wins += 1
         self.last_rolled_over = False
@@ -715,6 +884,7 @@ class Room:
                 "roundKind": self.round_kind if in_round else None,
                 "isLastRound": self.game_active and self.game_round >= self.total_rounds,
                 "cursesOn": self.curses_on,
+                "starterRelics": self.starter_relics,
             },
             "medium": (
                 {"playerId": self.medium_id, "answered": self.medium_answer is not None}
@@ -723,6 +893,19 @@ class Room:
             ),
             # Curses are public: the TV reads them out.
             "curse": self.curse if in_round else None,
+            # Relic use is public (Ghost Whisper events carry no caster).
+            "relicEvents": self.relic_events if in_round else [],
+            "effects": {
+                "salted": sorted(self.salted),
+                "magnets": self.magnets,
+                "mirrored": [p.id for p in self.players.values() if p.mirrored],
+                "hexed": {
+                    p.id: round(p.frozen_until - now, 2)
+                    for p in self.players.values()
+                    if p.frozen_until > now
+                },
+            },
+            "relicCatalog": RELIC_CATALOG_DICT,
             "awards": self.awards if self.phase == "results" else None,
             "finalCurse": self.final_curse if self.phase == "results" else None,
             "canStart": self.can_start,
@@ -738,6 +921,7 @@ class Room:
             "autoBets": [p.id for p in self.players.values() if p.auto_bet],
             "payout": self.last_payout,
             "rolledOver": self.last_rolled_over,
+            "doubled": [p.id for p in self.players.values() if p.double_down],
         }
         if self.round_kind == "medium":
             out["mediumAnswer"] = self.medium_answer
@@ -793,16 +977,44 @@ class Room:
             "auto": self.medium_auto,
         }
 
+    def relics_msg(self, player: Player) -> dict:
+        """A player's Relic inventory. Only ever sent to that player's phone."""
+        return {
+            "type": "relics",
+            "relics": list(player.relics),
+            "usedRound": player.relic_round,
+        }
+
+    def crystal_msg(self, player: Player) -> dict | None:
+        """Crystal Ball vision, for its caster only."""
+        if not player.crystal or self.phase not in ("question", "pull"):
+            return None
+        if self.round_kind == "medium":
+            return {"type": "crystal", "roundNo": self.round_no, "crossed": list(player.crystal_crossed)}
+        counts: dict[str, int] = {}
+        for p in self._bettors():
+            if p.bet:
+                counts[p.bet] = counts.get(p.bet, 0) + 1
+        return {"type": "crystal", "roundNo": self.round_no, "counts": counts}
+
     async def send_private(self) -> None:
-        """Tells phones what the spirits picked for them (secret until reveal)."""
+        """Sends each phone its own secrets: auto-picks, Relics, visions."""
         for pid, conn in list(self.player_conns.items()):
             p = self.players.get(pid)
-            msg = None
-            if p and p.auto_bet and p.bet and self.phase == "pull":
-                msg = self.bet_msg(p)
+            if p is None:
+                continue
+            msgs = []
+            if p.auto_bet and p.bet and self.phase == "pull":
+                msgs.append(self.bet_msg(p))
             elif pid == self.medium_id and self.medium_auto and self.phase == "question":
-                msg = self.answer_msg()
-            if msg:
+                msgs.append(self.answer_msg())
+            if p.relics_dirty:
+                p.relics_dirty = False
+                msgs.append(self.relics_msg(p))
+            crystal = self.crystal_msg(p)
+            if crystal:
+                msgs.append(crystal)
+            for msg in msgs:
                 try:
                     await conn.send_json(msg)
                 except Exception:

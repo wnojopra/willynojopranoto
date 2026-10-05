@@ -44,6 +44,8 @@ export interface Reveal {
   mediumAuto?: boolean;
   correct?: string[];
   boardMatched?: boolean;
+  /** Players whose Double Down was active this round. */
+  doubled: string[];
 }
 
 export interface GameInfo {
@@ -55,6 +57,37 @@ export interface GameInfo {
   roundKind: RoundKind | null;
   isLastRound: boolean;
   cursesOn: boolean;
+  starterRelics: boolean;
+}
+
+export type RelicKey = 'mirror' | 'hex' | 'salt' | 'magnet' | 'crystal' | 'double' | 'whisper' | 'jumpscare';
+
+export interface RelicInfo {
+  key: RelicKey;
+  name: string;
+  emoji: string;
+  tier: 'common' | 'rare' | 'cursed';
+  /** pull: during the pull (not the Medium) · bet: betting or pull · any: any time in a round */
+  timing: 'pull' | 'bet' | 'any';
+  target: 'player' | 'spot' | 'text' | null;
+  blurb: string;
+}
+
+/** A Relic someone used this round. Public, except `by` is null for Ghost Whisper. */
+export interface RelicEvent {
+  seq: number;
+  key: RelicKey;
+  by: string | null;
+  target: string | null;
+  text: string | null;
+}
+
+export interface Effects {
+  salted: string[];
+  magnets: string[];
+  mirrored: string[];
+  /** Player id → seconds of Hex left (as of this state message). */
+  hexed: Record<string, number>;
 }
 
 /** A curse card the board dealt. In force until the next reveal. */
@@ -97,6 +130,9 @@ export interface StateMsg {
   curse: Curse | null;
   awards: Award[] | null;
   finalCurse: { playerIds: string[]; text: string } | null;
+  relicEvents: RelicEvent[];
+  effects: Effects;
+  relicCatalog: Record<RelicKey, RelicInfo>;
   canStart: boolean;
   minPlayers: number;
   maxPlayers: number;
@@ -121,4 +157,8 @@ export type ServerMsg =
   | { type: 'joined'; playerId: string; code: string }
   | ({ type: 'bet_ok' } & PrivatePick)
   | ({ type: 'answer_ok' } & PrivatePick)
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  // Private, to one phone only:
+  | { type: 'relics'; relics: RelicKey[]; usedRound: number }
+  | { type: 'crystal'; roundNo: number; counts?: Record<string, number>; crossed?: string[] }
+  | { type: 'relic_error'; message: string };

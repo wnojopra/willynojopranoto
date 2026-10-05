@@ -16,7 +16,9 @@ class FakeClock:
 
 def make_room():
     clock = FakeClock()
-    return Room("BCDF", rng=random.Random(1), clock=clock), clock
+    room = Room("BCDF", rng=random.Random(1), clock=clock)
+    room.starter_relics = False  # keep the seeded question order stable
+    return room, clock
 
 
 def test_name_validation():
@@ -484,3 +486,192 @@ def test_final_curse_skips_bots():
     a.haunted = 0
     room._show_results()
     assert room.final_curse is None
+
+
+# ---- Relics -----------------------------------------------------------------
+
+from app import relics  # noqa: E402
+
+
+def relic_room(n_humans=3, kind_plan=None):
+    room, clock = make_room()
+    ps = [room.add_player(n) for n in ["Alice", "Bob", "Cara", "Dan"][:n_humans]]
+    room.set_starter_relics(False)
+    room.set_length("short")
+    room.new_game()
+    return room, clock, ps
+
+
+def to_pull_phase(room, clock):
+    if room.phase == "medium":
+        room.medium_answers(room.medium_id, room.spots[0].id)
+    clock.t += rooms.QUESTION_SECONDS
+    room.tick(1 / 30)
+    assert room.phase == "pull"
+
+
+def test_starter_relics_dealt_per_game_and_to_late_joiners():
+    room, clock = make_room()
+    room.set_starter_relics(True)
+    a = room.add_player("Alice")
+    room.add_player("Bob")
+    bot = room.add_bot()
+    room.new_game()
+    assert len(a.relics) == 1 and a.relics[0] in relics.CATALOG and bot.relics == []
+    late = room.add_player("Late")
+    assert len(late.relics) == 1
+
+
+def test_unused_starter_relic_expires_at_next_game_but_others_carry_over():
+    room, clock = make_room()
+    room.set_starter_relics(True)
+    a = room.add_player("Alice")
+    room.add_player("Bob")
+    room.new_game()
+    first = a.starter
+    assert a.relics == [first]
+    room._grant(a, "whisper")  # e.g. found in the hunt
+    room.phase = "results"
+    room.new_game()
+    assert len(a.relics) == 2 and "whisper" in a.relics  # old starter gone, new one dealt
+    assert a.relics.count(a.starter) >= 1
+    room.phase = "results"
+    room.set_starter_relics(False)
+    room.new_game()
+    assert a.relics == ["whisper"] and a.starter is None
+
+
+def test_relic_requires_ownership_phase_and_once_per_round():
+    room, clock, (a, b, c) = relic_room()
+    assert room.use_relic(a.id, "hex", b.id) == "You don’t have that Relic."
+    room.dev_grant_all()
+    assert "pull" in room.use_relic(a.id, "hex", b.id)  # still in question phase
+    to_pull_phase(room, clock)
+    assert room.use_relic(a.id, "hex", a.id)  # can't hex yourself
+    assert room.use_relic(a.id, "hex", b.id) is None
+    assert "One Relic" in room.use_relic(a.id, "salt", room.spots[0].id)
+    assert a.relics.count("hex") == 0 and a.relic_round == room.round_no
+    ev = room.state_dict()["relicEvents"][-1]
+    assert ev["key"] == "hex" and ev["by"] == a.id and ev["target"] == b.id
+
+
+def test_hex_freezes_and_mirror_reverses_input():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    to_pull_phase(room, clock)
+    room.use_relic(a.id, "mirror", b.id)
+    room.use_relic(c.id, "hex", a.id)
+    for p in (a, b, c):
+        p.pull_at = clock.t
+    a.pull, b.pull, c.pull = (1.0, 0.0), (1.0, 0.0), (0.0, 0.0)
+    room.tick(1 / 30)
+    # Alice is frozen and Bob is mirrored: the net force points left.
+    assert room.planchette.fx < 0
+    assert room.state_dict()["effects"]["mirrored"] == [b.id]
+    assert a.id in room.state_dict()["effects"]["hexed"]
+
+
+def test_salt_blocks_landing_and_keeps_one_spot_open():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    to_pull_phase(room, clock)
+    target = room.spots[0]
+    assert room.use_relic(a.id, "salt", target.id) is None
+    # Park the planchette on the salted spot: it never locks there.
+    room.planchette.x, room.planchette.y = target.x, target.y
+    for p in room.players.values():
+        p.pull = (0.0, 0.0)
+    for _ in range(90):
+        room.tick(1 / 30)
+    assert room.phase == "pull"
+    # Time out: lands on the nearest *unsalted* spot.
+    clock.t += rooms.PULL_SECONDS
+    room.tick(1 / 30)
+    assert room.result_spot_id != target.id
+    # Can't salt every spot.
+    room.start_round()
+    to_pull_phase(room, clock)
+    room.round_kind = "final"  # unlimited Relics, to salt many
+    for s in room.spots[:-1]:
+        room.dev_grant_all()
+        room.use_relic(a.id, "salt", s.id)
+    room.dev_grant_all()
+    assert "open" in room.use_relic(a.id, "salt", room.spots[-1].id)
+
+
+def test_magnet_pulls_planchette_toward_spot():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    to_pull_phase(room, clock)
+    spot = room.spots[0]
+    room.use_relic(a.id, "magnet", spot.id)
+    d0 = ((spot.x - room.planchette.x) ** 2 + (spot.y - room.planchette.y) ** 2) ** 0.5
+    for _ in range(20):
+        room.tick(1 / 30)
+    d1 = ((spot.x - room.planchette.x) ** 2 + (spot.y - room.planchette.y) ** 2) ** 0.5
+    assert d1 < d0
+
+
+def test_double_down_doubles_only_the_casters_share():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    spot = room.spots[0].id
+    room.place_bet(a.id, spot)
+    room.place_bet(b.id, spot)
+    room.place_bet(c.id, room.spots[1].id)
+    assert room.use_relic(a.id, "double") is None
+    to_pull_phase(room, clock)
+    room._finish_round(spot)
+    share = room.pot // 2
+    assert room.last_payout == {a.id: share * 2, b.id: share}
+    assert room.state_dict()["reveal"]["doubled"] == [a.id]
+
+
+def test_crystal_ball_is_private_counts_in_bets_and_crosses_out_in_medium():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    room.place_bet(b.id, room.spots[0].id)
+    assert room.use_relic(a.id, "crystal") is None
+    assert room.crystal_msg(a)["counts"] == {room.spots[0].id: 1}
+    assert room.crystal_msg(b) is None
+    # Medium round: two wrong answers crossed out, never the real one.
+    while room.round_kind != "medium":
+        play_round(room, clock)
+        room.start_round()
+    room.medium_answers(room.medium_id, room.spots[0].id)
+    guesser = next(p for p in (a, b, c) if p.id != room.medium_id)
+    room.dev_grant_all()
+    assert room.use_relic(guesser.id, "crystal") is None
+    crossed = room.crystal_msg(guesser)["crossed"]
+    assert room.spots[0].id not in crossed and len(crossed) == min(2, len(room.spots) - 1)
+    assert "Medium" in room.use_relic(room.medium_id, "crystal")
+
+
+def test_ghost_whisper_is_anonymous_and_sanitized():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    assert room.use_relic(a.id, "whisper", text="x" * 41)
+    assert room.use_relic(a.id, "whisper", text="  kevin\u202e bet on   himself  ") is None
+    ev = room.state_dict()["relicEvents"][-1]
+    assert ev["by"] is None and ev["text"] == "kevin bet on himself"
+
+
+def test_medium_can_use_chaos_relics_but_not_pull_ones():
+    room, clock, (a, b, c) = relic_room()
+    while room.round_kind != "medium":
+        play_round(room, clock)
+        room.start_round()
+    room.dev_grant_all()
+    to_pull_phase(room, clock)
+    other = next(p for p in (a, b, c) if p.id != room.medium_id)
+    assert room.use_relic(room.medium_id, "hex", other.id)
+    assert room.use_relic(room.medium_id, "jumpscare") is None
+
+
+def test_final_seance_allows_many_relics():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    to_pull_phase(room, clock)
+    room.round_kind = "final"
+    assert room.use_relic(a.id, "hex", b.id) is None
+    assert room.use_relic(a.id, "jumpscare") is None

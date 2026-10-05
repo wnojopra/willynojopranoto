@@ -176,6 +176,11 @@ async def tv_socket(ws: WebSocket) -> None:
                 room.set_length(msg.get("length"))
             elif kind == "set_curses":
                 room.set_curses(msg.get("on"))
+            elif kind == "set_starter_relics":
+                room.set_starter_relics(msg.get("on"))
+            elif kind == "dev_grant_relics":
+                # Playtesting aid; the button only renders on /tv?dev=1.
+                room.dev_grant_all()
             elif kind == "kick":
                 pid = msg.get("playerId")
                 if isinstance(pid, str):
@@ -191,6 +196,7 @@ async def tv_socket(ws: WebSocket) -> None:
                 continue
             room.touch()
             await room.broadcast_state()
+            await room.send_private()
     except (WebSocketDisconnect, ClientGone, asyncio.TimeoutError):
         pass
     finally:
@@ -234,6 +240,8 @@ async def play_socket(ws: WebSocket) -> None:
             await ws.send_json(room.bet_msg(player))
         if player.id == room.medium_id and room.medium_answer is not None:
             await ws.send_json(room.answer_msg())
+        await ws.send_json(room.relics_msg(player))
+        player.relics_dirty = False
         await room.broadcast_state()
 
         while True:
@@ -246,10 +254,18 @@ async def play_socket(ws: WebSocket) -> None:
                 if room.place_bet(player.id, msg.get("spotId")):
                     await ws.send_json(room.bet_msg(player))
                     await room.broadcast_state()
+                    await room.send_private()  # live Crystal Ball counts
             elif msg["type"] == "answer":
                 if room.medium_answers(player.id, msg.get("spotId")):
                     await ws.send_json(room.answer_msg())
                     await room.broadcast_state()
+            elif msg["type"] == "relic":
+                err = room.use_relic(player.id, msg.get("key"), msg.get("target"), msg.get("text"))
+                if err:
+                    await ws.send_json({"type": "relic_error", "message": err})
+                else:
+                    await room.broadcast_state()
+                    await room.send_private()
     except (WebSocketDisconnect, ClientGone, asyncio.TimeoutError):
         pass
     finally:

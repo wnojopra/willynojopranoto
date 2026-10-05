@@ -20,6 +20,10 @@ interface BoardProps {
   bettors?: Record<string, Bettor[]>;
   /** A spot to ring (the Medium's real answer), in the Medium's color. */
   markSpot?: { id: string; color: string };
+  /** Spots under a Salt Circle (the planchette can't land there). */
+  salted?: string[];
+  /** Spots with a Cursed Magnet (may repeat). */
+  magnets?: string[];
 }
 
 /**
@@ -27,7 +31,7 @@ interface BoardProps {
  * and lock ring are animated imperatively at display refresh rate from the
  * latest server tick, so 30Hz network updates still look smooth.
  */
-export function Board({ board, spots, planchetteRef, resultSpotId, colorsBySpot, bettors, markSpot }: BoardProps) {
+export function Board({ board, spots, planchetteRef, resultSpotId, colorsBySpot, bettors, markSpot, salted, magnets }: BoardProps) {
   const planchetteEl = useRef<SVGGElement>(null);
   const auraEl = useRef<SVGLineElement>(null);
   const ringEl = useRef<SVGCircleElement>(null);
@@ -142,6 +146,7 @@ export function Board({ board, spots, planchetteRef, resultSpotId, colorsBySpot,
           className="spot"
           data-result={resultSpotId === s.id ? '' : undefined}
           data-dim={resultSpotId && resultSpotId !== s.id ? '' : undefined}
+          data-salted={salted?.includes(s.id) ? '' : undefined}
           transform={`translate(${s.x * S} ${s.y * S})`}
         >
           <circle className="spot__well" r={SPOT_R} />
@@ -149,6 +154,22 @@ export function Board({ board, spots, planchetteRef, resultSpotId, colorsBySpot,
           <text className="spot__label" y="12">
             {s.label}
           </text>
+          {salted?.includes(s.id) && (
+            <g className="spot__salt">
+              <circle r={SPOT_R + 12} />
+              <text y={SPOT_R + 6} className="spot__relicicon">
+                🧂
+              </text>
+            </g>
+          )}
+          {magnets?.includes(s.id) && (
+            <g className="spot__magnet">
+              <circle r={SPOT_R + 22} />
+              <text y={-SPOT_R + 4} className="spot__relicicon">
+                🧲{magnets.filter((m) => m === s.id).length > 1 ? `×${magnets.filter((m) => m === s.id).length}` : ''}
+              </text>
+            </g>
+          )}
         </g>
       ))}
 

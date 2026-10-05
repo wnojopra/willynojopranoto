@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import type { PlanchetteState, Player, PrivatePick, ServerMsg, StateMsg } from '../protocol';
+import type { PlanchetteState, Player, PrivatePick, RelicKey, ServerMsg, StateMsg } from '../protocol';
 import { useGameSocket } from '../useGameSocket';
 import { MiniMap } from './MiniMap';
+import { RelicEffects, RelicTray, type MyRelics } from './RelicTray';
 import { Touchpad } from './Touchpad';
 
 interface JoinInfo {
   code: string;
   name: string;
+}
+
+/** What our Crystal Ball shows: live bet counts, or (Medium rounds) crossed-out wrong answers. */
+interface CrystalVision {
+  roundNo: number;
+  counts: Record<string, number> | null;
+  crossed: string[] | null;
 }
 
 function vibrate(pattern: number | number[]) {
@@ -27,6 +35,16 @@ export function PlayApp() {
   // Our secret answer, when we're the Medium.
   const [myAnswer, setMyAnswer] = useState<PrivatePick | null>(null);
   const planchetteRef = useRef<PlanchetteState | null>(null);
+  // Private: our Relics, Crystal Ball vision, and the last cast error.
+  const [myRelics, setMyRelics] = useState<MyRelics>({ relics: [], usedRound: 0 });
+  const [crystal, setCrystal] = useState<CrystalVision | null>(null);
+  const [relicError, setRelicError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!relicError) return;
+    const t = setTimeout(() => setRelicError(null), 3500);
+    return () => clearTimeout(t);
+  }, [relicError]);
 
   const onMessage = useCallback((msg: ServerMsg) => {
     switch (msg.type) {
@@ -40,6 +58,16 @@ export function PlayApp() {
         break;
       case 'answer_ok':
         setMyAnswer({ spotId: msg.spotId, roundNo: msg.roundNo, auto: msg.auto });
+        break;
+      case 'relics':
+        setMyRelics({ relics: msg.relics, usedRound: msg.usedRound });
+        break;
+      case 'crystal':
+        setCrystal({ roundNo: msg.roundNo, counts: msg.counts ?? null, crossed: msg.crossed ?? null });
+        break;
+      case 'relic_error':
+        setRelicError(msg.message);
+        vibrate([20, 40, 20]);
         break;
       case 'state':
         setState(msg);
@@ -161,6 +189,13 @@ export function PlayApp() {
     send({ type: 'answer', spotId });
     vibrate(15);
   };
+  const castRelic = (key: RelicKey, target: string | null, text: string | null) => {
+    setRelicError(null);
+    send({ type: 'relic', key, target, text });
+    vibrate([30, 30, 60]);
+  };
+  const vision = crystal && crystal.roundNo === state.roundNo ? crystal : null;
+  const showTray = ['medium', 'question', 'pull', 'reveal'].includes(state.phase);
 
   const roundTag =
     state.game.roundKind === 'final'
@@ -185,6 +220,7 @@ export function PlayApp() {
           💀 <strong>Cursed:</strong> {state.curse.text}
         </p>
       )}
+      <RelicEffects state={state} me={me} />
 
       {state.phase === 'lobby' && (
         <section className="phone__panel phone--center">
@@ -236,7 +272,15 @@ export function PlayApp() {
             <p className="phone__sub">
               {medium ? 'Guess right for +100. Then pull the board there for +100 more.' : 'Secretly bet on where the board will land.'}
             </p>
-            <SpotButtons state={state} me={me} selected={liveBet?.spotId} onPick={placeBet} label={medium ? 'Your guess' : 'Your bet'} />
+            <SpotButtons
+              state={state}
+              me={me}
+              selected={liveBet?.spotId}
+              onPick={placeBet}
+              label={medium ? 'Your guess' : 'Your bet'}
+              counts={vision?.counts ?? null}
+              crossed={vision?.crossed ?? null}
+            />
             <p className="phone__sub phone__betnote" aria-live="polite">
               {liveBet ? 'Locked in… until you change your mind.' : 'No pick? The spirits will pick for you.'}
             </p>
@@ -251,7 +295,7 @@ export function PlayApp() {
               <p className="phone__betchip">
                 Your answer: {betLabel(liveAnswer?.spotId) ?? '?'}
               </p>
-              <MiniMap board={state.board} spots={state.spots} planchetteRef={planchetteRef} betSpotId={liveAnswer?.spotId ?? null} />
+              <MiniMap board={state.board} spots={state.spots} planchetteRef={planchetteRef} salted={state.effects.salted} magnets={state.effects.magnets} betSpotId={liveAnswer?.spotId ?? null} />
               <p className="phone__big phone--center phone__watch">Hands off. You can’t touch the planchette. Just watch.</p>
             </>
           ) : (
@@ -262,7 +306,8 @@ export function PlayApp() {
                   : 'Pull for what you believe.'}
                 {!medium && <span className="phone__betpot">🍬 {state.pot}</span>}
               </p>
-              <MiniMap board={state.board} spots={state.spots} planchetteRef={planchetteRef} betSpotId={liveBet?.spotId ?? null} />
+              {vision?.counts && <CrystalLine state={state} me={me} counts={vision.counts} />}
+              <MiniMap board={state.board} spots={state.spots} planchetteRef={planchetteRef} salted={state.effects.salted} magnets={state.effects.magnets} betSpotId={liveBet?.spotId ?? null} />
               <Touchpad onPull={(dx, dy) => send({ type: 'pull', dx, dy })} color={self?.color ?? '#e8a33d'} />
             </>
           )}
@@ -293,6 +338,7 @@ export function PlayApp() {
       )}
 
       {state.phase === 'results' && <PhoneResults state={state} me={me} />}
+      {showTray && <RelicTray state={state} me={me} mine={myRelics} error={relicError} onCast={castRelic} />}
     </main>
   );
 }
@@ -303,22 +349,51 @@ function SpotButtons({
   selected,
   onPick,
   label,
+  counts = null,
+  crossed = null,
 }: {
   state: StateMsg;
   me: string;
   selected: string | undefined;
   onPick: (spotId: string) => void;
   label: string;
+  counts?: Record<string, number> | null;
+  crossed?: string[] | null;
 }) {
   return (
     <div className="betgrid" role="group" aria-label={label}>
-      {state.spots.map((s) => (
-        <button key={s.id} id={`bet-${s.id}`} className="betgrid__btn" aria-pressed={selected === s.id} onClick={() => onPick(s.id)}>
-          {s.id === me ? `${s.label} (you)` : s.label}
-        </button>
-      ))}
+      {state.spots.map((s) => {
+        const out = crossed?.includes(s.id) ?? false;
+        const n = counts ? (counts[s.id] ?? 0) : null;
+        return (
+          <button
+            key={s.id}
+            id={`bet-${s.id}`}
+            className="betgrid__btn"
+            aria-pressed={selected === s.id}
+            disabled={out}
+            data-crossed={out ? '' : undefined}
+            onClick={() => onPick(s.id)}
+          >
+            {s.id === me ? `${s.label} (you)` : s.label}
+            {n !== null && (
+              <span className="betgrid__count" aria-label={`${n} bets`}>
+                🔮{n}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
+}
+
+/** Crystal Ball, during the pull: where everyone's money is. */
+function CrystalLine({ state, me, counts }: { state: StateMsg; me: string; counts: Record<string, number> }) {
+  const parts = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id, n]) => `${id === me ? 'You' : (state.spots.find((s) => s.id === id)?.label ?? '?')} ×${n}`);
+  return <p className="phone__crystal">🔮 {parts.length ? parts.join(' · ') : 'No bets yet'}</p>;
 }
 
 function MediumOutcome({ state, me, medium }: { state: StateMsg; me: string; medium: Player }) {
