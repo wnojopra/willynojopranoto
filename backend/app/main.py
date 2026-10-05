@@ -249,8 +249,8 @@ async def play_socket(ws: WebSocket) -> None:
 if STATIC_DIR.is_dir():
     _index = STATIC_DIR / "index.html"
 
-    @app.get("/tv")
-    @app.get("/play")
+    @app.api_route("/tv", methods=["GET", "HEAD"])
+    @app.api_route("/play", methods=["GET", "HEAD"])
     async def spa_routes() -> FileResponse:
         return FileResponse(_index, headers={"Cache-Control": "no-store"})
 

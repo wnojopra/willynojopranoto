@@ -16,7 +16,7 @@ This milestone covers the core feel:
   answer for 2s (or times out) → reveal
 - "Who in this room" boards (every player is a spot) and Yes/No boards
 
-Not yet: bets, payouts, Medium rounds, Relics, curses, audio, deploy.
+Not yet: bets, payouts, Medium rounds, Relics, curses, audio.
 
 ## Layout
 
@@ -58,14 +58,22 @@ Or build the frontend once (`npm run build`) and use only the backend at
 
 ### Testing with real phones
 
-The dev servers only listen on `127.0.0.1`. To play with phones, either deploy
-to Cloud Run (next milestone), or temporarily run the backend on your LAN IP and
-add that origin, e.g.:
+Deploy to Cloud Run (below) and open the service URL. Phones join at
+`<service-url>/play`.
+
+## Deploy (Cloud Run)
 
 ```bash
-SB_ALLOWED_ORIGINS=http://192.168.1.20:8000 \
-  .venv/bin/uvicorn app.main:app --host 192.168.1.20 --port 8000
+./deploy.sh            # build with Cloud Build + deploy (scales to zero)
+PARTY=1 ./deploy.sh    # party night: keep one instance warm all evening
 ```
+
+Defaults: project `nojo-client`, region `us-west1`, service `spirit-board`
+(override with `PROJECT`, `REGION`, `SERVICE`). The service runs as a single
+instance (`--max-instances 1`) because game state is in memory, with session
+affinity and a 60-minute request timeout for WebSockets.
+
+Live: <https://spirit-board-270279587994.us-west1.run.app/tv>
 
 ## Tests
 
