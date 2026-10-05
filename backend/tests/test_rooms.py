@@ -675,3 +675,131 @@ def test_final_seance_allows_many_relics():
     room.round_kind = "final"
     assert room.use_relic(a.id, "hex", b.id) is None
     assert room.use_relic(a.id, "jumpscare") is None
+
+
+# ---- Relics, Wave 2 ---------------------------------------------------------
+
+
+def test_iron_grip_triples_pull_then_wears_off():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    to_pull_phase(room, clock)
+    assert room.use_relic(a.id, "grip") is None
+    for p in (a, b, c):
+        p.pull_at = clock.t
+    a.pull, b.pull, c.pull = (1.0, 0.0), (-1.0, 0.0), (0.0, 0.0)
+    room.tick(1 / 30)
+    assert room.planchette.fx > 0  # 3 vs 1: Alice wins the tug-of-war
+    assert a.id in room.state_dict()["effects"]["gripping"]
+    clock.t += relics.GRIP_SECONDS + 0.1
+    for p in (a, b, c):
+        p.pull_at = clock.t
+    room.tick(1 / 30)
+    assert abs(room.planchette.fx) < 1e-9 and room.state_dict()["effects"]["gripping"] == {}
+
+
+def test_ouija_shuffle_moves_every_spot_at_halfway():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    to_pull_phase(room, clock)
+    before = {s.id: (s.x, s.y, s.label) for s in room.spots}
+    assert room.use_relic(a.id, "shuffle") is None
+    shuffle_in = room.state_dict()["effects"]["shuffleIn"]
+    assert abs(shuffle_in - rooms.PULL_SECONDS / 2) < 0.1
+    room.dev_grant_all()
+    room.round_kind = "final"  # allow a second cast this round
+    assert "already" in room.use_relic(b.id, "shuffle")
+    for p in room.players.values():
+        p.pull = (0.0, 0.0)
+    clock.t += rooms.PULL_SECONDS / 2 + 0.01
+    assert room.tick(1 / 30) is True  # state changes -> rebroadcast
+    after = {s.id: (s.x, s.y, s.label) for s in room.spots}
+    assert set(after) == set(before)
+    for sid in before:
+        assert after[sid][2] == before[sid][2]  # labels stay with their ids
+        assert after[sid][:2] != before[sid][:2]  # but nothing stays put
+    assert sorted(v[:2] for v in after.values()) == sorted(v[:2] for v in before.values())
+    assert room.state_dict()["effects"]["shuffleIn"] is None
+
+
+def test_ouija_shuffle_cast_late_fires_soon():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    to_pull_phase(room, clock)
+    clock.t += rooms.PULL_SECONDS * 0.75
+    assert room.use_relic(a.id, "shuffle") is None
+    assert abs(room.state_dict()["effects"]["shuffleIn"] - relics.SHUFFLE_MIN_DELAY) < 0.01
+
+
+def test_seance_rewind_snaps_back_five_seconds():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    to_pull_phase(room, clock)
+    a.pull_at = clock.t
+    positions = []
+    for _ in range(30 * 8):  # 8 seconds of Alice pulling right
+        clock.t += 1 / 30
+        for p in (a, b, c):
+            p.pull_at = clock.t
+        a.pull, b.pull, c.pull = (1.0, 0.0), (0.0, 0.0), (0.0, 0.0)
+        room.tick(1 / 30)
+        if room.phase != "pull":
+            break
+        positions.append((clock.t, room.planchette.x, room.planchette.y))
+    assert room.phase == "pull"
+    want = next(p for p in positions if p[0] >= clock.t - relics.REWIND_SECONDS)
+    assert room.use_relic(b.id, "rewind") is None
+    assert abs(room.planchette.x - want[1]) < 1e-9 and abs(room.planchette.y - want[2]) < 1e-9
+    assert room.planchette.vx == 0 and room.planchette.hover_spot is None
+
+
+def test_rewind_early_in_pull_goes_to_start():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    to_pull_phase(room, clock)
+    room.planchette.x += 0.1
+    assert room.use_relic(a.id, "rewind") is None
+    assert (room.planchette.x, room.planchette.y) == (rooms.physics.START_X, rooms.physics.START_Y)
+
+
+def test_tarot_changes_bet_secretly_during_pull():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    s0, s1 = room.spots[0].id, room.spots[1].id
+    room.place_bet(a.id, s0)
+    assert "pull" in room.use_relic(a.id, "tarot", s1)  # only during the pull
+    to_pull_phase(room, clock)
+    assert room.use_relic(a.id, "tarot", s0) == "That's already your bet."
+    assert room.use_relic(a.id, "tarot", s1) is None
+    assert a.bet == s1 and a.bet_dirty
+    ev = room.state_dict()["relicEvents"][-1]
+    assert ev["key"] == "tarot" and ev["target"] is None  # the new bet stays secret
+    room.place_bet(b.id, s1)  # ignored: bets are closed
+    room._finish_round(s1)
+    assert a.id in room.last_payout
+
+
+def test_blood_pact_shares_partners_winnings_without_chains():
+    room, clock, (a, b, c) = relic_room()
+    room.dev_grant_all()
+    s0, s1 = room.spots[0].id, room.spots[1].id
+    room.place_bet(a.id, s1)
+    room.place_bet(b.id, s0)
+    room.place_bet(c.id, s1)
+    assert room.use_relic(a.id, "pact", a.id)  # not yourself
+    assert room.use_relic(a.id, "pact", b.id) is None
+    assert room.state_dict()["effects"]["pacts"] == {a.id: b.id}
+    to_pull_phase(room, clock)
+    room.round_kind = "final"
+    room.dev_grant_all()
+    assert room.use_relic(c.id, "pact", a.id) is None  # chain: Cara -> Alice -> Bob
+    room.round_kind = "bets"
+    score_before = {p.id: p.score for p in (a, b, c)}
+    room._finish_round(s0)  # only Bob called it
+    pot = room.pot
+    assert room.last_payout[b.id] == pot
+    assert room.last_payout[a.id] == pot  # Alice feeds on Bob's win
+    assert c.id not in room.last_payout  # Cara gets Alice's *own* winnings only (none)
+    assert a.score - score_before[a.id] == pot
+    reveal = room.state_dict()["reveal"]
+    assert reveal["pacts"] == {a.id: b.id, c.id: a.id} and reveal["pactGains"] == {a.id: pot}

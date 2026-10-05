@@ -5,7 +5,7 @@ drags the planchette together from their phones.
 
 Design doc: [`docs/design.md`](docs/design.md)
 
-## Status: playable game with Relics (Wave 1)
+## Status: playable game with all 13 Relics and the scavenger hunt
 
 - TV creates a room with a 4-letter code and a **join QR** (scanning it pre-fills the code)
 - Phones join with the code and a name (up to 10 players)
@@ -21,8 +21,11 @@ Design doc: [`docs/design.md`](docs/design.md)
 - **Relics** (`backend/app/relics.py`): one-shot powers used from a tray on the phone.
   One per round (unlimited in the Final Séance). The TV announces who used what on whom,
   except Ghost Whisper, which is anonymous.
-  - Pull: 🙃 Mirror Curse, 🧊 Hex of Stillness, 🧂 Salt Circle, 🧲 Cursed Magnet
-  - Betting: 🔮 Crystal Ball (see live bets / cross out 2 wrong answers), ✖️ Double Down
+  - Pull: 🙃 Mirror Curse, 🧊 Hex of Stillness, 🧂 Salt Circle, 🧲 Cursed Magnet,
+    💪 Iron Grip (3× pull for 8s), 🌀 Ouija Shuffle (answers trade places halfway through),
+    ⏪ Séance Rewind (planchette back to 5s ago), 🃏 Tarot Card (secretly change your bet)
+  - Betting: 🔮 Crystal Ball (see live bets / cross out 2 wrong answers), ✖️ Double Down,
+    🩸 Blood Pact (you also win whatever your partner wins)
   - Any time: 👻 Ghost Whisper, 😱 Jump Scare
   - **Starter Relics** (lobby toggle, on by default): each human gets one random Relic per game.
     An unused starter expires when the next game starts (other Relics carry over)
@@ -39,7 +42,7 @@ Design doc: [`docs/design.md`](docs/design.md)
   - Codes and collections live in Firestore (database `spirit-board`). Locally
     they're in memory unless `SB_FIRESTORE_DATABASE` is set
 
-Not yet: Relics Wave 2, audio.
+Not yet: custom questions, catch-up Relics, audio.
 
 ## Layout
 

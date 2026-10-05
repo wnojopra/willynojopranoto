@@ -35,12 +35,15 @@ export function RelicTray({
   me,
   mine,
   error,
+  myBet = null,
   onCast,
 }: {
   state: StateMsg;
   me: string;
   mine: MyRelics;
   error: string | null;
+  /** Our current bet/guess (for the Tarot Card sheet). */
+  myBet?: string | null;
   onCast: (key: RelicKey, target: string | null, text: string | null) => void;
 }) {
   const [aiming, setAiming] = useState<RelicKey | null>(null);
@@ -86,7 +89,7 @@ export function RelicTray({
         </p>
       )}
       {aiming && state.relicCatalog[aiming] && relicBlocked(state.relicCatalog[aiming], state, me, mine.usedRound) === null && (
-        <RelicSheet info={state.relicCatalog[aiming]} state={state} me={me} onCast={cast} onClose={() => setAiming(null)} />
+        <RelicSheet info={state.relicCatalog[aiming]} state={state} me={me} myBet={myBet} onCast={cast} onClose={() => setAiming(null)} />
       )}
     </section>
   );
@@ -96,12 +99,14 @@ function RelicSheet({
   info,
   state,
   me,
+  myBet,
   onCast,
   onClose,
 }: {
   info: RelicInfo;
   state: StateMsg;
   me: string;
+  myBet: string | null;
   onCast: (key: RelicKey, target?: string | null, text?: string | null) => void;
   onClose: () => void;
 }) {
@@ -158,8 +163,15 @@ function RelicSheet({
       {info.target === 'spot' && (
         <div className="sheet__grid" role="group" aria-label="Pick a spot">
           {spots.map((s) => (
-            <button key={s.id} id={`relic-target-${s.id}`} className="betgrid__btn" onClick={() => onCast(info.key, s.id)}>
+            <button
+              key={s.id}
+              id={`relic-target-${s.id}`}
+              className="betgrid__btn"
+              onClick={() => onCast(info.key, s.id)}
+              disabled={info.key === 'tarot' && s.id === myBet}
+            >
               {s.id === me ? `${s.label} (you)` : s.label}
+              {info.key === 'tarot' && s.id === myBet && ' · your bet'}
             </button>
           ))}
         </div>
@@ -199,15 +211,42 @@ function RelicSheet({
   );
 }
 
-/** Banners for Relics cast on you this round: mirrored, or frozen with a countdown. */
+/** Banners for Relic effects that matter to you right now. */
 export function RelicEffects({ state, me }: { state: StateMsg; me: string }) {
-  if (state.phase !== 'pull') return null;
   const nameOf = (id: string | null) => state.players.find((p) => p.id === id)?.name ?? 'Someone';
+  const partner = state.effects.pacts[me];
+  const boundToMe = Object.entries(state.effects.pacts)
+    .filter(([, to]) => to === me)
+    .map(([from]) => nameOf(from));
+  const pactLine = (state.phase === 'question' || state.phase === 'pull') && (partner || boundToMe.length > 0) && (
+    <p className="phone__effect phone__effect--pact">
+      🩸 {partner ? `Bound to ${nameOf(partner)}: you win what they win.` : ''}
+      {partner && boundToMe.length > 0 ? ' ' : ''}
+      {boundToMe.length > 0 ? `${boundToMe.join(', ')} ${boundToMe.length === 1 ? 'is' : 'are'} feeding on your luck.` : ''}
+    </p>
+  );
+  if (state.phase !== 'pull') return pactLine || null;
   const lastBy = (key: RelicKey) => [...state.relicEvents].reverse().find((e) => e.key === key && e.target === me);
   const hexLeft = state.effects.hexed[me];
   const hexEvent = lastBy('hex');
+  const gripLeft = state.effects.gripping[me];
+  const gripEvent = [...state.relicEvents].reverse().find((e) => e.key === 'grip' && e.by === me);
+  const shuffleIn = state.effects.shuffleIn;
+  const shuffleSeq = [...state.relicEvents].reverse().find((e) => e.key === 'shuffle')?.seq ?? 0;
   return (
     <>
+      {pactLine}
+      {shuffleIn !== null && shuffleIn > 0 && (
+        <p className="phone__effect phone__effect--shuffle" role="alert">
+          🌀 The answers trade places in <Countdown key={shuffleSeq} seconds={shuffleIn} className="phone__effectnum" />s!
+        </p>
+      )}
+      {gripLeft !== undefined && gripLeft > 0 && (
+        <p className="phone__effect phone__effect--grip">
+          💪 Iron Grip! Your pull counts triple for{' '}
+          <Countdown key={gripEvent?.seq ?? 0} seconds={gripLeft} className="phone__effectnum" />s
+        </p>
+      )}
       {state.effects.mirrored.includes(me) && (
         <p className="phone__effect" role="alert">
           🙃 {nameOf(lastBy('mirror')?.by ?? null)} mirrored you. Your controls are reversed!

@@ -46,7 +46,7 @@ export function MiniMap({ board, spots, planchetteRef, betSpotId = null, salted 
       {spots.map((s) => (
         <g
           key={s.id}
-          transform={`translate(${s.x * S} ${s.y * S})`}
+          style={{ transform: `translate(${s.x * S}px, ${s.y * S}px)` }}
           className="minimap__spotg"
           data-bet={s.id === betSpotId ? '' : undefined}
           data-salted={salted.includes(s.id) ? '' : undefined}

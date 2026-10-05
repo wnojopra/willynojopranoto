@@ -28,6 +28,10 @@ HEX_SECONDS = 6.0
 MAGNET_STRENGTH = 0.45  # extra force toward the spot (one player pulls at 1.0)
 JUMP_SCARE_SPEED = 0.9  # planchette velocity kick, board units/s
 WHISPER_MAX = 40
+GRIP_SECONDS = 8.0
+GRIP_MULTIPLIER = 3.0
+REWIND_SECONDS = 5.0
+SHUFFLE_MIN_DELAY = 1.5  # if cast after the halfway mark, shuffle this long after casting
 
 
 @dataclass(frozen=True)
@@ -71,10 +75,22 @@ CATALOG: dict[str, Relic] = {
               "Someone in this room has something to say…"),
         Relic("jumpscare", "Jump Scare", "😱", "common", ANY, None,
               "BOO. The planchette jolts."),
+        # ---- Wave 2 ----
+        Relic("grip", "Iron Grip", "💪", "common", PULL, None,
+              f"Their pull counts {GRIP_MULTIPLIER:.0f}× for {GRIP_SECONDS:.0f} seconds."),
+        Relic("shuffle", "Ouija Shuffle", "🌀", "cursed", PULL, None,
+              "Halfway through the pull, the answers trade places."),
+        Relic("rewind", "Séance Rewind", "⏪", "cursed", PULL, None,
+              f"The planchette snaps back to where it was {REWIND_SECONDS:.0f} seconds ago."),
+        Relic("tarot", "Tarot Card", "🃏", "rare", PULL, SPOT,
+              "They changed their bet mid-pull. To what? Only the spirits know."),
+        Relic("pact", "Blood Pact", "🩸", "cursed", BET, PLAYER,
+              "Whatever their victim wins this round, they win too."),
     ]
 }
 
-WAVE_1 = list(CATALOG)
+WAVE_1 = ["mirror", "hex", "salt", "magnet", "crystal", "double", "whisper", "jumpscare"]
+WAVE_2 = ["grip", "shuffle", "rewind", "tarot", "pact"]
 
 # Starter Relics (no hunt): one per player per game, mostly commons.
 STARTER_TIER_WEIGHTS = {"common": 6, "rare": 3, "cursed": 1}

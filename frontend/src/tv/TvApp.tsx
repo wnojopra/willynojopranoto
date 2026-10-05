@@ -538,7 +538,7 @@ function RelicCards({ state, events }: { state: StateMsg; events: RelicEvent[] }
                       <strong style={{ color: victim.color }}>{victim.name}</strong>
                     </>
                   )}
-                  {info.target === 'spot' && (
+                  {info.target === 'spot' && e.target && (
                     <>
                       {' on '}
                       <strong>{spotLabel(e.target)}</strong>
@@ -555,14 +555,42 @@ function RelicCards({ state, events }: { state: StateMsg; events: RelicEvent[] }
   );
 }
 
-/** Who's mirrored or frozen right now, under the board during the pull. */
+/** Live Relic effects, under the board during the pull. */
 function EffectsLine({ state }: { state: StateMsg }) {
   const name = (id: string) => state.players.find((p) => p.id === id);
   const mirrored = state.effects.mirrored.map(name).filter((p): p is Player => !!p);
   const hexed = Object.entries(state.effects.hexed).filter(([, s]) => s > 0);
-  if (mirrored.length === 0 && hexed.length === 0) return null;
+  const gripping = Object.entries(state.effects.gripping).filter(([, s]) => s > 0);
+  const pacts = Object.entries(state.effects.pacts);
+  const shuffleIn = state.effects.shuffleIn;
+  const shuffleSeq = [...state.relicEvents].reverse().find((e) => e.key === 'shuffle')?.seq ?? 0;
+  if (mirrored.length + hexed.length + gripping.length + pacts.length === 0 && !shuffleIn) return null;
   return (
     <p className="effects">
+      {shuffleIn !== null && shuffleIn > 0 && (
+        <span className="effects__item effects__item--shuffle">
+          🌀 The answers trade places in <Countdown key={shuffleSeq} seconds={shuffleIn} />s
+        </span>
+      )}
+      {gripping.map(([id, secs]) => {
+        const p = name(id);
+        if (!p) return null;
+        return (
+          <span key={`g${id}${secs}`} className="effects__item">
+            💪 <strong style={{ color: p.color }}>{p.name}</strong> pulls 3× <Countdown seconds={secs} />s
+          </span>
+        );
+      })}
+      {pacts.map(([from, to]) => {
+        const a = name(from);
+        const b = name(to);
+        if (!a || !b) return null;
+        return (
+          <span key={`p${from}`} className="effects__item">
+            🩸 <strong style={{ color: a.color }}>{a.name}</strong> feeds on <strong style={{ color: b.color }}>{b.name}</strong>
+          </span>
+        );
+      })}
       {mirrored.map((p) => (
         <span key={`m${p.id}`} className="effects__item">
           🙃 <strong style={{ color: p.color }}>{p.name}</strong> is mirrored
@@ -604,14 +632,22 @@ function payoutLine(state: StateMsg): string {
     return state.game.roundKind === 'final'
       ? `Nobody called it. The spirits keep all 🍬 ${state.carryover}. Forever.`
       : `Nobody called it. The spirits keep the candy. 🍬 ${state.carryover} rolls over!`;
-  const winners = state.players.filter((p) => reveal.payout[p.id]);
+  // Own winnings only: Blood Pact gains don't count as calling it.
+  const own = (id: string) => (reveal.payout[id] ?? 0) - (reveal.pactGains?.[id] ?? 0);
+  const winners = state.players.filter((p) => own(p.id) > 0);
   const doubled = winners.filter((p) => reveal.doubled.includes(p.id));
   const plain = winners.find((p) => !reveal.doubled.includes(p.id));
-  const share = plain ? reveal.payout[plain.id] : winners.length ? Math.round(reveal.payout[winners[0].id] / 2) : 0;
+  const share = plain ? own(plain.id) : winners.length ? Math.round(own(winners[0].id) / 2) : 0;
   const dd = doubled.length ? ` · ✖️ ${names(doubled.map((p) => p.name))} doubled down: +🍬 ${share * 2}` : '';
-  if (winners.length === 1) return `${winners[0].name} called it alone. +🍬 ${reveal.payout[winners[0].id]}${doubled.length ? ' (doubled down!)' : ''}`;
-  if (winners.length === state.players.length) return `Everyone called it. +🍬 ${share} each. Boring.${dd}`;
-  return `${names(winners.map((p) => p.name))} split the pot. +🍬 ${share} each${dd}`;
+  const feeders = state.players.filter((p) => (reveal.pactGains?.[p.id] ?? 0) > 0);
+  const pact = feeders.length
+    ? ` · 🩸 ${feeders
+        .map((p) => `${p.name} feeds on ${state.players.find((q) => q.id === reveal.pacts?.[p.id])?.name ?? '?'}: +🍬 ${reveal.pactGains[p.id]}`)
+        .join(', ')}`
+    : '';
+  if (winners.length === 1) return `${winners[0].name} called it alone. +🍬 ${own(winners[0].id)}${doubled.length ? ' (doubled down!)' : ''}${pact}`;
+  if (winners.length === state.players.length) return `Everyone called it. +🍬 ${share} each. Boring.${dd}${pact}`;
+  return `${names(winners.map((p) => p.name))} split the pot. +🍬 ${share} each${dd}${pact}`;
 }
 
 /** Calls out people who didn't bet and got lucky (or didn't). */

@@ -252,6 +252,12 @@ On the admin page you can add inside-joke questions (marked as Spirit Bets or Me
 | **Wave 1 (must-have)** | Mirror Curse, Hex of Stillness, Salt Circle, Cursed Magnet, Crystal Ball, Double Down, Ghost Whisper, Jump Scare |
 | **Wave 2 (if time allows)** | Iron Grip, Ouija Shuffle, Séance Rewind, Tarot Card, Blood Pact |
 
+**Wave 2 implementation notes**
+- 🌀 Ouija Shuffle: cast in the first half of the pull, it fires at the halfway mark; cast later, it fires 1.5s after casting. Every answer moves to another answer's place (labels, salt, and magnets travel with their answer).
+- ⏪ Séance Rewind: if the pull is less than 5s old, the planchette goes back to the start.
+- 🃏 Tarot Card: the TV announces that you changed your bet, but not to what.
+- 🩸 Blood Pact: you win what your partner won on their own (including their Double Down, but not their own pact gains, so no chains). Can't bind to the Medium.
+
 ### 6.5 Claiming during the hunt
 1. On the admin page, you create clue codes (each with a set Relic or a random one from a tier) and **print a QR sticker sheet**.
 2. Put a sticker on each scavenger hunt clue.

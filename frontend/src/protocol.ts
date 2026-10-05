@@ -46,6 +46,10 @@ export interface Reveal {
   boardMatched?: boolean;
   /** Players whose Double Down was active this round. */
   doubled: string[];
+  /** Blood Pacts: caster id → partner id. */
+  pacts: Record<string, string>;
+  /** What each pact caster gained from their partner (already included in `payout`). */
+  pactGains: Record<string, number>;
 }
 
 export interface GameInfo {
@@ -60,7 +64,20 @@ export interface GameInfo {
   starterRelics: boolean;
 }
 
-export type RelicKey = 'mirror' | 'hex' | 'salt' | 'magnet' | 'crystal' | 'double' | 'whisper' | 'jumpscare';
+export type RelicKey =
+  | 'mirror'
+  | 'hex'
+  | 'salt'
+  | 'magnet'
+  | 'crystal'
+  | 'double'
+  | 'whisper'
+  | 'jumpscare'
+  | 'grip'
+  | 'shuffle'
+  | 'rewind'
+  | 'tarot'
+  | 'pact';
 
 export interface RelicInfo {
   key: RelicKey;
@@ -88,6 +105,12 @@ export interface Effects {
   mirrored: string[];
   /** Player id → seconds of Hex left (as of this state message). */
   hexed: Record<string, number>;
+  /** Player id → seconds of Iron Grip left. */
+  gripping: Record<string, number>;
+  /** Seconds until a pending Ouija Shuffle, or null. */
+  shuffleIn: number | null;
+  /** Blood Pacts: caster id → partner id (public once cast). */
+  pacts: Record<string, string>;
 }
 
 /** A curse card the board dealt. In force until the next reveal. */

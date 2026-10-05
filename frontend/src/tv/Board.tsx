@@ -147,7 +147,7 @@ export function Board({ board, spots, planchetteRef, resultSpotId, colorsBySpot,
           data-result={resultSpotId === s.id ? '' : undefined}
           data-dim={resultSpotId && resultSpotId !== s.id ? '' : undefined}
           data-salted={salted?.includes(s.id) ? '' : undefined}
-          transform={`translate(${s.x * S} ${s.y * S})`}
+          style={{ transform: `translate(${s.x * S}px, ${s.y * S}px)` }}
         >
           <circle className="spot__well" r={SPOT_R} />
           {colorsBySpot[s.id] && <circle className="spot__pip" r={10} cy={-SPOT_R + 22} fill={colorsBySpot[s.id]} />}

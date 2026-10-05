@@ -21,6 +21,7 @@ import re
 import secrets
 import time
 import unicodedata
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol
 
@@ -164,6 +165,9 @@ class Player:
     double_down: bool = False
     crystal: bool = False
     crystal_crossed: tuple[str, ...] = ()
+    grip_until: float = 0.0
+    pact_with: str | None = None  # Blood Pact partner (we also win what they win)
+    bet_dirty: bool = False  # bet changed by a Relic: tell the owner's phone
 
     def reset_round_effects(self) -> None:
         self.mirrored = False
@@ -171,6 +175,9 @@ class Player:
         self.double_down = False
         self.crystal = False
         self.crystal_crossed = ()
+        self.grip_until = 0.0
+        self.pact_with = None
+        self.bet_dirty = False
 
     def reset_stats(self) -> None:
         self.score = 0
@@ -243,6 +250,9 @@ class Room:
         self.starter_relics = True  # deal one per player per game (no hunt yet)
         self.salted: set[str] = set()
         self.magnets: list[str] = []  # spot ids; stacking allowed
+        self.shuffle_at: float | None = None  # Ouija Shuffle pending (clock time)
+        self._trail: deque[tuple[float, float, float]] = deque()  # (t, x, y) for Séance Rewind
+        self.last_pact_gains: dict[str, int] = {}
         self.relic_events: list[dict] = []  # this round, for the TV
         self._relic_seq = 0
         self.tv_conns: set[Conn] = set()
@@ -351,7 +361,7 @@ class Room:
         """Playtesting: every human gets one of each Relic."""
         for p in self.players.values():
             if not p.is_bot:
-                for key in relics.WAVE_1:
+                for key in relics.CATALOG:
                     self._grant(p, key)
 
     @property
@@ -448,6 +458,9 @@ class Room:
             p.reset_round_effects()
         self.salted.clear()
         self.magnets.clear()
+        self.shuffle_at = None
+        self._trail.clear()
+        self.last_pact_gains = {}
         self.relic_events = []
         if medium and medium.is_bot:
             medium.bot_next_think = now + self._rng.uniform(2.0, 4.0)
@@ -479,6 +492,7 @@ class Room:
         self.spots = []
         self.result_spot_id = None
         self.medium_id = None
+        self.shuffle_at = None
         self.planchette.reset()
 
     def _show_results(self) -> None:
@@ -614,6 +628,35 @@ class Room:
                 return f"Whispers are 1–{relics.WHISPER_MAX} characters."
             event["by"] = None  # anonymous, even to the TV
             event["text"] = clean
+        elif relic.key == "grip":
+            p.grip_until = max(p.grip_until, self._clock()) + relics.GRIP_SECONDS
+        elif relic.key == "shuffle":
+            if len(self.spots) < 2:
+                return "There's nothing to shuffle."
+            if self.shuffle_at is not None:
+                return "The board is already about to shuffle."
+            now = self._clock()
+            halfway = self.phase_ends_at - PULL_SECONDS / 2
+            self.shuffle_at = max(halfway, now + relics.SHUFFLE_MIN_DELAY)
+        elif relic.key == "rewind":
+            self._rewind()
+        elif relic.key == "tarot":
+            if not self._valid_spot(target):
+                return "Pick a spot on the board."
+            if target == p.bet:
+                return "That's already your bet."
+            p.bet = target  # type: ignore[assignment]
+            p.auto_bet = False
+            p.bet_dirty = True
+            # The new bet stays secret: the TV only learns that it changed.
+        elif relic.key == "pact":
+            partner = self.players.get(target) if isinstance(target, str) else None
+            if partner is None or partner.id == p.id or partner.id == self.medium_id:
+                return "Pick another player who's betting."
+            if p.pact_with is not None:
+                return "You're already bound to someone."
+            p.pact_with = partner.id
+            event["target"] = partner.id
         elif relic.key == "jumpscare":
             if self.phase == "pull":
                 angle = self._rng.uniform(0, 2 * math.pi)
@@ -671,7 +714,10 @@ class Room:
                 if now < p.frozen_until:
                     pulls.append((0.0, 0.0))  # Hexed: still counts toward 1/sqrt(n)
                     continue
-                pulls.append((-p.pull[0], -p.pull[1]) if p.mirrored else p.pull)
+                px, py = (-p.pull[0], -p.pull[1]) if p.mirrored else p.pull
+                if now < p.grip_until:
+                    px, py = px * relics.GRIP_MULTIPLIER, py * relics.GRIP_MULTIPLIER
+                pulls.append((px, py))
                 self._track_pull(p, dt)
             else:
                 # Players not touching the pad still count toward 1/sqrt(n),
@@ -688,6 +734,12 @@ class Room:
                 fx += dx / d * relics.MAGNET_STRENGTH
                 fy += dy / d * relics.MAGNET_STRENGTH
         locked = physics.step(self.planchette, (fx, fy), dt, self.spots, self.salted)
+        self._trail.append((now, self.planchette.x, self.planchette.y))
+        while self._trail and self._trail[0][0] < now - relics.REWIND_SECONDS - 1.0:
+            self._trail.popleft()
+        if locked is None and self.shuffle_at is not None and now >= self.shuffle_at:
+            self._shuffle_spots()
+            return True  # spots moved: rebroadcast state
         if locked is None and now >= self.phase_ends_at:
             spot, _ = physics.nearest_spot(self.planchette, self.spots, self.salted)
             locked = spot.id if spot else None
@@ -695,6 +747,35 @@ class Room:
             self._finish_round(locked)
             return True
         return False
+
+    def _rewind(self) -> None:
+        """Séance Rewind: back to where the planchette was REWIND_SECONDS ago (or the pull's start)."""
+        target = self._clock() - relics.REWIND_SECONDS
+        x, y = physics.START_X, physics.START_Y
+        for t, tx, ty in self._trail:
+            x, y = tx, ty
+            if t >= target:
+                break
+        pl = self.planchette
+        pl.x, pl.y = x, y
+        pl.vx = pl.vy = 0.0
+        pl.hover_spot, pl.hover_time = None, 0.0
+        self._trail.clear()  # a second Rewind goes back from here, not further
+
+    def _shuffle_spots(self) -> None:
+        """Ouija Shuffle: every answer moves to another answer's place."""
+        self.shuffle_at = None
+        n = len(self.spots)
+        if n < 2:
+            return
+        order = list(range(n))
+        while any(i == j for i, j in enumerate(order)):  # derangement: nothing stays put
+            self._rng.shuffle(order)
+        places = [(s.x, s.y) for s in self.spots]
+        self.spots = [
+            physics.Spot(s.id, s.label, *places[order[i]]) for i, s in enumerate(self.spots)
+        ]
+        self.planchette.hover_spot, self.planchette.hover_time = None, 0.0
 
     def _auto_answer(self) -> None:
         if self.phase != "medium" or not self.spots:
@@ -740,6 +821,7 @@ class Room:
             self._score_medium(spot_id)
         else:
             self._pay_out(spot_id)
+        self._pay_pacts()
         self._deal_curse(haunted)
         self.phase = "reveal"
 
@@ -788,6 +870,18 @@ class Room:
         if len(winners) == 1:
             winners[0].solo_wins += 1
         self.last_rolled_over = False
+
+    def _pay_pacts(self) -> None:
+        """Blood Pact: you also win what your partner won (their own winnings only, no chains)."""
+        base = dict(self.last_payout)
+        gains: dict[str, int] = {}
+        for p in self.players.values():
+            won = base.get(p.pact_with or "", 0)
+            if won > 0:
+                gains[p.id] = won
+                p.score += won
+                self.last_payout[p.id] = self.last_payout.get(p.id, 0) + won
+        self.last_pact_gains = gains
 
     def _score_medium(self, spot_id: str) -> None:
         correct = [p for p in self._bettors() if p.bet == self.medium_answer]
@@ -925,6 +1019,18 @@ class Room:
                     for p in self.players.values()
                     if p.frozen_until > now
                 },
+                "gripping": {
+                    p.id: round(p.grip_until - now, 2)
+                    for p in self.players.values()
+                    if p.grip_until > now
+                },
+                "shuffleIn": (
+                    round(max(0.0, self.shuffle_at - now), 2)
+                    if self.shuffle_at is not None and self.phase == "pull"
+                    else None
+                ),
+                # Pacts are public (the TV announced them): caster -> partner.
+                "pacts": {p.id: p.pact_with for p in self.players.values() if p.pact_with},
             },
             "relicCatalog": RELIC_CATALOG_DICT,
             "awards": self.awards if self.phase == "results" else None,
@@ -943,6 +1049,8 @@ class Room:
             "payout": self.last_payout,
             "rolledOver": self.last_rolled_over,
             "doubled": [p.id for p in self.players.values() if p.double_down],
+            "pacts": {p.id: p.pact_with for p in self.players.values() if p.pact_with},
+            "pactGains": self.last_pact_gains,
         }
         if self.round_kind == "medium":
             out["mediumAnswer"] = self.medium_answer
@@ -1025,7 +1133,8 @@ class Room:
             if p is None:
                 continue
             msgs = []
-            if p.auto_bet and p.bet and self.phase == "pull":
+            if (p.auto_bet or p.bet_dirty) and p.bet and self.phase == "pull":
+                p.bet_dirty = False
                 msgs.append(self.bet_msg(p))
             elif pid == self.medium_id and self.medium_auto and self.phase == "question":
                 msgs.append(self.answer_msg())

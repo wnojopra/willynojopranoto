@@ -356,7 +356,7 @@ export function PlayApp() {
       )}
 
       {state.phase === 'results' && <PhoneResults state={state} me={me} />}
-      {showTray && <RelicTray state={state} me={me} mine={myRelics} error={relicError} onCast={castRelic} />}
+      {showTray && <RelicTray state={state} me={me} mine={myRelics} error={relicError} myBet={liveBet?.spotId ?? null} onCast={castRelic} />}
     </main>
   );
 }
@@ -432,6 +432,11 @@ function MediumOutcome({ state, me, medium }: { state: StateMsg; me: string; med
           ? `${reveal.correct?.length ?? 0} read your mind.${reveal.boardMatched ? ' The board agreed!' : ''} Now explain yourself.`
           : `${correct ? 'You read their mind!' : 'Wrong guess.'}${reveal.boardMatched ? ' The board agreed: +100 for everyone.' : ''}`}
       </p>
+      {(reveal.pactGains?.[me] ?? 0) > 0 && (
+        <p className="phone__sub">
+          🩸 +🍬 {reveal.pactGains[me]} from your Blood Pact with {state.players.find((p) => p.id === reveal.pacts?.[me])?.name ?? 'someone'}.
+        </p>
+      )}
     </div>
   );
 }
@@ -470,16 +475,28 @@ function RevealOutcome({ state, me, betLabel }: { state: StateMsg; me: string; b
   if (!reveal) return null;
   const won = reveal.payout[me];
   const auto = reveal.autoBets.includes(me);
-  const winners = Object.keys(reveal.payout).length;
+  const pactGain = reveal.pactGains?.[me] ?? 0;
+  const partner = state.players.find((p) => p.id === reveal.pacts?.[me]);
+  // Bettors who won on their own (Blood Pact gains don't count as calling it).
+  const winners = Object.entries(reveal.payout).filter(([id, n]) => n - (reveal.pactGains?.[id] ?? 0) > 0).length;
+  const ownWin = (won ?? 0) - pactGain > 0;
+  const pactNote = pactGain > 0 && partner && (
+    <p className="phone__sub">
+      🩸 +🍬 {pactGain} from your Blood Pact with {partner.name}.
+    </p>
+  );
   return (
     <div className="outcome" data-won={won ? '' : undefined}>
       {won ? (
         <>
           <p className="outcome__big">+🍬 {won}</p>
-          <p className="phone__sub">
-            {winners === 1 ? 'You called it alone. The whole pot is yours.' : `Split ${winners} ways.`}
-            {auto && ' (The spirits bet for you. Lucky.)'}
-          </p>
+          {ownWin && (
+            <p className="phone__sub">
+              {winners === 1 ? 'You called it alone. The whole pot is yours.' : `Split ${winners} ways.`}
+              {auto && ' (The spirits bet for you. Lucky.)'}
+            </p>
+          )}
+          {pactNote}
         </>
       ) : (
         <>
