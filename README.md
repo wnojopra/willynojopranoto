@@ -15,10 +15,12 @@ Design doc: [`docs/design.md`](docs/design.md)
   the pot (50 × players) is split among correct bettors, with rollover if nobody wins
 - **Medium** rounds: one player answers privately, the others guess (+100) and
   pull; +100 to everyone if the board agrees; then "explain yourself"
-- **Haunted** marks when the board lands on you; most marks gets the Final Curse
+- **Haunted** marks when the board lands on you, plus a **curse card** the TV reads out
+  (deck: `backend/app/curses.py`; 🍺 cards always offer a non-drinking option).
+  Most marks gets the Final Curse. The host can turn curses off in the lobby
 - **Results**: standings + awards (Grand Medium, Most Haunted, Lone Wolf, …), play again
 
-Not yet: curse cards, Relics, hunt QR claiming, audio.
+Not yet: Relics, hunt QR claiming, audio.
 
 ## Layout
 
@@ -28,6 +30,7 @@ backend/    Python 3.12+ / FastAPI. Authoritative game loop at 30Hz.
   app/rooms.py     room state machine, bots, broadcasting
   app/game.py      game plan (lengths, Medium slots) + end-of-game awards
   app/questions.py question decks (Spirit Bets, Medium, Final)
+  app/curses.py    curse cards + Final Curses (edit these!)
   app/main.py      WebSocket endpoints (/ws/tv, /ws/play), security headers
 frontend/   React + TypeScript + Vite
   src/tv/          TV screens (lobby, board, reveal)

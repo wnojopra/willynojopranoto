@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Protocol
 
 from app import game, physics
+from app.curses import CURSE_DECK, FINAL_CURSES
 from app.questions import DECK, FINAL_QUESTION, MEDIUM_DECK, YES_NO_SPOTS, Question
 
 log = logging.getLogger(__name__)
@@ -203,6 +204,12 @@ class Room:
         self.last_rolled_over = False
         self._used_questions: set[Question] = set()
         self._player_subject_history: set[str] = set()
+        # Curses: the card the board dealt at the last reveal, which stays in
+        # force until the next reveal.
+        self.curses_on = True
+        self.curse: dict | None = None
+        self.final_curse: dict | None = None
+        self._curse_order: list[int] = []
         self.tv_conns: set[Conn] = set()
         self.player_conns: dict[str, Conn] = {}
         self.last_activity = clock()
@@ -265,6 +272,12 @@ class Room:
         if self.phase == "lobby" and not self.game_active and length in game.LENGTHS:
             self.game_length = length  # type: ignore[assignment]
 
+    def set_curses(self, on: object) -> None:
+        if isinstance(on, bool):
+            self.curses_on = on
+            if not on:
+                self.curse = None
+
     @property
     def total_rounds(self) -> int:
         return len(self.plan)
@@ -289,6 +302,8 @@ class Room:
         self.game_active = True
         self.carryover = 0
         self.awards = []
+        self.curse = None
+        self.final_curse = None
         self._used_mediums.clear()
         self.phase = "lobby"
         return self.start_round()
@@ -382,6 +397,19 @@ class Room:
 
     def _show_results(self) -> None:
         self.awards = game.compute_awards(self.players.values())
+        # The Final Curse needs someone who can actually perform it: the
+        # most-haunted human(s), even if a bot won the Most Haunted award.
+        humans = [p for p in self.players.values() if not p.is_bot]
+        worst = max((p.haunted for p in humans), default=0)
+        self.final_curse = (
+            {
+                "playerIds": [p.id for p in humans if p.haunted == worst],
+                "text": self._rng.choice(FINAL_CURSES),
+            }
+            if worst > 0
+            else None
+        )
+        self.curse = None
         self.phase = "results"
         self.game_active = False
         self.question = None
@@ -523,7 +551,28 @@ class Room:
             self._score_medium(spot_id)
         else:
             self._pay_out(spot_id)
+        self._deal_curse(haunted)
         self.phase = "reveal"
+
+    def _deal_curse(self, victim: Player | None) -> None:
+        """The previous curse ends at this reveal; the board may deal a new one."""
+        self.curse = None
+        if not self.curses_on or victim is None or victim.is_bot or self.round_kind == "final":
+            return
+        if not self._curse_order:
+            self._curse_order = list(range(len(CURSE_DECK)))
+            self._rng.shuffle(self._curse_order)
+        card = CURSE_DECK[self._curse_order.pop()]
+        others = [p for p in self.players.values() if p.id != victim.id]
+        humans = [p for p in others if not p.is_bot]
+        other = self._rng.choice(humans or others).name if others else "the nearest ghost"
+        self.curse = {
+            "playerId": victim.id,
+            "roundNo": self.round_no,
+            "text": card.text.replace("{other}", other),
+            "drink": card.drink,
+            "alt": card.alt.replace("{other}", other) if card.alt else None,
+        }
 
     def _lock_bets(self) -> None:
         """Bets close when the pull starts. The spirits bet for stragglers."""
@@ -665,13 +714,17 @@ class Room:
                 "totalRounds": self.total_rounds,
                 "roundKind": self.round_kind if in_round else None,
                 "isLastRound": self.game_active and self.game_round >= self.total_rounds,
+                "cursesOn": self.curses_on,
             },
             "medium": (
                 {"playerId": self.medium_id, "answered": self.medium_answer is not None}
                 if self.medium_id and in_round
                 else None
             ),
+            # Curses are public: the TV reads them out.
+            "curse": self.curse if in_round else None,
             "awards": self.awards if self.phase == "results" else None,
+            "finalCurse": self.final_curse if self.phase == "results" else None,
             "canStart": self.can_start,
             "minPlayers": MIN_PLAYERS_TO_START,
             "maxPlayers": MAX_PLAYERS,

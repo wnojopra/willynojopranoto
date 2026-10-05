@@ -180,6 +180,11 @@ export function PlayApp() {
         <span className="phone__code">{state.code}</span>
       </header>
       {roundTag && <p className="phone__round">{roundTag}</p>}
+      {state.curse?.playerId === me && state.phase !== 'reveal' && (
+        <p className="phone__cursechip">
+          💀 <strong>Cursed:</strong> {state.curse.text}
+        </p>
+      )}
 
       {state.phase === 'lobby' && (
         <section className="phone__panel phone--center">
@@ -269,6 +274,16 @@ export function PlayApp() {
           <p className="phone__sub">The spirits have spoken…</p>
           <p className="phone__answer">{result.id === me ? 'YOU' : result.label}</p>
           {result.id === me && <p className="phone__sub">The board has chosen you. 💀 Haunted.</p>}
+          {state.curse?.playerId === me && state.curse.roundNo === state.roundNo && (
+            <div className="phone__cursed" role="alert">
+              <p className="phone__cursedhead">💀 You’ve been cursed. Look at the TV.</p>
+              <p>
+                {state.curse.drink ? '🍺 ' : ''}
+                {state.curse.text}
+              </p>
+              {state.curse.alt && <p className="phone__sub">or: {state.curse.alt}</p>}
+            </div>
+          )}
           {kind === 'medium' && medium ? (
             <MediumOutcome state={state} me={me} medium={medium} />
           ) : (
@@ -348,7 +363,11 @@ function PhoneResults({ state, me }: { state: StateMsg; me: string }) {
       ) : (
         <p className="phone__sub">No awards. The spirits barely noticed you.</p>
       )}
-      {mine.some((a) => a.key === 'most_haunted') && <p className="phone__curse">💀 The Final Curse is yours.</p>}
+      {state.finalCurse?.playerIds.includes(me) && (
+        <p className="phone__curse">
+          💀 The Final Curse is yours: <em>{state.finalCurse.text}</em>
+        </p>
+      )}
     </section>
   );
 }
@@ -375,7 +394,11 @@ function RevealOutcome({ state, me, betLabel }: { state: StateMsg; me: string; b
             {auto ? 'The spirits bet' : 'You bet'} <strong>{betLabel ?? '?'}</strong>.
           </p>
           <p className="phone__sub">
-            {reveal.rolledOver ? 'Nobody called it. The spirits keep the candy. Pot rolls over!' : 'No candy for you.'}
+            {reveal.rolledOver
+              ? state.game.roundKind === 'final'
+                ? 'Nobody called it. The spirits keep it all.'
+                : 'Nobody called it. The spirits keep the candy. Pot rolls over!'
+              : 'No candy for you.'}
           </p>
         </>
       )}

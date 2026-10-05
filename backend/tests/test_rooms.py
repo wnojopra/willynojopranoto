@@ -387,3 +387,100 @@ def test_abandoned_round_is_replayed():
     assert room.game_round == 0
     room.start_round()
     assert room.game_round == 1
+
+
+# ---- Curses -----------------------------------------------------------------
+
+from app import curses, physics  # noqa: E402
+
+
+def land_on(room, clock, player):
+    """Plays the current round on a who-board and lands on `player`."""
+    if room.phase == "medium":
+        room.medium_answers(room.medium_id, room.spots[0].id)
+    room.spots = physics.layout_spots([(p.id, p.name) for p in room.players.values()])
+    play_round(room, clock, answer=player.id)
+
+
+def test_curse_deck_rules():
+    assert len(curses.CURSE_DECK) >= 30
+    assert all(c.alt for c in curses.CURSE_DECK if c.drink)
+    assert curses.FINAL_CURSES
+
+
+def test_board_landing_on_human_deals_public_curse_until_next_reveal():
+    room, clock = make_room()
+    a = room.add_player("Alice")
+    b = room.add_player("Bob")
+    room.add_player("Cara")
+    room.set_length("short")
+    room.new_game()
+    land_on(room, clock, a)
+    curse = room.state_dict()["curse"]
+    assert curse["playerId"] == a.id and curse["roundNo"] == room.round_no
+    assert "{other}" not in curse["text"] and (not curse["drink"] or curse["alt"])
+    # Still in force (shown as a reminder) during the next round...
+    room.start_round()
+    assert room.state_dict()["curse"]["playerId"] == a.id
+    # ...and replaced at the next reveal.
+    land_on(room, clock, b)
+    assert room.state_dict()["curse"]["playerId"] == b.id
+
+
+def test_no_curse_for_bots_non_players_or_when_off():
+    room, clock = make_room()
+    a = room.add_player("Alice")
+    room.add_player("Bob")
+    bot = room.add_bot()
+    room.new_game()
+    land_on(room, clock, bot)
+    assert room.curse is None
+    room.set_curses(False)
+    room.start_round()
+    land_on(room, clock, a)
+    assert room.curse is None and room.state_dict()["game"]["cursesOn"] is False
+    room.set_curses("yes")  # ignored: not a bool
+    assert room.curses_on is False
+
+
+def test_curse_deck_does_not_repeat_until_exhausted():
+    room, _ = make_room()
+    a = room.add_player("Alice")
+    room.add_player("Bob")
+    room.round_kind = "bets"
+    dealt = set()
+    for _ in range(len(curses.CURSE_DECK)):
+        room._deal_curse(a)
+        dealt.add((room.curse["drink"], room.curse["text"]))
+    assert len(dealt) == len(curses.CURSE_DECK) and room._curse_order == []
+    room._deal_curse(a)  # reshuffles instead of running dry
+    assert room.curse is not None
+
+
+def test_final_curse_goes_to_most_haunted():
+    room, clock = make_room()
+    a = room.add_player("Alice")
+    room.add_player("Bob")
+    room.set_length("short")
+    room.new_game()
+    while room.phase != "results":
+        if room.phase == "reveal" or room.phase == "lobby":
+            room.start_round()
+            continue
+        land_on(room, clock, a)
+    fc = room.state_dict()["finalCurse"]
+    assert fc["playerIds"] == [a.id] and fc["text"] in curses.FINAL_CURSES
+    assert room.state_dict()["curse"] is None
+
+
+def test_final_curse_skips_bots():
+    room, _ = make_room()
+    a = room.add_player("Alice")
+    room.add_player("Bob")
+    bot = room.add_bot()
+    bot.haunted, a.haunted = 5, 1
+    room._show_results()
+    assert room.final_curse["playerIds"] == [a.id]
+    a.haunted = 0
+    room._show_results()
+    assert room.final_curse is None

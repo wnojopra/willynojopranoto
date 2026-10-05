@@ -54,6 +54,18 @@ export interface GameInfo {
   totalRounds: number;
   roundKind: RoundKind | null;
   isLastRound: boolean;
+  cursesOn: boolean;
+}
+
+/** A curse card the board dealt. In force until the next reveal. */
+export interface Curse {
+  playerId: string;
+  /** The round it was dealt in (it's "new" while roundNo matches). */
+  roundNo: number;
+  text: string;
+  drink: boolean;
+  /** Non-drinking option; always present on 🍺 cards. */
+  alt: string | null;
 }
 
 export interface Award {
@@ -82,7 +94,9 @@ export interface StateMsg {
   reveal: Reveal | null;
   game: GameInfo;
   medium: { playerId: string; answered: boolean } | null;
+  curse: Curse | null;
   awards: Award[] | null;
+  finalCurse: { playerIds: string[]; text: string } | null;
   canStart: boolean;
   minPlayers: number;
   maxPlayers: number;

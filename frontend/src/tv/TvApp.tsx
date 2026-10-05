@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState, type RefObject } from 'react';
-import type { GameLength, PlanchetteState, Player, ServerMsg, StateMsg } from '../protocol';
+import type { Curse, GameLength, PlanchetteState, Player, ServerMsg, StateMsg } from '../protocol';
 import { useGameSocket } from '../useGameSocket';
 import { Board, type Bettor } from './Board';
 import { Countdown } from './Countdown';
@@ -171,6 +171,14 @@ function Lobby({ state, send }: { state: StateMsg; send: Send }) {
               ))}
             </div>
           )}
+          <button
+            id="tv-curses"
+            className="btn btn--ghost lobby__toggle"
+            aria-pressed={state.game.cursesOn}
+            onClick={() => send({ type: 'set_curses', on: !state.game.cursesOn })}
+          >
+            💀 Curses {state.game.cursesOn ? 'on' : 'off'}
+          </button>
         </div>
       </footer>
     </main>
@@ -193,6 +201,8 @@ function Seance({
   const kind = state.game.roundKind ?? 'bets';
   const medium = state.players.find((p) => p.id === state.medium?.playerId);
   const mediumAnswer = state.spots.find((s) => s.id === reveal?.mediumAnswer);
+  const cursed = state.players.find((p) => p.id === state.curse?.playerId);
+  const newCurse = state.curse && state.curse.roundNo === state.roundNo ? state.curse : null;
 
   const bettors = useMemo(() => {
     if (!reveal) return undefined;
@@ -221,6 +231,14 @@ function Seance({
         </p>
         <h1 className="seance__question">{state.question?.text}</h1>
         {kind !== 'medium' && state.phase !== 'reveal' && <PotBadge pot={state.pot} bonus={state.potBonus} />}
+        {state.phase !== 'reveal' && state.curse && cursed && (
+          <p className="cursechip" aria-label={`${cursed.name} is cursed: ${state.curse.text}`}>
+            <span className="cursechip__who">
+              💀 <strong style={{ color: cursed.color }}>{cursed.name}</strong> is cursed
+            </span>
+            <span className="cursechip__text">{state.curse.text}</span>
+          </p>
+        )}
       </header>
 
       <div className="seance__board">
@@ -271,6 +289,9 @@ function Seance({
             <p className="seance__spoken">The spirits have spoken…</p>
             <p className="seance__answer">{result.label}</p>
           </div>
+        )}
+        {state.phase === 'reveal' && newCurse && cursed && (
+          <CurseCard key={newCurse.roundNo} curse={newCurse} victim={cursed} />
         )}
       </div>
 
@@ -333,7 +354,7 @@ function Results({ state, send }: { state: StateMsg; send: Send }) {
   const ranked = [...state.players].sort((a, b) => b.score - a.score);
   const byId = Object.fromEntries(state.players.map((p) => [p.id, p]));
   const awards = state.awards ?? [];
-  const cursed = awards.find((a) => a.key === 'most_haunted');
+  const finalCurse = state.finalCurse;
   return (
     <main className="tv results">
       <header className="results__head">
@@ -368,9 +389,10 @@ function Results({ state, send }: { state: StateMsg; send: Send }) {
         ))}
       </ul>
 
-      {cursed && (
+      {finalCurse && (
         <p className="results__curse">
-          💀 {names(cursed.playerIds.map((id) => byId[id]?.name ?? '?'))}: the Final Curse is yours. The host will deliver it.
+          💀 <strong>{names(finalCurse.playerIds.map((id) => byId[id]?.name ?? '?'))}</strong>, the Final Curse is yours:{' '}
+          <em>{finalCurse.text}</em>
         </p>
       )}
 
@@ -383,6 +405,36 @@ function Results({ state, send }: { state: StateMsg; send: Send }) {
         </button>
       </footer>
     </main>
+  );
+}
+
+/** The board deals a curse: a big card over the board the host reads out. */
+function CurseCard({ curse, victim }: { curse: Curse; victim: Player }) {
+  const [open, setOpen] = useState(true);
+  if (!open) return null;
+  return (
+    <div className="seance__overlay cursecard" role="alertdialog" aria-labelledby="curse-title" aria-describedby="curse-text">
+      <p id="curse-title" className="cursecard__head">
+        💀 The board has cursed <strong style={{ color: victim.color }}>{victim.name}</strong>
+      </p>
+      <p id="curse-text" className="cursecard__text">
+        {curse.drink && (
+          <span className="cursecard__drink" aria-label="Drinking card">
+            🍺{' '}
+          </span>
+        )}
+        {curse.text}
+      </p>
+      {curse.drink && curse.alt && (
+        <p className="cursecard__alt">
+          <span className="cursecard__or">or</span> {curse.alt}
+        </p>
+      )}
+      <p className="cursecard__foot">The curse holds until the next reveal.</p>
+      <button id="tv-curse-ok" className="btn btn--primary" onClick={() => setOpen(false)}>
+        So it is written
+      </button>
+    </div>
   );
 }
 
@@ -405,7 +457,10 @@ function names(list: string[]): string {
 function payoutLine(state: StateMsg): string {
   const reveal = state.reveal;
   if (!reveal) return '';
-  if (reveal.rolledOver) return `Nobody called it. The spirits keep the candy. 🍬 ${state.carryover} rolls over!`;
+  if (reveal.rolledOver)
+    return state.game.roundKind === 'final'
+      ? `Nobody called it. The spirits keep all 🍬 ${state.carryover}. Forever.`
+      : `Nobody called it. The spirits keep the candy. 🍬 ${state.carryover} rolls over!`;
   const winners = state.players.filter((p) => reveal.payout[p.id]);
   const share = winners.length ? reveal.payout[winners[0].id] : 0;
   if (winners.length === 1) return `${winners[0].name} called it alone. +🍬 ${share}`;

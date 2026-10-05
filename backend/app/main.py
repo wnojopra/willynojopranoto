@@ -174,6 +174,8 @@ async def tv_socket(ws: WebSocket) -> None:
                 room.new_game()
             elif kind == "set_length":
                 room.set_length(msg.get("length"))
+            elif kind == "set_curses":
+                room.set_curses(msg.get("on"))
             elif kind == "kick":
                 pid = msg.get("playerId")
                 if isinstance(pid, str):
