@@ -18,11 +18,17 @@ cd "$(dirname "$0")"
 #   same instance.
 # - session-affinity + 60 min timeout: keep long-lived WebSockets on it.
 # - allow-unauthenticated: guests join from their phones without Google login.
+# - service-account: least privilege (Firestore user on the spirit-board DB only,
+#   and secretAccessor on the admin passcode only).
+# - The admin passcode comes from Secret Manager, never from this file.
 gcloud run deploy "$SERVICE" \
   --project "$PROJECT" \
   --region "$REGION" \
   --source . \
   --allow-unauthenticated \
+  --service-account "spirit-board@${PROJECT}.iam.gserviceaccount.com" \
+  --set-secrets SB_ADMIN_PASSCODE=spirit-board-admin-passcode:latest \
+  --set-env-vars "SB_FIRESTORE_DATABASE=spirit-board,GOOGLE_CLOUD_PROJECT=${PROJECT}" \
   --max-instances 1 \
   --min-instances "$MIN_INSTANCES" \
   --concurrency 200 \

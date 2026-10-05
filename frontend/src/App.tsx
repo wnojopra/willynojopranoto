@@ -1,3 +1,5 @@
+import { AdminPage, PrintSheet } from './hunt/AdminPage';
+import { ClaimPage, RelicsPage } from './hunt/ClaimPage';
 import { PlayApp } from './play/PlayApp';
 import { TvApp } from './tv/TvApp';
 
@@ -5,6 +7,11 @@ export function App() {
   const path = location.pathname.replace(/\/+$/, '');
   if (path === '/tv') return <TvApp />;
   if (path === '/play') return <PlayApp />;
+  if (path === '/relics') return <RelicsPage />;
+  if (path === '/admin') return <AdminPage />;
+  if (path === '/admin/print') return <PrintSheet />;
+  const claim = /^\/claim\/([A-Za-z0-9_-]{1,64})$/.exec(path);
+  if (claim) return <ClaimPage token={claim[1]} />;
   return <Home />;
 }
 

@@ -9,14 +9,15 @@ import os
 import time
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
+from app import hunt_api
+from app.origins import origin_ok
 from app.rooms import JoinError, RoomLimitError, RoomManager
 
 logging.basicConfig(level=os.environ.get("SB_LOG_LEVEL", "INFO"))
@@ -28,14 +29,6 @@ RATE_PER_SEC = 40.0
 RATE_BURST = 60.0
 MAX_DROPPED_BEFORE_CLOSE = 400
 JOIN_TIMEOUT_SECONDS = 30
-
-ALLOWED_ORIGINS = {
-    o.strip()
-    for o in os.environ.get(
-        "SB_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
-    ).split(",")
-    if o.strip()
-}
 
 _default_static = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 STATIC_DIR = Path(os.environ.get("SB_STATIC_DIR", str(_default_static)))
@@ -58,11 +51,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = (
             "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
         )
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
         return response
 
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(SecurityHeadersMiddleware)
+app.include_router(hunt_api.router)
 manager = RoomManager()
 
 
@@ -71,18 +67,20 @@ async def health() -> dict:
     return {"ok": True}
 
 
+@app.get("/api/session")
+async def session(request: Request) -> JSONResponse:
+    """Makes sure this browser has its device + CSRF cookies (the dev server path)."""
+    response = JSONResponse({"ok": True})
+    hunt_api.ensure_client_cookies(request, response)
+    return response
+
+
 # ---- WebSocket helpers -----------------------------------------------------
 
 
 def origin_allowed(ws: WebSocket) -> bool:
     """Blocks cross-site WebSocket hijacking: browsers always send Origin."""
-    origin = ws.headers.get("origin")
-    if not origin:
-        return False
-    if origin in ALLOWED_ORIGINS:
-        return True
-    # Same-origin (production: frontend served by this service).
-    return urlsplit(origin).netloc == ws.headers.get("host", "")
+    return origin_ok(ws.headers.get("origin"), ws.headers.get("host"))
 
 
 class RateLimiter:
@@ -234,6 +232,13 @@ async def play_socket(ws: WebSocket) -> None:
             await ws.close()
             return
         room.player_conns[player.id] = ws
+        device = hunt_api.device_of(ws.cookies)
+        if device is not None and player.device is None:
+            try:
+                found = await hunt_api.store.get_device(device)
+                room.load_hunt_relics(player, device, found.relics)
+            except Exception:
+                log.exception("couldn't load hunt Relics")  # the game still works without them
         await ws.send_json({"type": "joined", "playerId": player.id, "code": room.code})
         if player.bet is not None and room.phase != "lobby":
             # Rejoined mid-round: remind this phone (only) of its secret bet.
@@ -266,6 +271,7 @@ async def play_socket(ws: WebSocket) -> None:
                 else:
                     await room.broadcast_state()
                     await room.send_private()
+                    await spend_hunt_relics(player)
     except (WebSocketDisconnect, ClientGone, asyncio.TimeoutError):
         pass
     finally:
@@ -279,14 +285,32 @@ async def play_socket(ws: WebSocket) -> None:
                     pass
 
 
+async def spend_hunt_relics(player) -> None:
+    """Removes hunt Relics spent in a game from the phone's saved collection."""
+    while player.hunt_spent and player.device:
+        key = player.hunt_spent.pop()
+        try:
+            if not await hunt_api.store.consume(player.device, key):
+                log.warning("spent hunt Relic wasn't in the store")
+        except Exception:
+            log.exception("couldn't record a spent hunt Relic")
+
+
 # ---- Static frontend (production) -------------------------------------------
 
 if STATIC_DIR.is_dir():
     _index = STATIC_DIR / "index.html"
 
+    @app.api_route("/", methods=["GET", "HEAD"])
     @app.api_route("/tv", methods=["GET", "HEAD"])
     @app.api_route("/play", methods=["GET", "HEAD"])
-    async def spa_routes() -> FileResponse:
-        return FileResponse(_index, headers={"Cache-Control": "no-store"})
+    @app.api_route("/relics", methods=["GET", "HEAD"])
+    @app.api_route("/admin", methods=["GET", "HEAD"])
+    @app.api_route("/admin/print", methods=["GET", "HEAD"])
+    @app.api_route("/claim/{token}", methods=["GET", "HEAD"])
+    async def spa_routes(request: Request) -> FileResponse:
+        response = FileResponse(_index, headers={"Cache-Control": "no-store"})
+        hunt_api.ensure_client_cookies(request, response)
+        return response
 
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

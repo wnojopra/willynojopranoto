@@ -28,8 +28,18 @@ Design doc: [`docs/design.md`](docs/design.md)
     An unused starter expires when the next game starts (other Relics carry over)
   - `/tv?dev=1` shows a "Give everyone all Relics" button for playtesting
 - **Results**: standings + awards (Grand Medium, Most Haunted, Lone Wolf, …), play again
+- **Scavenger hunt** (before the game): QR stickers hidden around the house
+  - `/admin` (host passcode): make batches of codes (a set Relic, or random
+    common / rare / cursed / any), label where each is hidden, and see who found what
+  - `/admin/print`: printable sticker sheet of every unclaimed code
+  - `/claim/<code>`: the first scan asks for a name, then reveals the Relic. One
+    claim per code; later scanners see "Someone got here first 👻"
+  - `/relics`: this phone's collection. Hunt Relics come along when the phone
+    joins a game (no starter needed) and are spent for good when used
+  - Codes and collections live in Firestore (database `spirit-board`). Locally
+    they're in memory unless `SB_FIRESTORE_DATABASE` is set
 
-Not yet: hunt QR claiming, Relics Wave 2, audio.
+Not yet: Relics Wave 2, audio.
 
 ## Layout
 
@@ -41,10 +51,13 @@ backend/    Python 3.12+ / FastAPI. Authoritative game loop at 30Hz.
   app/questions.py question decks (Spirit Bets, Medium, Final)
   app/curses.py    curse cards + Final Curses (edit these!)
   app/relics.py    Relic catalog, starter odds, tuning (Hex length, magnet strength)
+  app/hunt.py      hunt codes + device collections (Firestore / in-memory stores)
+  app/hunt_api.py  /api routes: claim, collection, admin (cookies, CSRF, rate limits)
   app/main.py      WebSocket endpoints (/ws/tv, /ws/play), security headers
 frontend/   React + TypeScript + Vite
   src/tv/          TV screens (lobby, board, reveal, Relic cards)
   src/play/        phone screens (join, touchpad, minimap, Relic tray)
+  src/hunt/        claim page, /relics, admin console, sticker sheet
 ```
 
 ## Run it locally
@@ -90,6 +103,20 @@ Defaults: project `nojo-client`, region `us-west1`, service `spirit-board`
 instance (`--max-instances 1`) because game state is in memory, with session
 affinity and a 60-minute request timeout for WebSockets.
 
+It runs as the `spirit-board@nojo-client` service account, which can only use
+the `spirit-board` Firestore database and read the admin passcode secret.
+
+**Admin passcode** (for `/admin`) lives in Secret Manager:
+
+```bash
+# read it
+gcloud secrets versions access latest --secret spirit-board-admin-passcode --project nojo-client
+# change it (then redeploy, or wait for a new instance)
+printf '%s' 'new-passcode' | gcloud secrets versions add spirit-board-admin-passcode --data-file=- --project nojo-client
+```
+
+Locally, set `SB_ADMIN_PASSCODE=...` before starting uvicorn. Without it, admin is off.
+
 Live: <https://spirit-board-270279587994.us-west1.run.app/tv>
 
 ## Tests
@@ -101,14 +128,22 @@ cd frontend && npm run typecheck
 
 ## Security notes
 
-- WebSockets reject cross-site origins (CSWSH protection). Allowed origins come
+- WebSockets and hunt POSTs reject cross-site origins. Allowed origins come
   from `SB_ALLOWED_ORIGINS`, plus same-origin in production.
 - All client input is validated server-side: names (1–14 chars, allow-list),
-  room codes, pull vectors (finite and clamped to length 1), message size (512B),
-  and per-connection rate limits.
-- No auth tokens are stored in the browser. Host rights are tied to the TV's
+  room codes, hunt codes, pull vectors (finite and clamped to length 1),
+  message size (512B), and per-connection rate limits.
+- No auth tokens in localStorage. Host rights in a game are tied to the TV's
   live WebSocket connection.
+- Hunt: each browser gets a random device id in an HttpOnly `__Host-` cookie
+  (whoever holds the phone owns its Relics). POSTs need a double-submit CSRF
+  token plus a same-origin `Origin`. Claims and logins are rate limited.
+  Claim codes are 96-bit random tokens. The admin list never shows device ids.
+- Admin: passcode from Secret Manager (constant-time compare, never logged),
+  then a 12-hour HttpOnly, SameSite=Strict session cookie.
 - Strict CSP, `X-Frame-Options: DENY`, `nosniff`, and a locked-down
   `Permissions-Policy` are applied to everything the backend serves.
 - TODO(security): if the TV refreshes, the host can't reclaim the room. Add a
   server-issued HttpOnly host cookie if that's a problem in playtesting.
+- Known edge cases: one phone in two rooms at once could use a hunt Relic twice;
+  Relics found mid-game show up after the phone rejoins.

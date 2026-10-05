@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { getMe } from '../hunt/api';
 import type { PlanchetteState, Player, PrivatePick, RelicKey, ServerMsg, StateMsg } from '../protocol';
 import { useGameSocket } from '../useGameSocket';
 import { MiniMap } from './MiniMap';
@@ -39,6 +40,18 @@ export function PlayApp() {
   const [myRelics, setMyRelics] = useState<MyRelics>({ relics: [], usedRound: 0 });
   const [crystal, setCrystal] = useState<CrystalVision | null>(null);
   const [relicError, setRelicError] = useState<string | null>(null);
+  // Hunt Relics this phone carries (they load server-side when we join).
+  const [huntCount, setHuntCount] = useState(0);
+
+  useEffect(() => {
+    getMe().then(
+      (m) => {
+        if (m.name) setName((n) => n || m.name || '');
+        setHuntCount(m.relics.length);
+      },
+      () => {},
+    );
+  }, []);
 
   useEffect(() => {
     if (!relicError) return;
@@ -137,6 +150,11 @@ export function PlayApp() {
           {error && (
             <p className="joinform__error" role="alert">
               {error}
+            </p>
+          )}
+          {huntCount > 0 && (
+            <p className="joinform__hunt" id="join-hunt">
+              ✨ {huntCount} hunt Relic{huntCount === 1 ? '' : 's'} will come with you. <a href="/relics">See them</a>
             </p>
           )}
           <button id="join-submit" className="btn btn--primary btn--big" type="submit">

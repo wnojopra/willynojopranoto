@@ -16,7 +16,7 @@
     padding: 0;
     list-style: none;
   }
-  :where(button, input) {
+  :where(button, input, select) {
     font: inherit;
     color: inherit;
   }
@@ -1652,6 +1652,253 @@
   }
   [aria-pressed='true'] > .betgrid__count {
     color: hsl(220 50% 20%);
+  }
+
+  /* --- Hunt (claim + collection) --- */
+  .hunt {
+    gap: 1.25rem;
+    inline-size: min(100%, 520px);
+    margin-inline: auto;
+  }
+  .hunt__title {
+    color: var(--bone-dim);
+    font-size: 1rem;
+    letter-spacing: 0.3em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+  .hunt__kicker {
+    color: var(--candle);
+    font-size: 1.3rem;
+    font-style: italic;
+    text-align: center;
+  }
+  .hunt__empty {
+    text-align: center;
+  }
+  .hunt__list {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .joinform__hunt {
+    color: var(--candle);
+    text-align: center;
+
+    & a {
+      color: var(--candle-hot);
+    }
+  }
+
+  .relicprize {
+    --tier: var(--candle);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 1rem;
+    inline-size: 100%;
+    padding: 1rem 1.2rem;
+    border: 1px solid color-mix(in oklab, var(--tier) 45%, transparent);
+    border-radius: var(--radius);
+    background:
+      radial-gradient(120% 140% at 0% 50%, color-mix(in oklab, var(--tier) 22%, transparent), transparent 70%),
+      var(--ink-2);
+    box-shadow: var(--shadow-deep);
+    text-align: start;
+
+    & figcaption {
+      display: grid;
+      gap: 0.15rem;
+    }
+  }
+  .relicprize--rare {
+    --tier: hsl(195 55% 62%);
+  }
+  .relicprize--cursed {
+    --tier: var(--blood);
+  }
+  .relicprize__emoji {
+    font-size: 2.6rem;
+    line-height: 1;
+  }
+  .relicprize__tier {
+    color: var(--tier);
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .relicprize__name {
+    font-size: 1.35rem;
+    letter-spacing: 0.04em;
+  }
+  .relicprize__blurb {
+    color: var(--bone-dim);
+    font-size: 0.95rem;
+  }
+  .relicprize[data-fresh] {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding-block: 2rem;
+    text-align: center;
+    animation: rise 700ms cubic-bezier(0.2, 1.2, 0.4, 1) both;
+
+    & .relicprize__emoji {
+      font-size: 5rem;
+      animation: slam 800ms 200ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+      filter: drop-shadow(0 0 24px color-mix(in oklab, var(--tier) 70%, transparent));
+    }
+    & .relicprize__name {
+      font-size: 2rem;
+      text-transform: uppercase;
+    }
+  }
+
+  /* --- Hunt admin --- */
+  .admin {
+    display: grid;
+    gap: 1.5rem;
+    inline-size: min(100% - 2rem, 960px);
+    margin: 2rem auto;
+  }
+  .admin__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .admin__create {
+    display: grid;
+    grid-template-columns: 8rem 1fr 1fr auto;
+    align-items: end;
+    gap: 1rem;
+    padding: 1.25rem;
+    border: 1px solid hsl(36 45% 60% / 0.2);
+    border-radius: var(--radius);
+    background: var(--ink-2);
+
+    & h2 {
+      grid-column: 1 / -1;
+      font-size: 1.2rem;
+    }
+    & .field__input {
+      min-block-size: 48px;
+      font-size: 1.05rem;
+    }
+    @media (width < 760px) {
+      grid-template-columns: 1fr;
+    }
+  }
+  .admin__codes h2 {
+    margin-block-end: 0.75rem;
+    font-size: 1.2rem;
+  }
+  .admin__count {
+    color: var(--bone-dim);
+    font-size: 0.9rem;
+    font-weight: 400;
+  }
+  .admin__table {
+    inline-size: 100%;
+    border-collapse: collapse;
+
+    & :is(th, td) {
+      padding: 0.5rem 0.6rem;
+      border-block-end: 1px solid hsl(36 45% 60% / 0.12);
+      text-align: start;
+    }
+    & th {
+      color: var(--bone-dim);
+      font-size: 0.8rem;
+      font-weight: 400;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    & tr[data-claimed] td {
+      color: var(--candle);
+    }
+  }
+  .admin__dim {
+    color: var(--bone-dim);
+    font-style: italic;
+  }
+  .admin__del {
+    min-block-size: 36px;
+    padding: 0.3em 0.9em;
+    font-size: 0.9rem;
+  }
+  .sr-only {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* --- Printable sticker sheet --- */
+  .stickers {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(1.9in, 1fr));
+    gap: 0.2in;
+  }
+  .sticker {
+    display: grid;
+    justify-items: center;
+    gap: 0.1rem;
+    padding: 0.15in;
+    border: 1px dashed hsl(36 45% 60% / 0.5);
+    border-radius: 12px;
+    background: hsl(40 55% 92%);
+    color: hsl(24 40% 12%);
+    text-align: center;
+    break-inside: avoid;
+  }
+  .sticker__qr {
+    inline-size: 1.4in;
+    block-size: 1.4in;
+
+    & .qr__bg {
+      fill: hsl(40 55% 92%);
+    }
+    & .qr__ink {
+      fill: hsl(24 40% 8%);
+    }
+  }
+  .sticker__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+  .sticker__cta {
+    font-size: 0.8rem;
+  }
+  .sticker__label {
+    color: hsl(24 15% 40%);
+    font-size: 0.65rem;
+  }
+
+  @media print {
+    body {
+      background: white;
+    }
+    .admin {
+      inline-size: auto;
+      margin: 0;
+    }
+    .print__controls {
+      display: none;
+    }
+    .sticker {
+      background: white;
+      border-color: hsl(0 0% 70%);
+      print-color-adjust: exact;
+    }
+    .sticker__qr .qr__bg {
+      fill: white;
+    }
+    .sticker__qr .qr__ink {
+      fill: black;
+    }
   }
 }
 

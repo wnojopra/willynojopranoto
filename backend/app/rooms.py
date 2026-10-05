@@ -152,6 +152,12 @@ class Player:
     # This game's starter Relic, while unused. It expires when a new game starts
     # (hunt-found Relics carry over between games; starters don't).
     starter: str | None = None
+    # Scavenger-hunt Relics: the phone's device id, the hunt Relics still in
+    # `relics` (spent last, so they carry over), and spent ones to remove from
+    # the hunt store (main.py drains this).
+    device: str | None = None
+    hunt: list[str] = field(default_factory=list)
+    hunt_spent: list[str] = field(default_factory=list)
     # Relic effects on this player, for the current round.
     mirrored: bool = False
     frozen_until: float = 0.0
@@ -282,10 +288,21 @@ class Room:
 
     def _expire_starter(self, p: Player) -> None:
         """Takes back last game's unused starter Relic."""
-        if p.starter is not None and p.starter in p.relics:
-            p.relics.remove(p.starter)
+        s = p.starter
+        if s is not None and p.relics.count(s) > p.hunt.count(s):
+            p.relics.remove(s)
             p.relics_dirty = True
         p.starter = None
+
+    def load_hunt_relics(self, p: Player, device: str, keys: list[str]) -> None:
+        """Brings a phone's scavenger-hunt Relics into the game (once per player)."""
+        if p.is_bot or p.device is not None:
+            return
+        p.device = device
+        for key in keys:
+            if key in relics.CATALOG:
+                self._grant(p, key)
+                p.hunt.append(key)
 
     def remove_player(self, player_id: str) -> None:
         self.players.pop(player_id, None)
@@ -607,6 +624,10 @@ class Room:
         p.relics.remove(relic.key)
         if p.starter == relic.key and relic.key not in p.relics:
             p.starter = None
+        # Spend starter/dev copies before hunt ones; record a hunt copy being spent.
+        if p.relics.count(relic.key) < p.hunt.count(relic.key):
+            p.hunt.remove(relic.key)
+            p.hunt_spent.append(relic.key)
         p.relic_round = self.round_no
         p.relics_dirty = True
         self._relic_seq += 1
