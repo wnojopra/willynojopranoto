@@ -153,6 +153,8 @@ class Player:
     # This game's starter Relic, while unused. It expires when a new game starts
     # (hunt-found Relics carry over between games; starters don't).
     starter: str | None = None
+    # Catch-up Relics dealt this game (design doc §6.6). They expire like starters.
+    catchup: list[str] = field(default_factory=list)
     # Scavenger-hunt Relics: the phone's device id, the hunt Relics still in
     # `relics` (spent last, so they carry over), and spent ones to remove from
     # the hunt store (main.py drains this).
@@ -239,6 +241,10 @@ class Room:
         self.last_payout: dict[str, int] = {}
         self.last_rolled_over = False
         self._used_questions: set[Question] = set()
+        # Host custom questions (loaded from the store when a game starts).
+        self.custom_bets: list[Question] = []
+        self.custom_medium: list[Question] = []
+        self.always_questions: set[Question] = set()
         self._player_subject_history: set[str] = set()
         # Curses: the card the board dealt at the last reveal, which stays in
         # force until the next reveal.
@@ -248,6 +254,9 @@ class Room:
         self._curse_order: list[int] = []
         # Relics.
         self.starter_relics = True  # deal one per player per game (no hunt yet)
+        self.catchup_relics = True  # last place after rounds 3 and 6 gets a free Common
+        self._catchup_done: set[int] = set()  # game rounds already handled this game
+        self.last_catchup: dict[str, str] = {}  # player id -> Relic, this reveal (private keys)
         self.salted: set[str] = set()
         self.magnets: list[str] = []  # spot ids; stacking allowed
         self.shuffle_at: float | None = None  # Ouija Shuffle pending (clock time)
@@ -297,12 +306,13 @@ class Room:
         p.starter = key
 
     def _expire_starter(self, p: Player) -> None:
-        """Takes back last game's unused starter Relic."""
-        s = p.starter
-        if s is not None and p.relics.count(s) > p.hunt.count(s):
-            p.relics.remove(s)
-            p.relics_dirty = True
+        """Takes back last game's unused starter and catch-up Relics (hunt copies stay)."""
+        for s in ([p.starter] if p.starter else []) + p.catchup:
+            if p.relics.count(s) > p.hunt.count(s):
+                p.relics.remove(s)
+                p.relics_dirty = True
         p.starter = None
+        p.catchup = []
 
     def load_hunt_relics(self, p: Player, device: str, keys: list[str]) -> None:
         """Brings a phone's scavenger-hunt Relics into the game (once per player)."""
@@ -353,6 +363,16 @@ class Room:
             if not on:
                 self.curse = None
 
+    def set_catchup_relics(self, on: object) -> None:
+        if isinstance(on, bool):
+            self.catchup_relics = on
+
+    def set_custom_questions(self, items: list[tuple[str, Question, bool]]) -> None:
+        """(deck, question, always) from the admin page. Takes effect at the next pick."""
+        self.custom_bets = [q for deck, q, _ in items if deck == "bets"]
+        self.custom_medium = [q for deck, q, _ in items if deck == "medium"]
+        self.always_questions = {q for _, q, always in items if always}
+
     def set_starter_relics(self, on: object) -> None:
         if isinstance(on, bool):
             self.starter_relics = on
@@ -391,6 +411,7 @@ class Room:
         self.curse = None
         self.final_curse = None
         self._used_mediums.clear()
+        self._catchup_done.clear()
         for p in self.players.values():
             self._expire_starter(p)
         if self.starter_relics:
@@ -427,7 +448,11 @@ class Room:
         if kind == "final":
             self.question = FINAL_QUESTION
         else:
-            self.question = self._pick_question(MEDIUM_DECK if medium else DECK)
+            self.question = (
+                self._pick_question(MEDIUM_DECK, self.custom_medium, "medium")
+                if medium
+                else self._pick_question(DECK, self.custom_bets, "bets")
+            )
         self.question_text = self.question.text
         if "{player}" in self.question_text:
             self.question_text = self.question_text.replace("{player}", self._pick_subject())
@@ -462,6 +487,7 @@ class Room:
         self._trail.clear()
         self.last_pact_gains = {}
         self.relic_events = []
+        self.last_catchup = {}
         if medium and medium.is_bot:
             medium.bot_next_think = now + self._rng.uniform(2.0, 4.0)
 
@@ -665,12 +691,14 @@ class Room:
                 self.planchette.hover_spot, self.planchette.hover_time = None, 0.0
 
         p.relics.remove(relic.key)
-        if p.starter == relic.key and relic.key not in p.relics:
-            p.starter = None
-        # Spend starter/dev copies before hunt ones; record a hunt copy being spent.
+        # Spend game copies (starter/catch-up/dev) before hunt ones; record a hunt copy being spent.
         if p.relics.count(relic.key) < p.hunt.count(relic.key):
             p.hunt.remove(relic.key)
             p.hunt_spent.append(relic.key)
+        elif relic.key in p.catchup:
+            p.catchup.remove(relic.key)
+        elif p.starter == relic.key:
+            p.starter = None
         p.relic_round = self.round_no
         p.relics_dirty = True
         self._relic_seq += 1
@@ -822,6 +850,7 @@ class Room:
         else:
             self._pay_out(spot_id)
         self._pay_pacts()
+        self._deal_catchup()
         self._deal_curse(haunted)
         self.phase = "reveal"
 
@@ -871,6 +900,27 @@ class Room:
             winners[0].solo_wins += 1
         self.last_rolled_over = False
 
+    def _deal_catchup(self) -> None:
+        """Design doc §6.6: last place (humans) after rounds 3 and 6 gets a free Common."""
+        if not self.catchup_relics or self.round_kind == "final":
+            return
+        if self.game_round not in game.CATCHUP_AFTER or self.game_round in self._catchup_done:
+            return
+        self._catchup_done.add(self.game_round)
+        humans = [p for p in self.players.values() if not p.is_bot]
+        if len(humans) < 2:
+            return
+        low = min(p.score for p in humans)
+        if low == max(p.score for p in humans):
+            return  # everyone's tied: nobody is behind
+        commons = [k for k, r in relics.CATALOG.items() if r.tier == "common"]
+        for p in humans:
+            if p.score == low:
+                key = self._rng.choice(commons)
+                self._grant(p, key)
+                p.catchup.append(key)
+                self.last_catchup[p.id] = key
+
     def _pay_pacts(self) -> None:
         """Blood Pact: you also win what your partner won (their own winnings only, no chains)."""
         base = dict(self.last_payout)
@@ -915,11 +965,25 @@ class Room:
             pool = [p for p in self.players.values() if not p.is_bot and p.connected]
         return self._rng.choice(pool) if pool else None
 
-    def _pick_question(self, deck: list[Question]) -> Question:
-        available = [q for q in deck if q not in self._used_questions]
+    def _pick_question(self, deck: list[Question], custom: list[Question], kind: str) -> Question:
+        pool = deck + [q for q in custom if q not in deck]
+        # "Always include" questions: spread them over the rounds of this kind
+        # that are left, so they all come up but not all at the start.
+        always = [q for q in custom if q in self.always_questions and q not in self._used_questions]
+        if always:
+            rest = [k for k in self.plan[self.game_round :] if k != "final"]
+            if kind == "bets" and len(self.players) < MIN_PLAYERS_FOR_MEDIUM:
+                left = len(rest)  # Medium slots fall back to Spirit Bets
+            else:
+                left = rest.count(kind)
+            if self._rng.random() < len(always) / max(1, left):
+                q = self._rng.choice(always)
+                self._used_questions.add(q)
+                return q
+        available = [q for q in pool if q not in self._used_questions]
         if not available:
-            self._used_questions -= set(deck)
-            available = list(deck)
+            self._used_questions -= set(pool)
+            available = list(pool)
         q = self._rng.choice(available)
         self._used_questions.add(q)
         return q
@@ -1000,6 +1064,7 @@ class Room:
                 "isLastRound": self.game_active and self.game_round >= self.total_rounds,
                 "cursesOn": self.curses_on,
                 "starterRelics": self.starter_relics,
+                "catchupRelics": self.catchup_relics,
             },
             "medium": (
                 {"playerId": self.medium_id, "answered": self.medium_answer is not None}
@@ -1051,6 +1116,8 @@ class Room:
             "doubled": [p.id for p in self.players.values() if p.double_down],
             "pacts": {p.id: p.pact_with for p in self.players.values() if p.pact_with},
             "pactGains": self.last_pact_gains,
+            # Who the spirits took pity on (public); which Relic stays private.
+            "catchUp": sorted(self.last_catchup),
         }
         if self.round_kind == "medium":
             out["mediumAnswer"] = self.medium_answer

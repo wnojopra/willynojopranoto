@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { QrCode } from '../tv/QrCode';
-import { ApiError, getCatalog, getJson, postJson, TIER_EMOJI, type AdminCode, type Catalog, type Tier } from './api';
+import {
+  ApiError,
+  getCatalog,
+  getJson,
+  postJson,
+  TIER_EMOJI,
+  type AdminCode,
+  type Catalog,
+  type CustomQuestion,
+  type Tier,
+} from './api';
 
 type Session = { configured: boolean; admin: boolean };
 
@@ -274,7 +284,200 @@ function AdminConsole({ logout }: { logout: () => void }) {
           </table>
         )}
       </section>
+
+      <QuestionsPanel />
     </>
+  );
+}
+
+const KIND_LABEL: Record<CustomQuestion['kind'], string> = {
+  who: '🧑‍🤝‍🧑 Who in this room',
+  yesno: '✅ Yes / No / Maybe',
+  pick: '🎃 Pick one',
+};
+const OPTION_SLOTS = 5;
+
+/** Host custom questions (design doc §5.3): inside jokes, optionally "always include". */
+function QuestionsPanel() {
+  const [qs, setQs] = useState<CustomQuestion[] | null>(null);
+  const [max, setMax] = useState(200);
+  const [deck, setDeck] = useState<CustomQuestion['deck']>('bets');
+  const [kind, setKind] = useState<CustomQuestion['kind']>('who');
+  const [text, setText] = useState('');
+  const [options, setOptions] = useState<string[]>(Array(OPTION_SLOTS).fill(''));
+  const [always, setAlways] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    getJson<{ questions: CustomQuestion[]; max: number }>('/api/admin/questions').then(
+      (r) => {
+        setQs(r.questions);
+        setMax(r.max);
+      },
+      (e) => setError(errMsg(e)),
+    );
+  }, []);
+  useEffect(load, [load]);
+
+  const add = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await postJson('/api/admin/questions', {
+        deck,
+        kind,
+        text,
+        options: kind === 'pick' ? options.filter((o) => o.trim()) : [],
+        always,
+      });
+      setText('');
+      setOptions(Array(OPTION_SLOTS).fill(''));
+      load();
+    } catch (err) {
+      setError(errMsg(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggle = async (q: CustomQuestion) => {
+    try {
+      await postJson(`/api/admin/questions/${encodeURIComponent(q.id)}`, { always: !q.always });
+      load();
+    } catch (err) {
+      setError(errMsg(err));
+    }
+  };
+
+  const remove = async (id: string) => {
+    if (confirming !== id) {
+      setConfirming(id);
+      return;
+    }
+    setConfirming(null);
+    try {
+      await postJson(`/api/admin/questions/${encodeURIComponent(id)}/delete`);
+      load();
+    } catch (err) {
+      setError(errMsg(err));
+    }
+  };
+
+  return (
+    <section className="admin__questions">
+      <form className="admin__create admin__create--q" onSubmit={add}>
+        <h2>Add your own questions</h2>
+        <label className="field">
+          <span className="field__label">Round</span>
+          <select id="q-deck" className="field__input" value={deck} onChange={(e) => setDeck(e.target.value as CustomQuestion['deck'])}>
+            <option value="bets">🍬 Spirit Bets</option>
+            <option value="medium">🔮 Medium (one player answers)</option>
+          </select>
+        </label>
+        <label className="field">
+          <span className="field__label">Board</span>
+          <select id="q-kind" className="field__input" value={kind} onChange={(e) => setKind(e.target.value as CustomQuestion['kind'])}>
+            {Object.entries(KIND_LABEL).map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field admin__qtext">
+          <span className="field__label">Question ({'{player}'} = a random player)</span>
+          <input
+            id="q-text"
+            className="field__input"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            maxLength={140}
+            required
+            placeholder={deck === 'medium' ? 'Who here would you trust with your browser history?' : 'Who still owes {player} $20?'}
+          />
+        </label>
+        {kind === 'pick' && (
+          <fieldset className="admin__options">
+            <legend className="field__label">Options (2–5, short: they go on the board)</legend>
+            {options.map((o, i) => (
+              <input
+                key={i}
+                id={`q-opt-${i}`}
+                className="field__input"
+                value={o}
+                maxLength={16}
+                onChange={(e) => setOptions((all) => all.map((x, j) => (j === i ? e.target.value : x)))}
+                placeholder={i < 2 ? 'Required' : 'Optional'}
+                aria-label={`Option ${i + 1}`}
+              />
+            ))}
+          </fieldset>
+        )}
+        <label className="admin__check">
+          <input id="q-always" type="checkbox" checked={always} onChange={(e) => setAlways(e.target.checked)} /> Always include
+          in a game
+        </label>
+        <button id="q-add" className="btn btn--primary" type="submit" disabled={busy || !text.trim()}>
+          Add question
+        </button>
+      </form>
+
+      <h2>
+        Your questions <span className="admin__count">{qs ? `${qs.length} · max ${max}` : ''}</span>
+      </h2>
+      {qs && qs.length === 0 && <p className="phone__sub">None yet. The built-in deck still plays.</p>}
+      {qs && qs.length > 0 && (
+        <table className="admin__table" id="admin-questions">
+          <thead>
+            <tr>
+              <th>Question</th>
+              <th>Round</th>
+              <th>Always</th>
+              <th>
+                <span className="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {qs.map((q) => (
+              <tr key={q.id}>
+                <td>
+                  {q.text}
+                  <span className="admin__dim admin__qmeta">
+                    {' '}
+                    · {KIND_LABEL[q.kind]}
+                    {q.options.length > 0 && `: ${q.options.join(' / ')}`}
+                  </span>
+                </td>
+                <td>{q.deck === 'medium' ? '🔮 Medium' : '🍬 Bets'}</td>
+                <td>
+                  <button className="btn btn--ghost admin__del" aria-pressed={q.always} onClick={() => toggle(q)}>
+                    {q.always ? '⭐ Always' : 'Sometimes'}
+                  </button>
+                </td>
+                <td>
+                  <button
+                    className="btn btn--ghost admin__del"
+                    onClick={() => remove(q.id)}
+                    onBlur={() => setConfirming((t) => (t === q.id ? null : t))}
+                  >
+                    {confirming === q.id ? 'Really delete?' : 'Delete'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {error && (
+        <p className="joinform__error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
 

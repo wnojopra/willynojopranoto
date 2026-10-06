@@ -29,6 +29,9 @@ Design doc: [`docs/design.md`](docs/design.md)
   - Any time: 👻 Ghost Whisper, 😱 Jump Scare
   - **Starter Relics** (lobby toggle, on by default): each human gets one random Relic per game.
     An unused starter expires when the next game starts (other Relics carry over)
+  - **Catch-up Relics** (lobby toggle, on by default): after rounds 3 and 6, whoever is in
+    last place (ties included) gets a random Common Relic. Nobody gets one if everyone is
+    tied. Unused ones expire when the next game starts, like starters
   - `/tv?dev=1` shows a "Give everyone all Relics" button for playtesting
 - **Results**: standings + awards (Grand Medium, Most Haunted, Lone Wolf, …), play again
 - **Scavenger hunt** (before the game): QR stickers hidden around the house
@@ -41,8 +44,12 @@ Design doc: [`docs/design.md`](docs/design.md)
     joins a game (no starter needed) and are spent for good when used
   - Codes and collections live in Firestore (database `spirit-board`). Locally
     they're in memory unless `SB_FIRESTORE_DATABASE` is set
+- **Custom questions** (`/admin`, below the codes): add your own Spirit Bets or Medium
+  questions (who / yes-no / pick 2–5 options; `{player}` fills in a random name).
+  "Always include" questions are spread through every game; the rest are shuffled in
+  with the built-in deck. They're loaded when a game starts, so edits apply next game
 
-Not yet: custom questions, catch-up Relics, audio.
+Not yet: audio.
 
 ## Layout
 

@@ -29,6 +29,16 @@ export interface AdminCode {
 
 export type Catalog = Record<RelicKey, RelicInfo>;
 
+export interface CustomQuestion {
+  id: string;
+  deck: 'bets' | 'medium';
+  kind: 'who' | 'yesno' | 'pick';
+  text: string;
+  options: string[];
+  always: boolean;
+  createdAt: number;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,

@@ -190,6 +190,15 @@ function Lobby({ state, send }: { state: StateMsg; send: Send }) {
           >
             🧿 Starter Relics {state.game.starterRelics ? 'on' : 'off'}
           </button>
+          <button
+            id="tv-catchup"
+            className="btn btn--ghost lobby__toggle"
+            aria-pressed={state.game.catchupRelics}
+            onClick={() => send({ type: 'set_catchup_relics', on: !state.game.catchupRelics })}
+            title="Last place after rounds 3 and 6 gets a free Common Relic"
+          >
+            🕯️ Catch-up Relics {state.game.catchupRelics ? 'on' : 'off'}
+          </button>
           {DEV && (
             <button id="tv-dev-relics" className="btn btn--ghost lobby__toggle" onClick={() => send({ type: 'dev_grant_relics' })}>
               🧪 Give everyone all Relics
@@ -334,6 +343,7 @@ function Seance({
                 <p className="seance__quip">{autoTease(state) ?? quip}</p>
               </div>
             )}
+            <PityLine state={state} />
             <Scoreboard state={state} />
             <div className="seance__actions">
               <button id="tv-back" className="btn btn--ghost" onClick={() => send({ type: 'back_to_lobby' })}>
@@ -605,6 +615,17 @@ function EffectsLine({ state }: { state: StateMsg }) {
           </span>
         );
       })}
+    </p>
+  );
+}
+
+/** Catch-up Relics: the spirits take pity on whoever is in last place. */
+function PityLine({ state }: { state: StateMsg }) {
+  const pitied = state.players.filter((p) => state.reveal?.catchUp?.includes(p.id));
+  if (pitied.length === 0) return null;
+  return (
+    <p className="seance__pity" role="status">
+      🕯️ The spirits take pity on {names(pitied.map((p) => p.name))}: a free Relic for last place.
     </p>
   );
 }

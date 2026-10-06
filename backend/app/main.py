@@ -160,6 +160,8 @@ async def tv_socket(ws: WebSocket) -> None:
             if msg is None:
                 continue
             kind = msg["type"]
+            if kind in ("start_round", "new_game") and (kind == "new_game" or not room.game_active):
+                await load_custom_questions(room)  # a new game picks up the host's latest questions
             if kind == "start_round":
                 room.start_round()
             elif kind == "add_bot":
@@ -176,6 +178,8 @@ async def tv_socket(ws: WebSocket) -> None:
                 room.set_curses(msg.get("on"))
             elif kind == "set_starter_relics":
                 room.set_starter_relics(msg.get("on"))
+            elif kind == "set_catchup_relics":
+                room.set_catchup_relics(msg.get("on"))
             elif kind == "dev_grant_relics":
                 # Playtesting aid; the button only renders on /tv?dev=1.
                 room.dev_grant_all()
@@ -283,6 +287,16 @@ async def play_socket(ws: WebSocket) -> None:
                     await room.broadcast_state()
                 except Exception:
                     pass
+
+
+async def load_custom_questions(room) -> None:
+    """Gives the room the host's custom questions. On failure the built-in decks still work."""
+    try:
+        qs = await asyncio.wait_for(hunt_api.store.list_questions(), timeout=3.0)
+    except Exception:
+        log.warning("could not load custom questions; using the built-in decks")
+        return
+    room.set_custom_questions([(q.deck, q.to_question(), q.always) for q in qs])
 
 
 async def spend_hunt_relics(player) -> None:

@@ -1802,6 +1802,66 @@
       grid-template-columns: 1fr;
     }
   }
+  .admin__create--q {
+    grid-template-columns: 1fr 1fr;
+
+    & .admin__qtext,
+    & .admin__options,
+    & .admin__check,
+    & .btn {
+      grid-column: 1 / -1;
+    }
+    & .btn {
+      justify-self: start;
+    }
+    @media (width < 760px) {
+      grid-template-columns: 1fr;
+    }
+  }
+  .admin__options {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+
+    & legend {
+      margin-block-end: 0.4rem;
+    }
+  }
+  .admin__check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    & input {
+      inline-size: 1.2rem;
+      block-size: 1.2rem;
+      accent-color: var(--candle);
+    }
+  }
+  .admin__questions {
+    display: grid;
+    gap: 1rem;
+
+    & h2 {
+      font-size: 1.2rem;
+    }
+  }
+  .admin__qmeta {
+    font-size: 0.85rem;
+  }
+  .admin__del[aria-pressed='true'] {
+    border-color: var(--candle);
+    color: var(--candle-hot);
+  }
+  .seance__pity,
+  .phone__pity {
+    color: var(--candle);
+    font-style: italic;
+    text-align: center;
+  }
   .admin__codes h2 {
     margin-block-end: 0.75rem;
     font-size: 1.2rem;

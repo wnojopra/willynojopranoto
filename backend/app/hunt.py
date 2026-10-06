@@ -21,11 +21,12 @@ import time
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from app import relics
+from app import questions, relics
 
 log = logging.getLogger("spiritboard.hunt")
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{16}")
+QUESTION_ID_RE = re.compile(r"[A-Za-z0-9_-]{12}")
 DEVICE_RE = re.compile(r"[A-Za-z0-9_-]{43}")
 LABEL_MAX = 40
 MAX_BATCH = 100
@@ -48,6 +49,10 @@ def new_device_id() -> str:
 
 def valid_token(raw: object) -> bool:
     return isinstance(raw, str) and TOKEN_RE.fullmatch(raw) is not None
+
+
+def valid_question_id(raw: object) -> bool:
+    return isinstance(raw, str) and QUESTION_ID_RE.fullmatch(raw) is not None
 
 
 def valid_device(raw: object) -> bool:
@@ -172,6 +177,55 @@ def _claim_logic(code: Code | None, dev: Device, device: str, name: str | None) 
     return ClaimResult("claimed", prize), True
 
 
+@dataclass
+class CustomQuestion:
+    """A host-written question (design doc §5.3). Validated by questions.clean_custom."""
+
+    id: str
+    deck: str  # bets | medium
+    kind: str  # who | yesno | pick
+    text: str
+    options: tuple[str, ...]
+    always: bool
+    created_at: float
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "deck": self.deck,
+            "kind": self.kind,
+            "text": self.text,
+            "options": list(self.options),
+            "always": self.always,
+            "createdAt": self.created_at,
+        }
+
+    def to_doc(self) -> dict:
+        d = self.to_dict()
+        d.pop("id")
+        return d
+
+    @classmethod
+    def from_doc(cls, qid: str, d: dict) -> "CustomQuestion":
+        return cls(
+            qid,
+            d.get("deck", "bets"),
+            d.get("kind", "who"),
+            d.get("text", ""),
+            tuple(d.get("options", ())),
+            bool(d.get("always", False)),
+            float(d.get("createdAt", 0.0)),
+        )
+
+    def to_question(self) -> questions.Question:
+        return questions.Question(self.kind, self.text, self.options)
+
+
+def new_question(deck: object, kind: object, text: object, options: object, always: object) -> CustomQuestion:
+    d, k, t, opts = questions.clean_custom(deck, kind, text, options)
+    return CustomQuestion(secrets.token_urlsafe(9), d, k, t, opts, always is True, time.time())
+
+
 class HuntStore(Protocol):
     async def create_codes(self, count: int, label: str, relic: str | None, tier: str | None) -> list[Code]: ...
     async def list_codes(self) -> list[Code]: ...
@@ -180,6 +234,10 @@ class HuntStore(Protocol):
     async def claim(self, token: str, device: str, name: str | None) -> ClaimResult: ...
     async def get_device(self, device: str) -> Device: ...
     async def consume(self, device: str, key: str) -> bool: ...
+    async def list_questions(self) -> list[CustomQuestion]: ...
+    async def add_question(self, q: CustomQuestion) -> None: ...
+    async def set_question_always(self, qid: str, always: bool) -> bool: ...
+    async def delete_question(self, qid: str) -> bool: ...
 
 
 class MemoryStore:
@@ -188,6 +246,7 @@ class MemoryStore:
     def __init__(self) -> None:
         self.codes: dict[str, Code] = {}
         self.devices: dict[str, Device] = {}
+        self.questions: dict[str, CustomQuestion] = {}
         self._lock = asyncio.Lock()
 
     async def create_codes(self, count: int, label: str, relic: str | None, tier: str | None) -> list[Code]:
@@ -238,9 +297,29 @@ class MemoryStore:
             dev.relics.remove(key)
             return True
 
+    async def list_questions(self) -> list[CustomQuestion]:
+        return sorted(self.questions.values(), key=lambda q: q.created_at)
+
+    async def add_question(self, q: CustomQuestion) -> None:
+        async with self._lock:
+            if len(self.questions) >= questions.MAX_CUSTOM:
+                raise ValueError(f"That's the limit ({questions.MAX_CUSTOM} questions).")
+            self.questions[q.id] = q
+
+    async def set_question_always(self, qid: str, always: bool) -> bool:
+        q = self.questions.get(qid)
+        if q is None:
+            return False
+        q.always = always
+        return True
+
+    async def delete_question(self, qid: str) -> bool:
+        async with self._lock:
+            return self.questions.pop(qid, None) is not None
+
 
 class FirestoreStore:
-    """Firestore-backed store. Collections: `codes/{token}`, `devices/{deviceId}`."""
+    """Firestore-backed store. Collections: `codes/{token}`, `devices/{deviceId}`, `questions/{id}`."""
 
     def __init__(self, project: str | None, database: str) -> None:
         from google.cloud import firestore  # imported lazily: only needed in production
@@ -249,6 +328,7 @@ class FirestoreStore:
         self._db = firestore.AsyncClient(project=project, database=database)
         self._codes = self._db.collection("codes")
         self._devices = self._db.collection("devices")
+        self._questions = self._db.collection("questions")
 
     async def create_codes(self, count: int, label: str, relic: str | None, tier: str | None) -> list[Code]:
         existing = await self._codes.count().get()
@@ -328,6 +408,31 @@ class FirestoreStore:
             return True
 
         return await txn(self._db.transaction())
+
+    async def list_questions(self) -> list[CustomQuestion]:
+        out = [CustomQuestion.from_doc(snap.id, snap.to_dict() or {}) async for snap in self._questions.stream()]
+        return sorted(out, key=lambda q: q.created_at)
+
+    async def add_question(self, q: CustomQuestion) -> None:
+        existing = await self._questions.count().get()
+        total = existing[0][0].value if existing and existing[0] else 0
+        if total >= questions.MAX_CUSTOM:
+            raise ValueError(f"That's the limit ({questions.MAX_CUSTOM} questions).")
+        await self._questions.document(q.id).create(q.to_doc())
+
+    async def set_question_always(self, qid: str, always: bool) -> bool:
+        ref = self._questions.document(qid)
+        if not (await ref.get()).exists:
+            return False
+        await ref.update({"always": always})
+        return True
+
+    async def delete_question(self, qid: str) -> bool:
+        ref = self._questions.document(qid)
+        if not (await ref.get()).exists:
+            return False
+        await ref.delete()
+        return True
 
 
 def make_store(database: str | None, project: str | None) -> HuntStore:

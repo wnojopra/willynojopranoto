@@ -352,6 +352,7 @@ export function PlayApp() {
           ) : (
             <RevealOutcome state={state} me={me} betLabel={betLabel(betSpot?.id)} />
           )}
+          <PityNote state={state} me={me} />
         </section>
       )}
 
@@ -468,6 +469,12 @@ function PhoneResults({ state, me }: { state: StateMsg; me: string }) {
       )}
     </section>
   );
+}
+
+/** Catch-up Relic notice (design doc §6.6). The Relic itself shows up in the tray. */
+function PityNote({ state, me }: { state: StateMsg; me: string }) {
+  if (!state.reveal?.catchUp?.includes(me)) return null;
+  return <p className="phone__pity">🕯️ The spirits pity you. A free Relic is in your tray.</p>;
 }
 
 function RevealOutcome({ state, me, betLabel }: { state: StateMsg; me: string; betLabel: string | undefined }) {

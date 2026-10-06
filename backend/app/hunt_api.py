@@ -22,7 +22,7 @@ import time
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
-from app import hunt
+from app import hunt, questions
 from app.origins import origin_ok
 from app.rooms import RELIC_CATALOG_DICT, JoinError, normalize_name
 
@@ -266,4 +266,58 @@ async def admin_delete(token: str, request: Request) -> dict:
     _require_admin(request)
     if not hunt.valid_token(token) or not await store.delete_code(token):
         raise HTTPException(404, "No such code.")
+    return {"ok": True}
+
+
+# ---- Custom questions (design doc §5.3) ---------------------------------------
+
+
+@router.get("/admin/questions")
+async def admin_questions(request: Request) -> dict:
+    _require_admin(request)
+    qs = await store.list_questions()
+    return {"questions": [q.to_dict() for q in qs], "max": questions.MAX_CUSTOM}
+
+
+class QuestionBody(BaseModel):
+    deck: str = Field(max_length=10)
+    kind: str = Field(max_length=10)
+    text: str = Field(max_length=400)
+    options: list[str] = Field(default_factory=list, max_length=10)
+    always: bool = False
+
+
+@router.post("/admin/questions")
+async def admin_add_question(body: QuestionBody, request: Request) -> dict:
+    _check_csrf(request)
+    _require_admin(request)
+    if any(len(o) > 100 for o in body.options):
+        raise HTTPException(400, "Options are too long.")
+    try:
+        q = hunt.new_question(body.deck, body.kind, body.text, body.options, body.always)
+        await store.add_question(q)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return {"question": q.to_dict()}
+
+
+class AlwaysBody(BaseModel):
+    always: bool
+
+
+@router.post("/admin/questions/{qid}")
+async def admin_update_question(qid: str, body: AlwaysBody, request: Request) -> dict:
+    _check_csrf(request)
+    _require_admin(request)
+    if not hunt.valid_question_id(qid) or not await store.set_question_always(qid, body.always):
+        raise HTTPException(404, "No such question.")
+    return {"ok": True}
+
+
+@router.post("/admin/questions/{qid}/delete")
+async def admin_delete_question(qid: str, request: Request) -> dict:
+    _check_csrf(request)
+    _require_admin(request)
+    if not hunt.valid_question_id(qid) or not await store.delete_question(qid):
+        raise HTTPException(404, "No such question.")
     return {"ok": True}

@@ -169,6 +169,7 @@ flowchart LR
 
 ### 5.3 Host custom questions ⭐
 On the admin page you can add inside-joke questions (marked as Spirit Bets or Medium), and flag them "always include."
+- Implementation: who / yes-no / pick (2–5 options, 16 chars each); text 5–140 chars, cleaned server-side; max 200 questions, stored in Firestore `questions`. "Always include" questions are spread randomly over the remaining rounds of their kind, so all of them play but not all up front. With fewer than 3 players, Medium questions don't play (no Medium rounds). Questions are loaded when a game starts.
 
 ### 5.4 Deck rules
 - Mix per game: mostly Who In This Room, plus at least one Yes/No and one Pick One or Numbers.
@@ -271,6 +272,7 @@ On the admin page you can add inside-joke questions (marked as Spirit Bets or Me
 ### 6.6 Catch-up and no-hunt mode
 - **No hunt?** Turn on "Starter Relics": everyone gets one random Common.
 - **Catch-up:** whoever is in last place after rounds 3 and 6 gets a free Common.
+  - Implementation: lobby toggle, on by default. Last place counts humans only; tied players each get one, and nobody gets one if everyone is tied. Never in the Final Séance. The reveal shows "🕯️ The spirits take pity on …" on the TV and the phone. Unused catch-up Relics expire when the next game starts (like starters).
 
 ---
 

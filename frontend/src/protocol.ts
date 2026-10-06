@@ -50,6 +50,8 @@ export interface Reveal {
   pacts: Record<string, string>;
   /** What each pact caster gained from their partner (already included in `payout`). */
   pactGains: Record<string, number>;
+  /** Players who got a catch-up Relic this reveal (which Relic is private). */
+  catchUp: string[];
 }
 
 export interface GameInfo {
@@ -62,6 +64,7 @@ export interface GameInfo {
   isLastRound: boolean;
   cursesOn: boolean;
   starterRelics: boolean;
+  catchupRelics: boolean;
 }
 
 export type RelicKey =

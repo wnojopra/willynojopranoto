@@ -11,6 +11,8 @@ from typing import Iterable, Protocol
 # Number of regular rounds before the Final Séance.
 LENGTHS = {"short": 6, "standard": 9, "long": 12}
 DEFAULT_LENGTH = "standard"
+# Catch-up Relics after these (1-based) rounds, in every length (design doc §6.6).
+CATCHUP_AFTER = (3, 6)
 # 1-based round slots that are Medium rounds (never round 1).
 MEDIUM_SLOTS = {"short": (3, 5), "standard": (3, 7), "long": (3, 7, 10)}
 

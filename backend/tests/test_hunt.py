@@ -161,3 +161,63 @@ def test_starter_expiry_never_takes_a_hunt_relic():
     room.starter_relics = False
     room.new_game()
     assert a.relics == ["hex"]
+
+
+# ---- Custom questions -----------------------------------------------------------
+
+
+def admin_client(monkeypatch) -> TestClient:
+    monkeypatch.setenv("SB_ADMIN_PASSCODE", "correct horse battery")
+    c = phone()
+    assert post(c, "/api/admin/login", {"passcode": "correct horse battery"}).status_code == 200
+    return c
+
+
+def test_custom_questions_validate_and_crud(monkeypatch, fresh_store):
+    c = admin_client(monkeypatch)
+    assert phone().get("/api/admin/questions").status_code == 401
+    good = {"deck": "bets", "kind": "who", "text": "  Who  ate the\u202e last   taco? ", "always": True}
+    q = post(c, "/api/admin/questions", good).json()["question"]
+    assert q["text"] == "Who ate the last taco?" and q["always"] is True and hunt.valid_question_id(q["id"])
+    pick = {"deck": "medium", "kind": "pick", "text": "Your ghost name?", "options": ["Boo", " Casper ", ""]}
+    assert post(c, "/api/admin/questions", pick).status_code == 200
+    bad = [
+        {**good, "deck": "nope"},
+        {**good, "kind": "numbers"},
+        {**good, "text": "Hi"},
+        {**good, "text": "x" * 141},
+        {**pick, "options": ["Only one"]},
+        {**pick, "options": ["Same", "same"]},
+        {**pick, "options": ["Way too long for the board", "ok"]},
+    ]
+    for b in bad:
+        assert post(c, "/api/admin/questions", b).status_code == 400, b
+    assert post(c, "/api/admin/questions", good, csrf=False).status_code == 403
+    listed = c.get("/api/admin/questions").json()["questions"]
+    assert [x["kind"] for x in listed] == ["who", "pick"] and listed[1]["options"] == ["Boo", "Casper"]
+    assert post(c, f"/api/admin/questions/{q['id']}", {"always": False}).json() == {"ok": True}
+    assert c.get("/api/admin/questions").json()["questions"][0]["always"] is False
+    assert post(c, f"/api/admin/questions/{q['id']}/delete").json() == {"ok": True}
+    assert post(c, f"/api/admin/questions/{q['id']}/delete").status_code == 404
+    assert len(c.get("/api/admin/questions").json()["questions"]) == 1
+
+
+def test_always_include_questions_come_up_in_the_game():
+    from app.questions import Question
+
+    room = Room("ABCD", rng=random.Random(3))
+    for n in ("Ann", "Ben", "Cy"):
+        room.add_player(n)
+    room.set_starter_relics(False)
+    mine = [Question("who", f"Inside joke {i}?") for i in range(3)]
+    room.set_custom_questions([("bets", q, True) for q in mine] + [("medium", Question("yesno", "Med joke?"), True)])
+    seen = []
+    room.new_game()
+    while room.phase != "results":
+        seen.append(room.question_text)
+        room._finish_round(room.spots[0].id) if room.phase != "medium" else None
+        room.phase = "reveal"
+        room.start_round()
+    for q in mine:
+        assert q.text in seen
+    assert "Med joke?" in seen

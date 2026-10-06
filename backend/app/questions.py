@@ -10,6 +10,8 @@ Board kinds:
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import dataclass
 
 
@@ -76,3 +78,51 @@ MEDIUM_DECK: list[Question] = [
 ]
 
 FINAL_QUESTION = Question("who", "Who in this room is going to hell first?")
+
+
+# ---- Host custom questions (design doc §5.3) ---------------------------------
+
+DECKS = ("bets", "medium")
+KINDS = ("who", "yesno", "pick")
+TEXT_MIN, TEXT_MAX = 5, 140
+OPTION_MAX = 16
+OPTIONS_MIN, OPTIONS_MAX = 2, 5
+MAX_CUSTOM = 200
+
+_CONTROL = re.compile(r"[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]")
+
+
+def _clean(raw: object) -> str:
+    if not isinstance(raw, str):
+        return ""
+    text = _CONTROL.sub("", unicodedata.normalize("NFKC", raw))
+    return " ".join(text.split())
+
+
+def clean_custom(deck: object, kind: object, text: object, options: object) -> tuple[str, str, str, tuple[str, ...]]:
+    """Validates a host-written question. Raises ValueError with a host-facing reason.
+
+    Rendered as plain text everywhere (React, never HTML). "{player}" is the only
+    placeholder; any other braces are just text.
+    """
+    if deck not in DECKS:
+        raise ValueError("Pick Spirit Bets or Medium.")
+    if kind not in KINDS:
+        raise ValueError("Pick a board type.")
+    t = _clean(text)
+    if not TEXT_MIN <= len(t) <= TEXT_MAX:
+        raise ValueError(f"Questions are {TEXT_MIN}\u2013{TEXT_MAX} characters.")
+    opts: tuple[str, ...] = ()
+    if kind == "pick":
+        if not isinstance(options, list):
+            raise ValueError("Pick One questions need options.")
+        cleaned = [_clean(o) for o in options[: OPTIONS_MAX + 5]]
+        cleaned = [o for o in cleaned if o]
+        if not OPTIONS_MIN <= len(cleaned) <= OPTIONS_MAX:
+            raise ValueError(f"Pick One needs {OPTIONS_MIN}\u2013{OPTIONS_MAX} options.")
+        if any(len(o) > OPTION_MAX for o in cleaned):
+            raise ValueError(f"Options are at most {OPTION_MAX} characters (they're drawn on the board).")
+        if len({o.casefold() for o in cleaned}) != len(cleaned):
+            raise ValueError("Options must be different.")
+        opts = tuple(cleaned)
+    return deck, kind, t, opts  # type: ignore[return-value]

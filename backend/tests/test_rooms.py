@@ -803,3 +803,46 @@ def test_blood_pact_shares_partners_winnings_without_chains():
     assert a.score - score_before[a.id] == pot
     reveal = room.state_dict()["reveal"]
     assert reveal["pacts"] == {a.id: b.id, c.id: a.id} and reveal["pactGains"] == {a.id: pot}
+
+
+# ---- Catch-up Relics -----------------------------------------------------------
+
+
+def test_catchup_relic_goes_to_last_place_after_rounds_3_and_6_and_expires():
+    room, clock, (a, b, c) = relic_room()
+    a.score, b.score, c.score = 300, 100, 100
+    dealt = []
+    for _ in range(6):  # rounds 1..6
+        a.score += 1000  # Alice stays far ahead
+        if room.phase == "medium":
+            room.medium_answers(room.medium_id, room.spots[0].id)
+        room._finish_round(room.spots[0].id)
+        room.phase = "reveal"
+        if room.last_catchup:
+            dealt.append((room.game_round, dict(room.last_catchup)))
+            assert room.state_dict()["reveal"]["catchUp"] == sorted(room.last_catchup)
+        room.start_round()
+    assert [r for r, _ in dealt] == [3, 6]
+    for _, who in dealt:
+        # Payouts in these rounds may shuffle the bottom; whoever was lowest got one.
+        assert a.id not in who
+        assert all(relics.CATALOG[k].tier == "common" for k in who.values())
+    held = {p.id: list(p.catchup) for p in (a, b, c)}
+    assert sum(len(v) for v in held.values()) >= 2
+    # They expire when the next game starts.
+    room.phase = "results"
+    room.new_game()
+    assert all(p.catchup == [] and p.relics == [] for p in (a, b, c))
+
+
+def test_no_catchup_when_tied_or_turned_off():
+    room, clock, (a, b, c) = relic_room()
+    room.set_catchup_relics(False)
+    a.score = 500
+    room.game_round = 3
+    room._deal_catchup()
+    assert room.last_catchup == {}
+    room.set_catchup_relics(True)
+    a.score = b.score = c.score = 0
+    room._deal_catchup()
+    assert room.last_catchup == {}
