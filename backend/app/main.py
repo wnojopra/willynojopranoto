@@ -142,16 +142,23 @@ async def tv_socket(ws: WebSocket) -> None:
         if not msg or msg["type"] != "create":
             await ws.close(code=1008)
             return
-        try:
-            room = manager.create_room()
-        except RoomLimitError:
-            await send_error(ws, "Too many s\u00e9ances right now. Try again later.")
-            await ws.close()
-            return
-        # The TV that created the room is its host for the whole session.
-        # TODO(security): host can't reclaim a room after a TV refresh; add a
-        # server-issued HttpOnly host cookie if that becomes a problem.
+        device = hunt_api.device_of(ws.cookies)
+        # A refreshed TV asks for its room back. Only the browser that created
+        # it (same HttpOnly device cookie) gets it; anyone else gets a new room.
+        old = manager.get(msg.get("resume"))
+        if old is not None and old.is_host(device):
+            room = old
+            log.info("TV reattached to its room")
+        else:
+            try:
+                room = manager.create_room()
+            except RoomLimitError:
+                await send_error(ws, "Too many s\u00e9ances right now. Try again later.")
+                await ws.close()
+                return
+            room.host_device = device
         room.tv_conns.add(ws)
+        room.touch()
         await ws.send_json({"type": "created", "code": room.code})
         await room.broadcast_state()
 
@@ -229,15 +236,24 @@ async def play_socket(ws: WebSocket) -> None:
             await send_error(ws, "No s\u00e9ance with that code.")
             await ws.close()
             return
+        device = hunt_api.device_of(ws.cookies)
         try:
-            player = room.add_player(msg.get("name"))
+            player = room.add_player(msg.get("name"), device=device)
         except JoinError as e:
             await send_error(ws, str(e))
             await ws.close()
             return
+        stale = room.player_conns.get(player.id)
         room.player_conns[player.id] = ws
-        device = hunt_api.device_of(ws.cookies)
-        if device is not None and player.device is None:
+        if stale is not None and stale is not ws:
+            # Same phone, new tab or refresh: the old socket loses its seat.
+            # The error stops that tab from auto-rejoining and stealing it back.
+            try:
+                await send_error(stale, "You rejoined from another tab.")
+                await stale.close()
+            except Exception:
+                pass
+        if device is not None and not player.hunt_loaded:
             try:
                 found = await hunt_api.store.get_device(device)
                 room.load_hunt_relics(player, device, found.relics)

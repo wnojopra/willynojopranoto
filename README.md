@@ -5,7 +5,7 @@ drags the planchette together from their phones.
 
 Design doc: [`docs/design.md`](docs/design.md)
 
-## Status: playable game with all 13 Relics and the scavenger hunt
+## Status: feature-complete for the party (all 13 Relics, hunt, custom questions, sound)
 
 - TV creates a room with a 4-letter code and a **join QR** (scanning it pre-fills the code)
 - Phones join with the code and a name (up to 10 players)
@@ -49,7 +49,18 @@ Design doc: [`docs/design.md`](docs/design.md)
   "Always include" questions are spread through every game; the rest are shuffled in
   with the built-in deck. They're loaded when a game starts, so edits apply next game
 
-Not yet: audio.
+- **Sound** (TV only, `src/tv/audio.ts`): all synthesized in the browser, no audio files.
+  Séance drone (louder for the Final Séance), creaking floorboards, a heartbeat that speeds
+  up as the pull runs out, clock ticks at the end of betting, a stinger on lock-in, candy
+  cascade on payout (a groan on rollover), gong for curses, Relic shimmer, a Jump Scare
+  shriek, and an organ chord for the results
+  - **Narrator** (🗣️): the TV reads each question, the answer, curse cards (with the
+    non-drinking option), catch-up pity, ghost whispers, and the Final Curse, using the
+    browser's built-in voices
+  - 🔊 / 🗣️ buttons top-left (remembered per browser). Browsers need one click on the
+    page before they'll play sound; the TV shows "Click anywhere for sound" until then
+- **Reconnects**: a refreshed or dropped TV gets its room back (same game, same players).
+  Phones rejoin on their own after a refresh, a locked screen, or a Wi-Fi blip
 
 ## Layout
 
@@ -65,7 +76,7 @@ backend/    Python 3.12+ / FastAPI. Authoritative game loop at 30Hz.
   app/hunt_api.py  /api routes: claim, collection, admin (cookies, CSRF, rate limits)
   app/main.py      WebSocket endpoints (/ws/tv, /ws/play), security headers
 frontend/   React + TypeScript + Vite
-  src/tv/          TV screens (lobby, board, reveal, Relic cards)
+  src/tv/          TV screens (lobby, board, reveal, Relic cards), sound + narrator
   src/play/        phone screens (join, touchpad, minimap, Relic tray)
   src/hunt/        claim page, /relics, admin console, sticker sheet
 ```
@@ -143,8 +154,13 @@ cd frontend && npm run typecheck
 - All client input is validated server-side: names (1–14 chars, allow-list),
   room codes, hunt codes, pull vectors (finite and clamped to length 1),
   message size (512B), and per-connection rate limits.
-- No auth tokens in localStorage. Host rights in a game are tied to the TV's
-  live WebSocket connection.
+- No auth tokens in localStorage. The host is the browser that created the room:
+  a refreshed TV sends the (public) room code and gets the room back only if its
+  HttpOnly device cookie matches the creator's. Anyone else gets a new room.
+- Seats belong to the phone that took them (same device cookie), so nobody can
+  rejoin under someone else's name and see their bet or spend their Relics.
+  A phone that refreshes takes its seat back; the old tab is told and stops.
+  Someone on a new phone has to pick a slightly different name.
 - Hunt: each browser gets a random device id in an HttpOnly `__Host-` cookie
   (whoever holds the phone owns its Relics). POSTs need a double-submit CSRF
   token plus a same-origin `Origin`. Claims and logins are rate limited.
@@ -152,8 +168,7 @@ cd frontend && npm run typecheck
 - Admin: passcode from Secret Manager (constant-time compare, never logged),
   then a 12-hour HttpOnly, SameSite=Strict session cookie.
 - Strict CSP, `X-Frame-Options: DENY`, `nosniff`, and a locked-down
-  `Permissions-Policy` are applied to everything the backend serves.
-- TODO(security): if the TV refreshes, the host can't reclaim the room. Add a
-  server-issued HttpOnly host cookie if that's a problem in playtesting.
+  `Permissions-Policy` are applied to everything the backend serves. Sound is
+  synthesized in the browser (no audio files), so the CSP didn't need to change.
 - Known edge cases: one phone in two rooms at once could use a hunt Relic twice;
   Relics found mid-game show up after the phone rejoins.

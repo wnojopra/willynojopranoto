@@ -352,6 +352,77 @@
   .tv__summoning {
     animation: flicker 1.6s ease-in-out infinite;
   }
+  .tv__row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+  }
+  .tv__reconnecting {
+    position: fixed;
+    inset-block-start: 1rem;
+    inset-inline: 0;
+    margin-inline: auto;
+    inline-size: fit-content;
+    padding: 0.5em 1.2em;
+    border: 1px solid hsl(36 45% 60% / 0.35);
+    border-radius: 999px;
+    background: hsl(24 35% 8% / 0.92);
+    color: var(--candle-hot);
+    font-style: italic;
+    z-index: 50;
+    animation: flicker 1.6s ease-in-out infinite;
+  }
+
+  /* --- TV sound controls --- */
+  .soundbar {
+    position: fixed;
+    inset-block-start: 0.75rem;
+    inset-inline-start: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    z-index: 40;
+    opacity: 0.55;
+    transition: opacity 200ms ease;
+
+    &:hover,
+    &:focus-within {
+      opacity: 1;
+    }
+  }
+  .soundbar__btn {
+    display: grid;
+    place-items: center;
+    inline-size: 40px;
+    block-size: 40px;
+    border: 1px solid hsl(36 45% 60% / 0.3);
+    border-radius: 50%;
+    background: hsl(24 30% 8% / 0.85);
+    font-size: 1.1rem;
+    cursor: pointer;
+
+    &[aria-pressed='false'] {
+      filter: grayscale(1);
+      opacity: 0.6;
+    }
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+  }
+  .soundbar__hint {
+    padding: 0.45em 1em;
+    border: 1px solid hsl(36 82% 58% / 0.5);
+    border-radius: 999px;
+    background: hsl(24 35% 8% / 0.9);
+    color: var(--candle-hot);
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  .soundbar:has(.soundbar__hint) {
+    opacity: 1;
+  }
 
   /* --- TV lobby --- */
   .lobby {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { getMe } from '../hunt/api';
 import type { PlanchetteState, Player, PrivatePick, RelicKey, ServerMsg, StateMsg } from '../protocol';
 import { useGameSocket } from '../useGameSocket';
@@ -19,15 +19,44 @@ interface CrystalVision {
 }
 
 function vibrate(pattern: number | number[]) {
-  if ('vibrate' in navigator) navigator.vibrate(pattern);
+  // Browsers block vibration until the user has tapped the page (e.g. right after a refresh).
+  const active = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive ?? true;
+  if ('vibrate' in navigator && active) navigator.vibrate(pattern);
+}
+
+/** This tab's room + name, so a refreshed phone rejoins on its own. Not secret. */
+const JOIN_KEY = 'sb-join';
+const MAX_RETRIES = 6;
+
+function savedJoin(): JoinInfo | null {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(JOIN_KEY) ?? 'null');
+    return raw && typeof raw.code === 'string' && typeof raw.name === 'string' ? { code: raw.code, name: raw.name } : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveJoin(j: JoinInfo | null) {
+  try {
+    if (j) sessionStorage.setItem(JOIN_KEY, JSON.stringify(j));
+    else sessionStorage.removeItem(JOIN_KEY);
+  } catch {
+    // No sessionStorage: a refresh shows the join form again.
+  }
 }
 
 export function PlayApp() {
   const initialCode = new URLSearchParams(location.search).get('code') ?? '';
-  const [code, setCode] = useState(initialCode.toUpperCase().slice(0, 4));
-  const [name, setName] = useState('');
-  const [join, setJoin] = useState<JoinInfo | null>(null);
-  const [attempt, setAttempt] = useState(0);
+  const resume = useMemo(() => {
+    const j = savedJoin();
+    return j && (!initialCode || initialCode.toUpperCase() === j.code) ? j : null;
+  }, [initialCode]);
+  const [code, setCode] = useState(resume?.code ?? initialCode.toUpperCase().slice(0, 4));
+  const [name, setName] = useState(resume?.name ?? '');
+  const [join, setJoin] = useState<JoinInfo | null>(resume);
+  const [attempt, setAttempt] = useState(resume ? 1 : 0);
+  const [retries, setRetries] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [me, setMe] = useState<string | null>(null);
   const [state, setState] = useState<StateMsg | null>(null);
@@ -94,6 +123,7 @@ export function PlayApp() {
         setJoin(null);
         setMe(null);
         setState(null);
+        saveJoin(null);
         break;
     }
   }, []);
@@ -104,10 +134,39 @@ export function PlayApp() {
   useWakeLock(me !== null);
   useRevealBuzz(state, me);
 
+  // Dropped (screen locked, Wi-Fi blip): rejoin on our own, a few times.
+  const lost = status === 'closed' && join !== null;
+  useEffect(() => {
+    if (status === 'open') setRetries(0);
+  }, [status]);
+  useEffect(() => {
+    if (!lost || retries >= MAX_RETRIES) return;
+    const id = setTimeout(() => {
+      setRetries((n) => n + 1);
+      setAttempt((n) => n + 1);
+    }, Math.min(6000, 700 * 2 ** retries));
+    return () => clearTimeout(id);
+  }, [lost, retries]);
+  // Coming back to the tab (phone unlocked): try right away.
+  useEffect(() => {
+    if (!lost) return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        setRetries(0);
+        setAttempt((n) => n + 1);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [lost]);
+
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    setJoin({ code: code.trim().toUpperCase(), name: name.trim() });
+    const j = { code: code.trim().toUpperCase(), name: name.trim() };
+    saveJoin(j);
+    setJoin(j);
+    setRetries(0);
     setAttempt((n) => n + 1);
   };
 
@@ -166,13 +225,32 @@ export function PlayApp() {
   }
 
   if (status === 'closed') {
+    const trying = retries < MAX_RETRIES;
     return (
       <main className="phone phone--center">
-        <p className="phone__big">The connection to the other side was lost.</p>
-        <button id="rejoin" className="btn btn--primary btn--big" onClick={() => setAttempt((n) => n + 1)}>
-          Rejoin as {join.name}
-        </button>
-        <button id="leave" className="btn btn--ghost" onClick={() => setJoin(null)}>
+        <p className={`phone__big${trying ? ' phone__summoning' : ''}`} role="status">
+          {trying ? 'Reconnecting to the other side…' : 'The connection to the other side was lost.'}
+        </p>
+        {!trying && (
+          <button
+            id="rejoin"
+            className="btn btn--primary btn--big"
+            onClick={() => {
+              setRetries(0);
+              setAttempt((n) => n + 1);
+            }}
+          >
+            Rejoin as {join.name}
+          </button>
+        )}
+        <button
+          id="leave"
+          className="btn btn--ghost"
+          onClick={() => {
+            saveJoin(null);
+            setJoin(null);
+          }}
+        >
           Use a different name
         </button>
       </main>

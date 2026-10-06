@@ -1,14 +1,39 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { Curse, GameLength, PlanchetteState, Player, RelicEvent, ServerMsg, StateMsg } from '../protocol';
 import { useGameSocket } from '../useGameSocket';
+import { sound } from './audio';
 import { Board, type Bettor } from './Board';
 import { Countdown } from './Countdown';
 import { QrCode } from './QrCode';
-
-const CREATE = JSON.stringify({ type: 'create' });
+import { useSeanceAudio, useSoundSettings } from './useSeanceAudio';
 
 /** /tv?dev=1 shows testing shortcuts (e.g. hand everyone every Relic). */
 const DEV = new URLSearchParams(location.search).get('dev') === '1';
+
+/**
+ * This tab's room code, so a refreshed TV gets its room back. The code is public
+ * (it's on screen); the server only hands the room back to the browser that made
+ * it, checked with its HttpOnly device cookie.
+ */
+const ROOM_KEY = 'sb-tv-room';
+const MAX_RETRIES = 8;
+
+function savedRoom(): string | null {
+  try {
+    return sessionStorage.getItem(ROOM_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveRoom(code: string | null) {
+  try {
+    if (code) sessionStorage.setItem(ROOM_KEY, code);
+    else sessionStorage.removeItem(ROOM_KEY);
+  } catch {
+    // Without sessionStorage a refresh just makes a new room.
+  }
+}
 
 const REVEAL_QUIPS = [
   'The spirits are never wrong.',
@@ -22,6 +47,8 @@ const REVEAL_QUIPS = [
 export function TvApp() {
   const [state, setState] = useState<StateMsg | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [retries, setRetries] = useState(0);
   const planchetteRef = useRef<PlanchetteState | null>(null);
 
   const onMessage = useCallback((msg: ServerMsg) => {
@@ -30,34 +57,125 @@ export function TvApp() {
       planchetteRef.current = msg.planchette;
     } else if (msg.type === 'tick') {
       planchetteRef.current = msg;
+    } else if (msg.type === 'created') {
+      saveRoom(msg.code);
+      setRetries(0);
     } else if (msg.type === 'error') {
       setError(msg.message);
     }
   }, []);
 
-  const { status, send } = useGameSocket('/ws/tv', CREATE, onMessage);
+  // Recomputed per attempt (not when the code arrives, which would reconnect).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const firstMessage = useMemo(() => JSON.stringify({ type: 'create', resume: savedRoom() }), [attempt]);
+  const { status, send } = useGameSocket('/ws/tv', firstMessage, onMessage, attempt);
+  useSeanceAudio(state, planchetteRef);
 
-  if (status === 'closed' || error) {
-    return (
+  // Dropped (Wi-Fi blip, server restart): quietly retry with backoff.
+  const lost = status === 'closed' && !error;
+  useEffect(() => {
+    if (!lost || retries >= MAX_RETRIES) return;
+    const id = setTimeout(() => {
+      setRetries((n) => n + 1);
+      setAttempt((n) => n + 1);
+    }, Math.min(8000, 800 * 2 ** retries));
+    return () => clearTimeout(id);
+  }, [lost, retries]);
+
+  let screen;
+  if (error || (lost && retries >= MAX_RETRIES)) {
+    screen = (
       <main className="tv tv--center">
         <h1 className="tv__title">The séance was interrupted</h1>
         <p className="tv__sub">{error ?? 'Lost connection to the spirit realm.'}</p>
-        <button id="tv-restart" className="btn btn--primary" onClick={() => location.reload()}>
-          Start a new séance
-        </button>
+        <div className="tv__row">
+          {!error && (
+            <button
+              id="tv-reconnect"
+              className="btn btn--primary"
+              onClick={() => {
+                setRetries(0);
+                setAttempt((n) => n + 1);
+              }}
+            >
+              Reconnect
+            </button>
+          )}
+          <button
+            id="tv-restart"
+            className={error ? 'btn btn--primary' : 'btn btn--ghost'}
+            onClick={() => {
+              saveRoom(null);
+              location.reload();
+            }}
+          >
+            Start a new séance
+          </button>
+        </div>
       </main>
     );
-  }
-  if (!state) {
-    return (
+  } else if (!state) {
+    screen = (
       <main className="tv tv--center">
         <p className="tv__sub tv__summoning">Summoning…</p>
       </main>
     );
-  }
-  if (state.phase === 'lobby') return <Lobby state={state} send={send} />;
-  if (state.phase === 'results') return <Results state={state} send={send} />;
-  return <Seance state={state} send={send} planchetteRef={planchetteRef} />;
+  } else if (state.phase === 'lobby') screen = <Lobby state={state} send={send} />;
+  else if (state.phase === 'results') screen = <Results state={state} send={send} />;
+  else screen = <Seance state={state} send={send} planchetteRef={planchetteRef} />;
+
+  return (
+    <>
+      {screen}
+      {lost && retries < MAX_RETRIES && state && (
+        <p className="tv__reconnecting" role="status">
+          Reconnecting to the spirit realm…
+        </p>
+      )}
+      <SoundBar />
+    </>
+  );
+}
+
+/** Sound + narrator toggles, top-left on every TV screen. */
+function SoundBar() {
+  useSoundSettings();
+  return (
+    <div className="soundbar">
+      {sound.soundOn && !sound.awake && (
+        <button id="tv-wake" className="soundbar__hint" onClick={() => sound.wake()}>
+          🔈 Click anywhere for sound
+        </button>
+      )}
+      <button
+        id="tv-sound"
+        className="soundbar__btn"
+        aria-pressed={sound.soundOn}
+        aria-label={sound.soundOn ? 'Sound on' : 'Sound off'}
+        title={sound.soundOn ? 'Mute' : 'Unmute'}
+        onClick={() => {
+          sound.wake();
+          sound.setSound(!sound.soundOn);
+        }}
+      >
+        {sound.soundOn ? '🔊' : '🔇'}
+      </button>
+      <button
+        id="tv-narrate"
+        className="soundbar__btn"
+        aria-pressed={sound.narrateOn}
+        aria-label={sound.narrateOn ? 'Narrator on' : 'Narrator off'}
+        title={sound.narrateOn ? 'The TV reads questions and cards aloud' : 'Narrator off'}
+        disabled={!sound.soundOn}
+        onClick={() => {
+          sound.wake();
+          sound.setNarrate(!sound.narrateOn);
+        }}
+      >
+        🗣️
+      </button>
+    </div>
+  );
 }
 
 type Send = (msg: object) => void;

@@ -14,6 +14,7 @@ Round kinds:
 from __future__ import annotations
 
 import asyncio
+import hmac
 import logging
 import math
 import random
@@ -155,10 +156,11 @@ class Player:
     starter: str | None = None
     # Catch-up Relics dealt this game (design doc §6.6). They expire like starters.
     catchup: list[str] = field(default_factory=list)
-    # Scavenger-hunt Relics: the phone's device id, the hunt Relics still in
+    # The phone's device id (its seat is tied to it), the hunt Relics still in
     # `relics` (spent last, so they carry over), and spent ones to remove from
     # the hunt store (main.py drains this).
     device: str | None = None
+    hunt_loaded: bool = False
     hunt: list[str] = field(default_factory=list)
     hunt_spent: list[str] = field(default_factory=list)
     # Relic effects on this player, for the current round.
@@ -266,6 +268,9 @@ class Room:
         self._relic_seq = 0
         self.tv_conns: set[Conn] = set()
         self.player_conns: dict[str, Conn] = {}
+        # The device cookie of the browser that created the room. Only it may
+        # reattach a TV after a refresh.
+        self.host_device: str | None = None
         self.last_activity = clock()
 
     # ---- Players ---------------------------------------------------------
@@ -273,12 +278,27 @@ class Room:
     def touch(self) -> None:
         self.last_activity = self._clock()
 
-    def add_player(self, raw_name: object, is_bot: bool = False) -> Player:
+    def is_host(self, device: str | None) -> bool:
+        return bool(device and self.host_device) and hmac.compare_digest(device, self.host_device)
+
+    def add_player(self, raw_name: object, is_bot: bool = False, device: str | None = None) -> Player:
         name = normalize_name(raw_name)
         for p in self.players.values():
             if p.name.casefold() == name.casefold():
-                # Let a human who dropped (e.g. refreshed) rejoin by name.
-                if not p.connected and not p.is_bot and not is_bot:
+                if p.is_bot or is_bot:
+                    raise JoinError("That name is taken.")
+                if p.device is not None:
+                    # Seats belong to the phone that took them, so nobody can
+                    # rejoin as someone else (and spend their Relics). The same
+                    # phone may take its seat back even before its old socket
+                    # has noticed it's gone (a refresh).
+                    if device is not None and hmac.compare_digest(device, p.device):
+                        p.connected = True
+                        p.relics_dirty = True
+                        return p
+                    raise JoinError("That name is taken. On a new phone? Add a letter to your name.")
+                # No device cookie (local dev / tests): rejoin by name once they've dropped.
+                if not p.connected:
                     p.connected = True
                     p.relics_dirty = True
                     return p
@@ -288,7 +308,8 @@ class Room:
         used_colors = {p.color for p in self.players.values()}
         color = next(c for c in COLORS if c not in used_colors)
         player = Player(
-            id=secrets.token_hex(4), name=name, color=color, is_bot=is_bot
+            id=secrets.token_hex(4), name=name, color=color, is_bot=is_bot,
+            device=None if is_bot else device,
         )
         self.players[player.id] = player
         if self.game_active and self.starter_relics and not is_bot:
@@ -316,8 +337,9 @@ class Room:
 
     def load_hunt_relics(self, p: Player, device: str, keys: list[str]) -> None:
         """Brings a phone's scavenger-hunt Relics into the game (once per player)."""
-        if p.is_bot or p.device is not None:
+        if p.is_bot or p.hunt_loaded:
             return
+        p.hunt_loaded = True
         p.device = device
         for key in keys:
             if key in relics.CATALOG:

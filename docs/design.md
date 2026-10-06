@@ -297,6 +297,7 @@ On the admin page you can add inside-joke questions (marked as Spirit Bets or Me
 - A pull aura: faint lines show the direction of the combined pull.
 - **The bet reveal is the big moment:** avatars drop onto the spots they bet on, one at a time.
 - **Audio:** séance drone, creaking floorboards, a heartbeat that speeds up near the end of the timer, a stinger on lock-in, a coin cascade on payout.
+  - Implementation: synthesized with Web Audio (no audio files). Also: clock ticks in the last 5s of betting, a gong for curse cards, Relic shimmer, a Jump Scare shriek, an organ chord for results. A narrator (browser speech) reads questions, answers, curse cards, whispers, and the Final Curse. Mute and narrator toggles on the TV.
 - A full-screen Relic card and a curse card when they happen.
 
 ### Phone (`/play`)
