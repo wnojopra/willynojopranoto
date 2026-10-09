@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 RELIC_CATALOG_DICT = {k: r.to_dict() for k, r in relics.CATALOG.items()}
 
-MAX_PLAYERS = 10
+MAX_PLAYERS = 16
 MIN_PLAYERS_TO_START = 2
 MIN_PLAYERS_FOR_MEDIUM = 3  # the Medium plus at least two guessers
 MAX_ROOMS = 20
@@ -80,7 +80,17 @@ COLORS = [
     "#5c80bc",  # moon
     "#a3b18a",  # moss
     "#e0a6a6",  # flesh
+    # Seats 11-16. Picked to sit as far as possible (CIELAB) from the ten
+    # above; past ten, colour stops being a reliable name tag anyway, so the
+    # reveal also says who bet on whom in words.
+    "#49e04f",  # ectoplasm
+    "#d94ff0",  # witch
+    "#e3f24f",  # glowstick
+    "#ff4fb0",  # hot pink
+    "#4ff0b0",  # mint
+    "#8585ff",  # wisp
 ]
+assert len(COLORS) >= MAX_PLAYERS, "every seat needs its own colour"
 
 BOT_NAMES = [
     "Casper",
@@ -93,6 +103,12 @@ BOT_NAMES = [
     "Ghostface",
     "Pennywise",
     "The Nun",
+    "Dracula",
+    "Freddy",
+    "Jason",
+    "Annabelle",
+    "Samara",
+    "Candyman",
 ]
 
 
@@ -473,6 +489,10 @@ class Room:
 
         practice = self._practice_pending
         self._practice_pending = False
+        if practice:
+            # Teach the room once. "Play again" goes straight to round 1; the
+            # host can switch it back on in the lobby for newcomers.
+            self.practice_on = False
         kind = "practice" if practice else self.plan[self.game_round]
         medium = self._pick_medium() if kind == "medium" else None
         if kind == "medium" and medium is None:

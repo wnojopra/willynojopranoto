@@ -478,7 +478,7 @@ function SpotButtons({
   crossed?: string[] | null;
 }) {
   return (
-    <div className="betgrid" role="group" aria-label={label}>
+    <div className="betgrid" role="group" aria-label={label} data-many={state.spots.length > 10 ? '' : undefined}>
       {state.spots.map((s) => {
         const out = crossed?.includes(s.id) ?? false;
         const n = counts ? (counts[s.id] ?? 0) : null;

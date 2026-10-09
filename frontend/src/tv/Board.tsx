@@ -1,8 +1,11 @@
 import { useEffect, useRef, type RefObject } from 'react';
+import { fitLabel, labelRoom } from '../labels';
 import type { PlanchetteState, Spot } from '../protocol';
 
 const S = 1000; // board units -> SVG units
 const SPOT_R = 0.085 * S;
+const LABEL_PX = 34; // default label size; crowded rings and long names shrink from here
+const LABEL_MIN_PX = 18;
 
 export interface Bettor {
   id: string;
@@ -95,6 +98,8 @@ export function Board({ board, spots, planchetteRef, resultSpotId, colorsBySpot,
 
   const W = board.w * S;
   const H = board.h * S;
+  // Room for each label: up to its neighbours in the same row (board units).
+  const rooms = labelRoom(spots, 0.09, 0.016);
 
   return (
     <svg className="board" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Spirit board">
@@ -136,42 +141,54 @@ export function Board({ board, spots, planchetteRef, resultSpotId, colorsBySpot,
 
       <line ref={auraEl} className="board__aura" x1="0" y1="0" x2="0" y2="0" />
 
-      {spots.map((s) => (
-        <g
-          key={s.id}
-          ref={(el) => {
-            if (el) spotEls.current.set(s.id, el);
-            else spotEls.current.delete(s.id);
-          }}
-          className="spot"
-          data-result={resultSpotId === s.id ? '' : undefined}
-          data-dim={resultSpotId && resultSpotId !== s.id ? '' : undefined}
-          data-salted={salted?.includes(s.id) ? '' : undefined}
-          style={{ transform: `translate(${s.x * S}px, ${s.y * S}px)` }}
-        >
-          <circle className="spot__well" r={SPOT_R} />
-          {colorsBySpot[s.id] && <circle className="spot__pip" r={10} cy={-SPOT_R + 22} fill={colorsBySpot[s.id]} />}
-          <text className="spot__label" y="12">
-            {s.label}
-          </text>
-          {salted?.includes(s.id) && (
-            <g className="spot__salt">
-              <circle r={SPOT_R + 12} />
-              <text y={SPOT_R + 6} className="spot__relicicon">
-                🧂
-              </text>
-            </g>
-          )}
-          {magnets?.includes(s.id) && (
-            <g className="spot__magnet">
-              <circle r={SPOT_R + 22} />
-              <text y={-SPOT_R + 4} className="spot__relicicon">
-                🧲{magnets.filter((m) => m === s.id).length > 1 ? `×${magnets.filter((m) => m === s.id).length}` : ''}
-              </text>
-            </g>
-          )}
-        </g>
-      ))}
+      {spots.map((s, i) => {
+        // Room for the label: its row neighbours, or the board edge for the outer spots.
+        const edgeRoom = 2 * (Math.min(s.x, board.w - s.x) * S - 30);
+        const fit = fitLabel(s.label, Math.max(120, Math.min(rooms[i] * S, edgeRoom)), LABEL_PX, LABEL_MIN_PX);
+        const twoLines = fit.lines.length > 1;
+        return (
+          <g
+            key={s.id}
+            ref={(el) => {
+              if (el) spotEls.current.set(s.id, el);
+              else spotEls.current.delete(s.id);
+            }}
+            className="spot"
+            data-result={resultSpotId === s.id ? '' : undefined}
+            data-dim={resultSpotId && resultSpotId !== s.id ? '' : undefined}
+            data-salted={salted?.includes(s.id) ? '' : undefined}
+            style={{ transform: `translate(${s.x * S}px, ${s.y * S}px)` }}
+          >
+            <circle className="spot__well" r={SPOT_R} />
+            {colorsBySpot[s.id] && <circle className="spot__pip" r={10} cy={-SPOT_R + 22} fill={colorsBySpot[s.id]} />}
+            <text className="spot__label" y={twoLines ? 12 - fit.fontSize * 0.55 : 12} style={{ fontSize: fit.fontSize }}>
+              {twoLines
+                ? fit.lines.map((line, i) => (
+                    <tspan key={i} x="0" dy={i === 0 ? 0 : fit.fontSize * 1.1}>
+                      {line}
+                    </tspan>
+                  ))
+                : s.label}
+            </text>
+            {salted?.includes(s.id) && (
+              <g className="spot__salt">
+                <circle r={SPOT_R + 12} />
+                <text y={SPOT_R + 6} className="spot__relicicon">
+                  🧂
+                </text>
+              </g>
+            )}
+            {magnets?.includes(s.id) && (
+              <g className="spot__magnet">
+                <circle r={SPOT_R + 22} />
+                <text y={-SPOT_R + 4} className="spot__relicicon">
+                  🧲{magnets.filter((m) => m === s.id).length > 1 ? `×${magnets.filter((m) => m === s.id).length}` : ''}
+                </text>
+              </g>
+            )}
+          </g>
+        );
+      })}
 
       <circle ref={ringEl} className="board__lockring" r={SPOT_R + 16} pathLength={1} />
 

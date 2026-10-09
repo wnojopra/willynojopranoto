@@ -94,3 +94,22 @@ def test_practice_can_be_turned_off_and_back_to_lobby_skips_it():
     assert room2.game_round == 0 and room2.game_active
     room2.start_round()
     assert room2.round_kind == "bets" and room2.game_round == 1
+
+
+def test_practice_plays_once_then_play_again_skips_it():
+    """"Play again" shouldn't re-teach the room: the toggle turns itself off once played."""
+    room, _ = make_room()
+    room.set_length("short")
+    assert room.new_game()
+    assert room.round_kind == "practice"
+    assert not room.practice_on  # consumed: the lobby toggle now reads "off"
+    assert not room.state_dict()["game"]["practiceOn"]
+    # Next game (here via restart; "Play again" from the results is the same path): straight to round 1.
+    room.restart_game()
+    assert room.new_game()
+    assert room.round_kind == "bets" and room.game_round == 1
+    # The host can switch it back on for newcomers.
+    room.restart_game()
+    room.set_practice(True)
+    assert room.new_game()
+    assert room.round_kind == "practice"

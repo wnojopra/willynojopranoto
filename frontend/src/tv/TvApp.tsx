@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import type { Curse, GameLength, PlanchetteState, Player, RelicEvent, ServerMsg, StateMsg } from '../protocol';
 import { useGameSocket } from '../useGameSocket';
 import { sound } from './audio';
 import { Board, type Bettor } from './Board';
 import { Countdown } from './Countdown';
+import { betrayalLine, names } from './gossip';
 import { QrCode } from './QrCode';
 import { HOW_TO_CARDS, practiceStep } from './tutorial';
 import { useSeanceAudio, useSoundSettings } from './useSeanceAudio';
 
 /** /tv?dev=1 shows testing shortcuts (e.g. hand everyone every Relic). */
 const DEV = new URLSearchParams(location.search).get('dev') === '1';
+/** Past this many players the roster and standings switch to more columns. */
+const BIG_ROOM = 10;
 
 /**
  * This tab's room code, so a refreshed TV gets its room back. The code is public
@@ -223,7 +226,7 @@ function Lobby({ state, send }: { state: StateMsg; send: Send }) {
         <h2 className="lobby__count">
           {state.players.length} / {state.maxPlayers} spirits gathered
         </h2>
-        <ul className="roster">
+        <ul className="roster" data-many={state.players.length > BIG_ROOM ? '' : undefined}>
           {state.players.map((p) => (
             <li key={p.id} className="roster__item" data-offline={p.connected ? undefined : ''}>
               <span className="avatar" style={{ backgroundColor: p.color }} aria-hidden="true" />
@@ -484,6 +487,7 @@ function Seance({
   const step = kind === 'practice' ? practiceStep(state.phase) : null;
   const freshRelics = useFreshRelics(state.relicEvents);
   const scared = freshRelics.some((e) => e.key === 'jumpscare');
+  const gossip = state.phase === 'reveal' ? betrayalLine(state) : null;
 
   return (
     <main className="tv seance" data-phase={state.phase} data-kind={kind} data-scare={scared ? '' : undefined}>
@@ -595,6 +599,7 @@ function Seance({
             ) : (
               <div className="seance__verdict" role="status">
                 <p className="seance__payout">{kind === 'practice' ? practiceLine(state) : payoutLine(state)}</p>
+                {gossip && <p className="seance__gossip">{gossip}</p>}
                 <p className="seance__quip">{autoTease(state) ?? quip}</p>
               </div>
             )}
@@ -651,7 +656,12 @@ function Results({ state, send }: { state: StateMsg; send: Send }) {
         <h1 className="tv__title">The spirits have judged you</h1>
       </header>
 
-      <ol className="standings" aria-label="Final standings">
+      <ol
+        className="standings"
+        aria-label="Final standings"
+        data-many={ranked.length > BIG_ROOM ? '' : undefined}
+        style={{ '--rows': Math.ceil(ranked.length / 2) } as CSSProperties}
+      >
         {ranked.map((p, i) => (
           <li key={p.id} className="standings__item" data-rank={i + 1} style={{ animationDelay: `${(ranked.length - i) * 220}ms` }}>
             <span className="standings__rank">{i + 1}</span>
@@ -934,12 +944,6 @@ function PotBadge({ pot, bonus }: { pot: number; bonus: number }) {
       {bonus > 0 && <span className="potbadge__bonus">incl. {bonus} rolled over</span>}
     </p>
   );
-}
-
-function names(list: string[]): string {
-  if (list.length <= 1) return list.join('');
-  if (list.length === 2) return `${list[0]} & ${list[1]}`;
-  return `${list.slice(0, -1).join(', ')} & ${list[list.length - 1]}`;
 }
 
 /** The practice reveal: what would have happened, without the candy. */

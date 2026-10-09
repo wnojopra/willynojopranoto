@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Owner / Host** | willyn |
-| **Players** | 3–10 (tuned for ~10) |
+| **Players** | 3–16 (tuned for ~10–12; past 10 the TV and phone layouts go to more columns) |
 | **Length** | ~15 minutes, built to be replayed |
 | **Platforms** | TV (browser), phones (browser, nothing to install) |
 | **Stack** | React + TypeScript (frontend), Python (backend), GCP |

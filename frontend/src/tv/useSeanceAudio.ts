@@ -1,14 +1,13 @@
 import { useEffect, useRef, useSyncExternalStore, type RefObject } from 'react';
 import type { PlanchetteState, StateMsg } from '../protocol';
 import { installWakeOnGesture, sound } from './audio';
+import { betrayalLine, names as nameList } from './gossip';
 import { PRACTICE_STEPS } from './tutorial';
 
 const PULL_SECONDS = 20;
 
-function names(list: string[]): string {
-  if (list.length <= 1) return list.join('');
-  return `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
-}
+/** Spoken list: "Kevin, Priya and Dave". */
+const names = (list: string[]) => nameList(list, { and: 'and' });
 
 /** Re-renders when sound settings or the audio context's state change. */
 export function useSoundSettings() {
@@ -71,6 +70,8 @@ export function useSeanceAudio(state: StateMsg | null, planchetteRef: RefObject<
       }, 1300);
       const lines: string[] = [];
       if (result) lines.push(`The spirits have spoken. ${result.label}.`);
+      const gossip = betrayalLine(state, { and: 'and' });
+      if (gossip) lines.push(gossip);
       const curse = state.curse && state.curse.roundNo === state.roundNo ? state.curse : null;
       if (curse) {
         setTimeout(() => sound.gong(), 2200);

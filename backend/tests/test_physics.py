@@ -21,17 +21,29 @@ def test_unanimous_pull_scales_sublinearly():
     assert math.isclose(fx, 3.0)
 
 
-def test_layout_spots_on_ring_and_equidistant_from_start():
-    spots = physics.layout_spots([(str(i), f"P{i}") for i in range(10)])
-    assert len(spots) == 10
-    for s in spots:
-        assert 0 < s.x < physics.BOARD_W
-        assert 0 < s.y < physics.BOARD_H
-    # Spots don't overlap each other's lock radius.
-    for a in spots:
-        for b in spots:
-            if a is not b:
-                assert math.hypot(a.x - b.x, a.y - b.y) > 2 * physics.SPOT_RADIUS
+def test_layout_spots_fit_the_ring_for_any_group_size():
+    for n in range(2, 17):  # up to rooms.MAX_PLAYERS
+        spots = physics.layout_spots([(str(i), f"P{i}") for i in range(n)])
+        assert len(spots) == n
+        for s in spots:
+            assert physics.EDGE_MARGIN < s.x < physics.BOARD_W - physics.EDGE_MARGIN
+            assert physics.EDGE_MARGIN < s.y < physics.BOARD_H - physics.EDGE_MARGIN
+        # Spots don't overlap each other's lock radius, even with 16 on the ring.
+        for a in spots:
+            for b in spots:
+                if a is not b:
+                    assert math.hypot(a.x - b.x, a.y - b.y) > 2 * physics.SPOT_RADIUS, n
+        # Spaced evenly along the ring: nobody's nearest neighbour is squeezed much closer
+        # than average (equal *angles* squeezed the ends ~26% below the mean at 16).
+        gaps = [min(math.hypot(a.x - b.x, a.y - b.y) for b in spots if b is not a) for a in spots]
+        assert min(gaps) > 0.8 * (sum(gaps) / n), (n, gaps)
+        # Mirror-symmetric left to right, and even sizes leave the top (nearest the start) empty.
+        for s in spots:
+            assert any(abs(o.x - (2 * physics.START_X - s.x)) < 1e-3 and abs(o.y - s.y) < 1e-3 for o in spots), n
+        if n % 2 == 0:
+            assert all(abs(s.x - physics.START_X) > 0.05 for s in spots), n
+        else:
+            assert abs(spots[0].x - physics.START_X) < 1e-3 and spots[0].y < physics.START_Y
 
 
 def test_planchette_moves_toward_pull_and_locks_after_hold():

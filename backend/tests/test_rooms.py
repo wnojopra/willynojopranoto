@@ -46,6 +46,30 @@ def test_max_players():
         room.add_player("Extra")
 
 
+def test_a_full_room_of_sixteen_works():
+    assert rooms.MAX_PLAYERS == 16
+    room, clock = make_room()
+    room.add_player("Host")
+    while room.add_bot():  # bots can fill every seat, for testing a big séance
+        pass
+    assert len(room.players) == rooms.MAX_PLAYERS
+    assert len({p.color for p in room.players.values()}) == rooms.MAX_PLAYERS
+    room.practice_on = False
+    assert room.new_game()
+    # A "who" board with every name on it still fits the ring.
+    from app.questions import Question
+
+    room.spots = rooms.physics.layout_spots(room._labels_for(Question("who", "Who?")))
+    assert len(room.spots) == rooms.MAX_PLAYERS
+    for a in room.spots:
+        for b in room.spots:
+            if a is not b:
+                assert ((a.x - b.x) ** 2 + (a.y - b.y) ** 2) ** 0.5 > 2 * rooms.physics.SPOT_RADIUS
+    assert room.pot == rooms.POT_PER_PLAYER * rooms.MAX_PLAYERS
+    clock.t += rooms.QUESTION_SECONDS
+    assert room.tick(1 / 30) and room.phase == "pull"
+
+
 def test_cannot_start_alone():
     room, _ = make_room()
     room.add_player("Solo")

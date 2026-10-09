@@ -102,23 +102,61 @@ def combine_pulls(pulls: list[tuple[float, float]]) -> tuple[float, float]:
     return (sx * scale, sy * scale)
 
 
+# Arc-length table for the ring, built once. Spots are spaced evenly *along*
+# the ellipse: equal parametric angles bunch spots at its narrow left and
+# right ends, which with 16 players put neighbours inside each other's lock
+# radius.
+_ARC_SAMPLES = 2880
+_ARC_THETAS: list[float] = []
+_ARC_LENGTHS: list[float] = []
+
+
+def _build_arc_table() -> None:
+    step = 2 * math.pi / _ARC_SAMPLES
+    s = 0.0
+    for k in range(_ARC_SAMPLES + 1):
+        theta = -math.pi / 2 + k * step  # from the top, clockwise (screen y points down)
+        if k:
+            mid = theta - step / 2
+            s += math.hypot(RING_RX * math.sin(mid), RING_RY * math.cos(mid)) * step
+        _ARC_THETAS.append(theta)
+        _ARC_LENGTHS.append(s)
+
+
+_build_arc_table()
+
+
+def ring_points(n: int) -> list[tuple[float, float]]:
+    """n points spaced evenly along the ring, clockwise from the top.
+
+    Even n is offset by half a step so no spot sits directly above the start;
+    either way the layout is mirror-symmetric.
+    """
+    perimeter = _ARC_LENGTHS[-1]
+    offset = 0.5 if n % 2 == 0 else 0.0
+    points = []
+    k = 0
+    for i in range(n):
+        target = (i + offset) * perimeter / n
+        while k < _ARC_SAMPLES - 1 and _ARC_LENGTHS[k + 1] < target:
+            k += 1
+        span = _ARC_LENGTHS[k + 1] - _ARC_LENGTHS[k]
+        frac = (target - _ARC_LENGTHS[k]) / span if span else 0.0
+        theta = _ARC_THETAS[k] + frac * (_ARC_THETAS[k + 1] - _ARC_THETAS[k])
+        points.append((START_X + RING_RX * math.cos(theta), START_Y + RING_RY * math.sin(theta)))
+    return points
+
+
 def layout_spots(labels: list[tuple[str, str]]) -> list[Spot]:
-    """Places answer spots evenly on an ellipse around the start position.
+    """Places answer spots evenly along the ring around the start position.
 
     Args:
       labels: (id, label) pairs, in display order.
     """
-    n = len(labels)
-    spots = []
-    for i, (spot_id, label) in enumerate(labels):
-        # Start at the top and go clockwise. Offset by half a step when n is
-        # even so no spot sits directly above the start (looks nicer).
-        offset = math.pi / n if n % 2 == 0 else 0.0
-        theta = -math.pi / 2 + offset + (2 * math.pi * i) / n
-        x = START_X + RING_RX * math.cos(theta)
-        y = START_Y + RING_RY * math.sin(theta)
-        spots.append(Spot(spot_id, label, round(x, 4), round(y, 4)))
-    return spots
+    return [
+        Spot(spot_id, label, round(x, 4), round(y, 4))
+        for (spot_id, label), (x, y) in zip(labels, ring_points(len(labels)))
+    ]
 
 
 def nearest_spot(

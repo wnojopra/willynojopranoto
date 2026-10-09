@@ -8,22 +8,29 @@ Design doc: [`docs/design.md`](docs/design.md)
 ## Status: feature-complete for the party (all 13 Relics, hunt, custom questions, sound)
 
 - TV creates a room with a 4-letter code and a **join QR** (scanning it pre-fills the code)
-- Phones join with the code and a name (up to 10 players)
-- **Bots** can be added from the TV for solo testing
+- Phones join with the code and a name (up to 16 players; past 10 the lobby roster, final
+  standings and the phone's answer grid go to more columns, and board labels shrink or break
+  onto two lines to fit between neighbours)
+- **Bots** can be added from the TV for solo testing (enough names to fill all 16 seats)
 - **Game length**: Short (6), Standard (9), or Long (12) rounds, then the **Final Séance** (3× pot,
   one of 12 rotating final questions plus any custom ones)
 - **Teaching the game**: a 📜 **How to play** deck in the lobby (4 cards; the host steps through,
   the narrator reads them) and a 🎓 **Practice round** before round 1 (lobby toggle, on by
   default): a yes/no question with slower timers (30s bet, 30s pull), no points, no Relics, no
-  curses, and a "Step 1/2/3" caption on the TV and phones
+  curses, and a "Step 1/2/3" caption on the TV and phones. It plays once: the toggle switches
+  itself off afterwards, so "Play again" goes straight to round 1 (turn it back on for newcomers)
 - **Restart game** (lobby and reveal screen, two clicks): everyone back to 0 in the lobby so
   late joiners can start level. Late joiners can also just join mid-game
-- **Fairness**: names on "who" boards are shuffled every round, and if the pull times out with
-  the planchette still near the middle, a random answer wins (not whoever sits at the top)
+- **Fairness**: names on "who" boards are shuffled every round and spaced evenly along the
+  ring, and if the pull times out with the planchette still near the middle, a random answer
+  wins (not whoever sits at the top)
 - **Big pull timer** on the TV (turns red for the last 5 seconds) and a **Relic recap** on the
   reveal listing every Relic used that round
 - **Spirit Bets** rounds: secret bet → 20s pull → the planchette locks in →
-  the pot (50 × players) is split among correct bettors, with rollover if nobody wins
+  the pot (50 × players) is split among correct bettors, with rollover if nobody wins.
+  The reveal names the winners, then the **gossip** (`src/tv/gossip.ts`): what the person the
+  board chose had bet, who bet on themselves, and the biggest losing bloc (*"Kevin bet on Dave.
+  Priya & Sam bet on Dave too."*). The narrator reads it
 - **Medium** rounds: one player answers privately, the others guess (+100) and
   pull; +100 to everyone if the board agrees; then "explain yourself"
 - **Haunted** marks when the board lands on you, plus a **curse card** the TV reads out
