@@ -133,7 +133,9 @@ export function ClaimPage({ token }: { token: string }) {
 
   return (
     <main className="phone phone--center hunt">
-      <h1 className="hunt__title">Spirit Board</h1>
+      <h1 className="hunt__title">
+        Spirit Board <span className="byline">by Willy Nojopranoto</span>
+      </h1>
       {body}
     </main>
   );

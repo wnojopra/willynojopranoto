@@ -34,8 +34,11 @@ _default_static = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 STATIC_DIR = Path(os.environ.get("SB_STATIC_DIR", str(_default_static)))
 
 CSP = (
-    "default-src 'self'; script-src 'self'; style-src 'self'; "
-    "img-src 'self' data:; font-src 'self'; connect-src 'self'; "
+    "default-src 'self'; script-src 'self'; "
+    "style-src 'self' https://fonts.googleapis.com; "
+    "img-src 'self' data:; "
+    "font-src 'self' https://fonts.gstatic.com; "
+    "connect-src 'self'; "
     "media-src 'self'; object-src 'none'; base-uri 'none'; "
     "form-action 'self'; frame-ancestors 'none'"
 )

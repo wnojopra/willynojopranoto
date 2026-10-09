@@ -193,7 +193,9 @@ function Lobby({ state, send }: { state: StateMsg; send: Send }) {
     <main className="tv lobby">
       {howTo !== null && <HowToPlay index={howTo} setIndex={setHowTo} state={state} send={send} />}
       <header className="lobby__head">
-        <h1 className="tv__title">Spirit Board</h1>
+        <h1 className="tv__title">
+          Spirit Board <span className="byline">by Willy Nojopranoto</span>
+        </h1>
         <p className="tv__sub">Grab your phone. Join the séance.</p>
       </header>
 

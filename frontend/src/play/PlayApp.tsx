@@ -173,7 +173,9 @@ export function PlayApp() {
   if (!join) {
     return (
       <main className="phone phone--join">
-        <h1 className="phone__title">Spirit Board</h1>
+        <h1 className="phone__title">
+          Spirit Board <span className="byline">by Willy Nojopranoto</span>
+        </h1>
         <form className="joinform" onSubmit={onSubmit}>
           <label className="field">
             <span className="field__label">Room code</span>

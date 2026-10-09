@@ -36,6 +36,8 @@
     --candle-hot: hsl(40 100% 72%);
     --blood: hsl(355 55% 48%);
     --serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
+    --display: 'Cinzel Decorative', 'Cinzel', var(--serif);
+    --display-caps: 'Cinzel', var(--serif);
     --radius: 14px;
     --shadow-deep: 0 24px 60px -20px hsl(0 0% 0% / 0.8);
   }
@@ -310,10 +312,48 @@
     padding: 2rem;
     text-align: center;
   }
+  .home__title,
+  .tv__title,
+  .phone__title {
+    font-family: var(--display);
+    font-weight: 700;
+    line-height: 1.02;
+    text-shadow:
+      0 2px 24px hsl(38 100% 60% / 0.3),
+      0 2px 4px hsl(0 0% 0% / 0.85);
+  }
   .home__title {
     font-size: clamp(2.5rem, 8vw, 5rem);
     letter-spacing: 0.12em;
     text-transform: uppercase;
+  }
+  .byline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65em;
+    margin-block-start: 0.1em;
+    color: var(--candle);
+    font-family: var(--display-caps);
+    font-size: clamp(0.8rem, 0.28em, 1.15rem);
+    font-style: normal;
+    font-variant: small-caps;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    line-height: 1.1;
+    text-transform: none;
+    text-shadow: 0 1px 12px hsl(38 100% 55% / 0.25);
+
+    &::before,
+    &::after {
+      content: '';
+      inline-size: clamp(1.5rem, 4vw, 3.5rem);
+      block-size: 1px;
+      background: linear-gradient(90deg, transparent, hsl(36 82% 58% / 0.7));
+    }
+    &::after {
+      background: linear-gradient(270deg, transparent, hsl(36 82% 58% / 0.7));
+    }
   }
   .home__tagline {
     color: var(--bone-dim);
@@ -439,6 +479,10 @@
   .lobby__head {
     grid-area: head;
     text-align: center;
+
+    & .tv__sub {
+      margin-block-start: 0.65rem;
+    }
   }
   .lobby__join {
     grid-area: join;
@@ -1945,8 +1989,10 @@
   }
   .hunt__title {
     color: var(--bone-dim);
+    font-family: var(--display);
     font-size: 1rem;
     letter-spacing: 0.3em;
+    line-height: 1.15;
     text-align: center;
     text-transform: uppercase;
   }

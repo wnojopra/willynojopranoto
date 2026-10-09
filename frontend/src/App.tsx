@@ -18,7 +18,9 @@ export function App() {
 function Home() {
   return (
     <main className="home">
-      <h1 className="home__title">Spirit Board</h1>
+      <h1 className="home__title">
+        Spirit Board <span className="byline">by Willy Nojopranoto</span>
+      </h1>
       <p className="home__tagline">Ten hands. One planchette. No take-backs.</p>
       <nav className="home__choices" aria-label="Choose a screen">
         <a id="home-host" className="btn btn--primary" href="/tv">
