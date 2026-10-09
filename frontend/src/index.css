@@ -45,8 +45,8 @@
   body {
     min-height: 100dvh;
     background:
-      radial-gradient(120% 80% at 50% 0%, hsl(30 50% 14%) 0%, transparent 60%),
-      radial-gradient(90% 70% at 50% 110%, hsl(10 40% 10%) 0%, transparent 70%),
+      radial-gradient(120% 80% at 50% 0%, hsl(30 50% 14%) 0%, transparent 60%) no-repeat fixed,
+      radial-gradient(90% 70% at 50% 110%, hsl(10 40% 10%) 0%, transparent 70%) no-repeat fixed,
       var(--ink);
     color: var(--bone);
     font-family: var(--serif);
@@ -468,20 +468,26 @@
   .lobby {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas:
       'head head'
       'join players'
       'controls controls';
-    gap: clamp(1rem, 3vw, 3rem);
-    block-size: 100dvh;
+    column-gap: clamp(1rem, 3vw, 3rem);
+    row-gap: clamp(0.75rem, 1.8dvh, 1.75rem);
+    min-block-size: 100dvh;
+    padding-block: clamp(0.75rem, 2dvh, 1.75rem);
   }
   .lobby__head {
     grid-area: head;
     text-align: center;
 
+    & .tv__title {
+      font-size: clamp(2rem, min(4.2vw, 6dvh), 4rem);
+    }
     & .tv__sub {
-      margin-block-start: 0.65rem;
+      margin-block-start: 0.35rem;
+      font-size: clamp(1rem, min(1.6vw, 2.4dvh), 1.45rem);
     }
   }
   .lobby__join {
@@ -490,8 +496,9 @@
     display: grid;
     align-content: center;
     justify-items: center;
-    gap: 0.4rem;
-    padding: 2rem;
+    gap: 0.35rem;
+    min-block-size: 0;
+    padding: clamp(1rem, 2.2dvh, 1.75rem);
     border-radius: 28px;
     background: radial-gradient(circle at 50% 30%, hsl(30 40% 16%), hsl(24 35% 9%));
     box-shadow: var(--shadow-deep), inset 0 1px 0 hsl(40 60% 80% / 0.08);
@@ -499,16 +506,16 @@
   }
   .lobby__step {
     color: var(--bone-dim);
-    font-size: clamp(1.1rem, 1.8vw, 1.7rem);
+    font-size: clamp(1rem, min(1.6vw, 2.3dvh), 1.55rem);
   }
   .lobby__url {
     color: var(--bone);
   }
   .lobby__code {
-    margin-block-start: 0.25rem;
+    margin-block-start: 0.2rem;
     padding-inline-start: 0.18em; /* balance trailing letter-spacing */
     color: var(--candle-hot);
-    font-size: min(17cqi, 7.5rem, 11dvh);
+    font-size: min(17cqi, 7rem, 9.5dvh);
     font-weight: 700;
     letter-spacing: 0.18em;
     line-height: 1;
@@ -518,14 +525,14 @@
   .lobby__manual {
     display: grid;
     justify-items: center;
-    gap: 0.4rem;
+    gap: 0.3rem;
   }
   .lobby__scan {
-    margin-block-end: 0.75rem;
+    margin-block-end: 0.5rem;
   }
   .lobby__qr {
     display: block;
-    inline-size: min(40cqi, 24dvh);
+    inline-size: min(38cqi, 20dvh);
     block-size: auto;
     filter: drop-shadow(0 0 30px hsl(38 100% 60% / 0.25));
   }
