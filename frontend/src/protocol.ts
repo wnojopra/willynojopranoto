@@ -1,7 +1,7 @@
 // Wire protocol shared with backend/app/rooms.py and backend/app/main.py.
 
 export type Phase = 'lobby' | 'medium' | 'question' | 'pull' | 'reveal' | 'results';
-export type RoundKind = 'bets' | 'medium' | 'final';
+export type RoundKind = 'practice' | 'bets' | 'medium' | 'final';
 export type GameLength = 'short' | 'standard' | 'long';
 
 export interface Player {
@@ -65,6 +65,7 @@ export interface GameInfo {
   cursesOn: boolean;
   starterRelics: boolean;
   catchupRelics: boolean;
+  practiceOn: boolean;
 }
 
 export type RelicKey =

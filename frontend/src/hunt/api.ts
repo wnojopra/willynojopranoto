@@ -31,7 +31,7 @@ export type Catalog = Record<RelicKey, RelicInfo>;
 
 export interface CustomQuestion {
   id: string;
-  deck: 'bets' | 'medium';
+  deck: 'bets' | 'medium' | 'final';
   kind: 'who' | 'yesno' | 'pick';
   text: string;
   options: string[];

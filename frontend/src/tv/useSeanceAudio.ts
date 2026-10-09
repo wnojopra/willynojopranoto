@@ -1,6 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore, type RefObject } from 'react';
 import type { PlanchetteState, StateMsg } from '../protocol';
 import { installWakeOnGesture, sound } from './audio';
+import { PRACTICE_STEPS } from './tutorial';
 
 const PULL_SECONDS = 20;
 
@@ -47,9 +48,17 @@ export function useSeanceAudio(state: StateMsg | null, planchetteRef: RefObject<
     if ((entered('medium') || (entered('question') && before.phase !== 'medium')) && state.question) {
       sound.toll();
       const intro =
-        kind === 'final' ? 'The Final Séance. ' : state.phase === 'medium' ? `${name(state.medium?.playerId)} is the Medium. ` : '';
+        kind === 'final'
+          ? 'The Final Séance. '
+          : kind === 'practice'
+            ? 'A practice round. Nothing counts. '
+            : state.phase === 'medium'
+              ? `${name(state.medium?.playerId)} is the Medium. `
+              : '';
       sound.say(intro + state.question.text, { interrupt: true });
+      if (kind === 'practice') sound.say(PRACTICE_STEPS.question.body);
     }
+    if (kind === 'practice' && entered('pull')) sound.say(PRACTICE_STEPS.pull.body, { interrupt: true });
 
     if (entered('reveal')) {
       sound.stinger(kind === 'final');
@@ -67,6 +76,7 @@ export function useSeanceAudio(state: StateMsg | null, planchetteRef: RefObject<
         setTimeout(() => sound.gong(), 2200);
         lines.push(`The board has cursed ${name(curse.playerId)}. ${curse.text}${curse.drink && curse.alt ? ` Or: ${curse.alt}` : ''}`);
       }
+      if (kind === 'practice') lines.push(PRACTICE_STEPS.reveal.body);
       const pitied = state.players.filter((p) => reveal?.catchUp?.includes(p.id)).map((p) => p.name);
       if (pitied.length) lines.push(`The spirits take pity on ${names(pitied)}.`);
       lines.forEach((l, i) => sound.say(l, { interrupt: i === 0 }));

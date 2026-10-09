@@ -49,6 +49,8 @@ flowchart LR
 - The TV shows the room code and a QR code to join. Each player enters a name and picks a ghost avatar and color.
 - Relics scanned during the hunt are already on that phone and show up automatically (§6.5).
 - The host taps **Begin the Séance**.
+- **Teaching (added after the first playtest, where round 1 confused people):** a 📜 *How to play* deck of 4 cards (one planchette / bet in secret / pull, bluff, betray / Relics and curses) that the host steps through while the narrator reads each card. Then a 🎓 **practice round** (on by default): a yes/no question, 30s to bet, 30s to pull, no points, no Relics, no Haunted marks or curses. The TV captions each step ("Step 1 of 3: bet in secret" → "pull together" → "the payout") and narrates it; the reveal shows who *would* have won.
+- **Restart game** (lobby + reveal, two-click confirm): throws the game away, everyone back to 0 in the lobby, so a late arrival can start level. Joining mid-game still works too.
 
 ### 2.2 Round order
 - 9 rounds plus the Final Séance. **Medium rounds** go in slots 3 and 7 (or two random slots in the middle, never round 1).
@@ -86,7 +88,7 @@ flowchart LR
 ### 3.1 Rules
 - **One secret bet per player.** If you don't bet, a random answer is picked for you (and the TV teases you about it).
 - **You can bet on yourself.** Betting that the board will pick *you* for "most likely to hook up with the ghost" is a fun move.
-- **Lock-in:** the planchette locks onto an answer when it **stays inside a spot for 2 seconds**. If time runs out, it goes to the nearest spot.
+- **Lock-in:** the planchette locks onto an answer when it **stays inside a spot for 2 seconds**. If time runs out, it goes to the nearest spot, unless it's still near the middle (nobody really steered), in which case a random spot wins. *(Playtest: always taking the nearest spot meant the player at the top of the ring won every idle timeout.)* Names on Who boards are shuffled every round for the same reason.
 - **Split pot:** pot = **50 × number of players** (500 with 10 players). Everyone who bet on the winning answer splits it evenly. *(The multiplier is configurable and will be tuned in playtesting.)*
   - Lone winner → 500. Five winners → 100 each. This rewards bold, contrarian bets and getting other people to pull with you.
 - **Rollover:** if nobody bet on the winning answer, *"the spirits keep the candy"* and the pot carries over to the next round. 🍬📈
@@ -168,7 +170,7 @@ flowchart LR
 - *What's in {player}'s cursed basement?* → Their browser history · 400 Crocs · Another basement · Their ex
 
 ### 5.3 Host custom questions ⭐
-On the admin page you can add inside-joke questions (marked as Spirit Bets or Medium), and flag them "always include."
+On the admin page you can add inside-joke questions (marked as Spirit Bets, Medium or Final Séance), and flag them "always include."
 - Implementation: who / yes-no / pick (2–5 options, 16 chars each); text 5–140 chars, cleaned server-side; max 200 questions, stored in Firestore `questions`. "Always include" questions are spread randomly over the remaining rounds of their kind, so all of them play but not all up front. With fewer than 3 players, Medium questions don't play (no Medium rounds). Questions are loaded when a game starts.
 
 ### 5.4 Deck rules
@@ -191,7 +193,8 @@ On the admin page you can add inside-joke questions (marked as Spirit Bets or Me
 - **The Final Curse:** whoever ends with the **most Haunted marks** gets a real-life penalty from the host's penalty pile (or one the game picks).
 
 ### 5.6 Final Séance (finale)
-- A Spirit Bets round with a **3× pot**, its own question (*"Who in this room is going to hell first?"*), and **no limit on Relics**. Use everything you've saved.
+- A Spirit Bets round with a **3× pot**, its own question, and **no limit on Relics**. Use everything you've saved.
+- Questions rotate through 12 built-in finals (*"Who in this room is going to hell first?"* …) without repeating in a session, plus host-added **Final Séance** questions from `/admin`. An "always include" final is used first.
 - Dramatic music and a slow reveal. Big swings at the end keep everyone in the game.
 
 ### 5.7 Results & Awards

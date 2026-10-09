@@ -182,7 +182,7 @@ class CustomQuestion:
     """A host-written question (design doc §5.3). Validated by questions.clean_custom."""
 
     id: str
-    deck: str  # bets | medium
+    deck: str  # bets | medium | final
     kind: str  # who | yesno | pick
     text: str
     options: tuple[str, ...]

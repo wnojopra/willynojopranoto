@@ -34,7 +34,7 @@ export function Countdown({ seconds, bar = false, className }: CountdownProps) {
     );
   }
   return (
-    <span className={className} role="timer">
+    <span className={className} role="timer" data-urgent={whole <= 5 ? '' : undefined}>
       {whole}
     </span>
   );

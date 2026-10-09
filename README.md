@@ -10,7 +10,18 @@ Design doc: [`docs/design.md`](docs/design.md)
 - TV creates a room with a 4-letter code and a **join QR** (scanning it pre-fills the code)
 - Phones join with the code and a name (up to 10 players)
 - **Bots** can be added from the TV for solo testing
-- **Game length**: Short (6), Standard (9), or Long (12) rounds, then the **Final Séance** (3× pot)
+- **Game length**: Short (6), Standard (9), or Long (12) rounds, then the **Final Séance** (3× pot,
+  one of 12 rotating final questions plus any custom ones)
+- **Teaching the game**: a 📜 **How to play** deck in the lobby (4 cards; the host steps through,
+  the narrator reads them) and a 🎓 **Practice round** before round 1 (lobby toggle, on by
+  default): a yes/no question with slower timers (30s bet, 30s pull), no points, no Relics, no
+  curses, and a "Step 1/2/3" caption on the TV and phones
+- **Restart game** (lobby and reveal screen, two clicks): everyone back to 0 in the lobby so
+  late joiners can start level. Late joiners can also just join mid-game
+- **Fairness**: names on "who" boards are shuffled every round, and if the pull times out with
+  the planchette still near the middle, a random answer wins (not whoever sits at the top)
+- **Big pull timer** on the TV (turns red for the last 5 seconds) and a **Relic recap** on the
+  reveal listing every Relic used that round
 - **Spirit Bets** rounds: secret bet → 20s pull → the planchette locks in →
   the pot (50 × players) is split among correct bettors, with rollover if nobody wins
 - **Medium** rounds: one player answers privately, the others guess (+100) and
@@ -44,10 +55,10 @@ Design doc: [`docs/design.md`](docs/design.md)
     joins a game (no starter needed) and are spent for good when used
   - Codes and collections live in Firestore (database `spirit-board`). Locally
     they're in memory unless `SB_FIRESTORE_DATABASE` is set
-- **Custom questions** (`/admin`, below the codes): add your own Spirit Bets or Medium
-  questions (who / yes-no / pick 2–5 options; `{player}` fills in a random name).
-  "Always include" questions are spread through every game; the rest are shuffled in
-  with the built-in deck. They're loaded when a game starts, so edits apply next game
+- **Custom questions** (`/admin`, below the codes): add your own Spirit Bets, Medium or
+  Final Séance questions (who / yes-no / pick 2–5 options; `{player}` fills in a random name).
+  "Always include" questions are spread through every game (an always-include final is used
+  for the next game's Final Séance); the rest are shuffled in with the built-in deck. They're loaded when a game starts, so edits apply next game
 
 - **Sound** (TV only, `src/tv/audio.ts`): all synthesized in the browser, no audio files.
   Séance drone (louder for the Final Séance), creaking floorboards, a heartbeat that speeds

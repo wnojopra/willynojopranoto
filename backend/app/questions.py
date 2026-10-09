@@ -77,12 +77,27 @@ MEDIUM_DECK: list[Question] = [
     ),
 ]
 
-FINAL_QUESTION = Question("who", "Who in this room is going to hell first?")
+# The Final Séance (3x pot): one per game, rotating through the deck across games.
+FINAL_DECK: list[Question] = [
+    Question("who", "Who in this room is going to hell first?"),
+    Question("who", "Who here would sell their soul for the least?"),
+    Question("who", "Who in this room is secretly already a ghost?"),
+    Question("who", "Who would the demon possess first, and get bored of fastest?"),
+    Question("who", "Who here would summon a demon by accident?"),
+    Question("who", "Who in this room has the most cursed search history?"),
+    Question("who", "Who will haunt the rest of us when they go?"),
+    Question("who", "Who here would make a deal with the devil and still lose?"),
+    Question("who", "Who in this room would the ghosts vote off first?"),
+    Question("who", "Who should never, ever be left alone with a Ouija board?"),
+    Question("who", "Who here is the reason this house is haunted?"),
+    Question("who", "Who in this room would survive the whole horror movie?"),
+]
+FINAL_QUESTION = FINAL_DECK[0]
 
 
 # ---- Host custom questions (design doc §5.3) ---------------------------------
 
-DECKS = ("bets", "medium")
+DECKS = ("bets", "medium", "final")
 KINDS = ("who", "yesno", "pick")
 TEXT_MIN, TEXT_MAX = 5, 140
 OPTION_MAX = 16
@@ -106,7 +121,7 @@ def clean_custom(deck: object, kind: object, text: object, options: object) -> t
     placeholder; any other braces are just text.
     """
     if deck not in DECKS:
-        raise ValueError("Pick Spirit Bets or Medium.")
+        raise ValueError("Pick Spirit Bets, Medium, or Final Séance.")
     if kind not in KINDS:
         raise ValueError("Pick a board type.")
     t = _clean(text)

@@ -285,7 +285,7 @@ def test_full_short_game_reaches_results_with_final_pot():
         kinds.append(room.round_kind)
         if room.round_kind == "final":
             assert room.pot >= 3 * rooms.POT_PER_PLAYER * 3
-            assert room.question == rooms.FINAL_QUESTION
+            assert room.question in rooms.FINAL_DECK
         play_round(room, clock)
         assert room.start_round()
         if room.phase == "results":
@@ -846,3 +846,41 @@ def test_no_catchup_when_tied_or_turned_off():
     a.score = b.score = c.score = 0
     room._deal_catchup()
     assert room.last_catchup == {}
+
+
+def test_restart_game_from_mid_round_resets_everyone_to_lobby():
+    room, clock = make_room()
+    for n in ("A", "B", "C"):
+        room.add_player(n)
+    assert room.new_game()
+    play_round(room, clock)
+    assert room.start_round()
+    assert any(p.score for p in room.players.values())
+    # Mid-round (question phase) restart.
+    room.restart_game()
+    assert room.phase == "lobby" and not room.game_active
+    assert room.game_round == 0 and room.carryover == 0 and room.question is None
+    assert all(p.score == 0 and p.haunted == 0 and p.bet is None for p in room.players.values())
+    # A late joiner gets in, the length can change again, and Begin starts round 1.
+    room.add_player("Late")
+    room.set_length("short")
+    assert room.game_length == "short"
+    assert room.start_round()
+    assert room.game_active and room.game_round == 1
+
+
+def test_restart_game_from_reveal_and_results():
+    room, clock = make_room()
+    for n in ("A", "B", "C"):
+        room.add_player(n)
+    room.new_game()
+    play_round(room, clock)
+    room.restart_game()
+    assert room.phase == "lobby" and not room.game_active
+    room.set_length("short")
+    room.new_game()
+    while room.phase != "results":
+        play_round(room, clock)
+        room.start_round()
+    room.restart_game()
+    assert room.phase == "lobby" and room.awards == [] and room.final_curse is None

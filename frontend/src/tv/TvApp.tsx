@@ -5,6 +5,7 @@ import { sound } from './audio';
 import { Board, type Bettor } from './Board';
 import { Countdown } from './Countdown';
 import { QrCode } from './QrCode';
+import { HOW_TO_CARDS, practiceStep } from './tutorial';
 import { useSeanceAudio, useSoundSettings } from './useSeanceAudio';
 
 /** /tv?dev=1 shows testing shortcuts (e.g. hand everyone every Relic). */
@@ -186,9 +187,11 @@ function Lobby({ state, send }: { state: StateMsg; send: Send }) {
   const bots = state.players.length - humans;
   const needed = Math.max(0, state.minPlayers - state.players.length);
   const hasScores = state.players.some((p) => p.score > 0);
+  const [howTo, setHowTo] = useState<number | null>(null);
 
   return (
     <main className="tv lobby">
+      {howTo !== null && <HowToPlay index={howTo} setIndex={setHowTo} state={state} send={send} />}
       <header className="lobby__head">
         <h1 className="tv__title">Spirit Board</h1>
         <p className="tv__sub">Grab your phone. Join the séance.</p>
@@ -264,6 +267,9 @@ function Lobby({ state, send }: { state: StateMsg; send: Send }) {
               Begin the Séance
             </button>
           )}
+          <button id="tv-howto" className="btn btn--ghost" onClick={() => setHowTo(0)}>
+            📜 How to play
+          </button>
           {needed > 0 && (
             <p className="lobby__hint">
               Need {needed} more {needed === 1 ? 'spirit' : 'spirits'} to begin.
@@ -271,11 +277,8 @@ function Lobby({ state, send }: { state: StateMsg; send: Send }) {
           )}
         </div>
         <div className="lobby__settings">
-          {state.game.active ? (
-            <button id="tv-new-game" className="btn btn--ghost" onClick={() => send({ type: 'new_game' })} disabled={!state.canStart}>
-              Start over
-            </button>
-          ) : (
+          {(state.game.active || hasScores) && <RestartButton send={send} />}
+          {!state.game.active && (
             <div className="seg" role="radiogroup" aria-label="Game length">
               {(Object.keys(state.game.lengths) as GameLength[]).map((len) => (
                 <button
@@ -317,6 +320,15 @@ function Lobby({ state, send }: { state: StateMsg; send: Send }) {
           >
             🕯️ Catch-up Relics {state.game.catchupRelics ? 'on' : 'off'}
           </button>
+          <button
+            id="tv-practice"
+            className="btn btn--ghost lobby__toggle"
+            aria-pressed={state.game.practiceOn}
+            onClick={() => send({ type: 'set_practice', on: !state.game.practiceOn })}
+            title="A slow, no-points round before round 1 that walks everyone through it"
+          >
+            🎓 Practice round {state.game.practiceOn ? 'on' : 'off'}
+          </button>
           {DEV && (
             <button id="tv-dev-relics" className="btn btn--ghost lobby__toggle" onClick={() => send({ type: 'dev_grant_relics' })}>
               🧪 Give everyone all Relics
@@ -325,6 +337,107 @@ function Lobby({ state, send }: { state: StateMsg; send: Send }) {
         </div>
       </footer>
     </main>
+  );
+}
+
+/** The lobby's "How to play" cards. The host steps through; the narrator reads each one. */
+function HowToPlay({
+  index,
+  setIndex,
+  state,
+  send,
+}: {
+  index: number;
+  setIndex: (i: number | null) => void;
+  state: StateMsg;
+  send: Send;
+}) {
+  const card = HOW_TO_CARDS[index];
+  const last = index === HOW_TO_CARDS.length - 1;
+  useEffect(() => {
+    sound.say(`${card.title}. ${card.body}`, { interrupt: true });
+  }, [card]);
+  useEffect(() => () => sound.hush(), []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIndex(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [setIndex]);
+  return (
+    <section className="howto" role="dialog" aria-modal="true" aria-labelledby="howto-title">
+      <div className="howto__card" key={index}>
+        <p className="howto__icon" aria-hidden="true">
+          {card.icon}
+        </p>
+        <h2 id="howto-title" className="howto__title">
+          {card.title}
+        </h2>
+        <p className="howto__body">{card.body}</p>
+        {last && (
+          <p className="howto__next">
+            {state.game.practiceOn
+              ? 'First up: a practice round. Slow, and nothing counts.'
+              : 'Practice round is off: the first question counts.'}
+          </p>
+        )}
+        <ol className="howto__dots" aria-label={`Card ${index + 1} of ${HOW_TO_CARDS.length}`}>
+          {HOW_TO_CARDS.map((c, i) => (
+            <li key={c.title} data-on={i === index ? '' : undefined} />
+          ))}
+        </ol>
+        <div className="howto__actions">
+          <button id="howto-close" className="btn btn--ghost" onClick={() => setIndex(null)}>
+            Close
+          </button>
+          <button id="howto-back" className="btn btn--ghost" onClick={() => setIndex(index - 1)} disabled={index === 0}>
+            ← Back
+          </button>
+          {last ? (
+            <button
+              id="howto-begin"
+              className="btn btn--primary"
+              disabled={!state.canStart}
+              onClick={() => {
+                setIndex(null);
+                send(state.game.active ? { type: 'start_round' } : { type: 'new_game' });
+              }}
+            >
+              {state.game.active ? 'Continue' : 'Begin the Séance'}
+            </button>
+          ) : (
+            <button id="howto-next" className="btn btn--primary" onClick={() => setIndex(index + 1)}>
+              Next →
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Throws the game away: everyone back to 0 in the lobby. Two clicks, no dialog. */
+function RestartButton({ send }: { send: Send }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const id = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(id);
+  }, [armed]);
+  return (
+    <button
+      id="tv-restart-game"
+      className="btn btn--ghost restart"
+      data-armed={armed ? '' : undefined}
+      onClick={() => {
+        if (!armed) return setArmed(true);
+        setArmed(false);
+        send({ type: 'restart_game' });
+      }}
+    >
+      {armed ? 'Sure? Everyone back to 0 · click again' : '↺ Restart game'}
+    </button>
   );
 }
 
@@ -358,7 +471,15 @@ function Seance({
   }, [reveal, state.players]);
 
   const nextIsFinal = state.game.round === state.game.totalRounds - 1;
-  const nextLabel = state.game.isLastRound ? 'See the results' : nextIsFinal ? 'The Final Séance' : 'Next question';
+  const nextLabel =
+    kind === 'practice'
+      ? 'Begin the real séance'
+      : state.game.isLastRound
+        ? 'See the results'
+        : nextIsFinal
+          ? 'The Final Séance'
+          : 'Next question';
+  const step = kind === 'practice' ? practiceStep(state.phase) : null;
   const freshRelics = useFreshRelics(state.relicEvents);
   const scared = freshRelics.some((e) => e.key === 'jumpscare');
 
@@ -368,6 +489,8 @@ function Seance({
         <p className="seance__round">
           {kind === 'final' ? (
             <>🕯️ The Final Séance · 3× pot</>
+          ) : kind === 'practice' ? (
+            <>🎓 Practice round · nothing counts</>
           ) : (
             <>
               {kind === 'medium' && '🔮 The Medium · '}Round {state.game.round} of {state.game.totalRounds - 1}
@@ -375,6 +498,12 @@ function Seance({
           )}
         </p>
         <h1 className="seance__question">{state.question?.text}</h1>
+        {step && (
+          <p className="practice" role="note" key={state.phase}>
+            <strong className="practice__title">{step.title}</strong>
+            <span className="practice__body">{step.body}</span>
+          </p>
+        )}
         {kind !== 'medium' && state.phase !== 'reveal' && <PotBadge pot={state.pot} bonus={state.potBonus} />}
         {state.phase !== 'reveal' && state.curse && cursed && (
           <p className="cursechip" aria-label={`${cursed.name} is cursed: ${state.curse.text}`}>
@@ -441,6 +570,12 @@ function Seance({
           <CurseCard key={newCurse.roundNo} curse={newCurse} victim={cursed} />
         )}
         <RelicCards state={state} events={freshRelics} />
+        {state.phase === 'pull' && (
+          <div className="bigtimer" aria-hidden="true">
+            <Countdown key={`bt${state.roundNo}`} seconds={state.phaseEndsIn ?? 0} className="bigtimer__num" />
+            <span className="bigtimer__label">seconds</span>
+          </div>
+        )}
       </div>
 
       <footer className="seance__foot">
@@ -457,13 +592,15 @@ function Seance({
               <MediumVerdict state={state} medium={medium} answer={mediumAnswer.label} />
             ) : (
               <div className="seance__verdict" role="status">
-                <p className="seance__payout">{payoutLine(state)}</p>
+                <p className="seance__payout">{kind === 'practice' ? practiceLine(state) : payoutLine(state)}</p>
                 <p className="seance__quip">{autoTease(state) ?? quip}</p>
               </div>
             )}
             <PityLine state={state} />
+            <RelicRecap state={state} />
             <Scoreboard state={state} />
             <div className="seance__actions">
+              <RestartButton send={send} />
               <button id="tv-back" className="btn btn--ghost" onClick={() => send({ type: 'back_to_lobby' })}>
                 Back to lobby
               </button>
@@ -737,6 +874,45 @@ function EffectsLine({ state }: { state: StateMsg }) {
   );
 }
 
+/** On the reveal: every Relic used this round, so nobody misses what happened. */
+function RelicRecap({ state }: { state: StateMsg }) {
+  if (state.relicEvents.length === 0) return null;
+  const player = (id: string | null) => state.players.find((p) => p.id === id);
+  const spot = (id: string | null) => state.spots.find((s) => s.id === id)?.label ?? '?';
+  return (
+    <ul className="recap" aria-label="Relics used this round">
+      <li className="recap__title">Relics this round</li>
+      {state.relicEvents.map((e) => {
+        const info = state.relicCatalog[e.key];
+        if (!info) return null;
+        const by = player(e.by);
+        const victim = info.target === 'player' ? player(e.target) : undefined;
+        return (
+          <li key={e.seq} className="recap__item" data-tier={info.tier}>
+            <span aria-hidden="true">{info.emoji}</span>{' '}
+            {e.key === 'whisper' ? (
+              <>
+                A ghost whispered <em>“{e.text}”</em>
+              </>
+            ) : (
+              <>
+                <strong style={{ color: by?.color }}>{by?.name ?? 'Someone'}</strong> · {info.name}
+                {victim && (
+                  <>
+                    {' → '}
+                    <strong style={{ color: victim.color }}>{victim.name}</strong>
+                  </>
+                )}
+                {info.target === 'spot' && e.target && <> → {spot(e.target)}</>}
+              </>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /** Catch-up Relics: the spirits take pity on whoever is in last place. */
 function PityLine({ state }: { state: StateMsg }) {
   const pitied = state.players.filter((p) => state.reveal?.catchUp?.includes(p.id));
@@ -762,6 +938,15 @@ function names(list: string[]): string {
   if (list.length <= 1) return list.join('');
   if (list.length === 2) return `${list[0]} & ${list[1]}`;
   return `${list.slice(0, -1).join(', ')} & ${list[list.length - 1]}`;
+}
+
+/** The practice reveal: what would have happened, without the candy. */
+function practiceLine(state: StateMsg): string {
+  const reveal = state.reveal;
+  if (!reveal) return '';
+  const winners = state.players.filter((p) => (reveal.payout[p.id] ?? 0) > 0);
+  if (!winners.length) return 'Nobody bet on that. In a real round, the pot would roll over to the next one.';
+  return `${names(winners.map((p) => p.name))} would have won 🍬 ${reveal.payout[winners[0].id]}${winners.length > 1 ? ' each' : ''}.`;
 }
 
 function payoutLine(state: StateMsg): string {

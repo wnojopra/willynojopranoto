@@ -668,6 +668,11 @@
     justify-content: center;
     gap: 1rem;
   }
+  .restart[data-armed] {
+    color: var(--bone);
+    border-color: var(--blood);
+    background: hsl(355 55% 48% / 0.28);
+  }
   .seance__head {
     position: relative;
   }
@@ -1521,6 +1526,199 @@
     text-shadow: 0 0 24px hsl(170 40% 70% / 0.45);
     overflow-wrap: anywhere;
   }
+  /* Reveal: what Relics happened this round. */
+  .recap {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: clamp(0.95rem, 1.25vw, 1.2rem);
+  }
+  .recap__title {
+    color: var(--bone-dim);
+    font-size: 0.8em;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .recap__item {
+    padding: 0.25em 0.8em;
+    border: 1px solid hsl(36 45% 60% / 0.3);
+    border-radius: 999px;
+    background: hsl(24 30% 10% / 0.85);
+
+    &[data-tier='rare'] {
+      border-color: hsl(200 50% 60% / 0.5);
+    }
+    &[data-tier='cursed'] {
+      border-color: hsl(355 55% 48% / 0.6);
+    }
+  }
+
+  /* Big pull countdown in the gutter right of the board (the Relic feed has the left). */
+  .bigtimer {
+    --gutter: calc((100cqw - 100cqh * 1.6) / 2);
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0;
+    z-index: 2;
+    inline-size: max(8rem, var(--gutter));
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    pointer-events: none;
+  }
+  .bigtimer__num {
+    display: grid;
+    place-items: center;
+    inline-size: clamp(6rem, 11vw, 10rem);
+    aspect-ratio: 1;
+    border: 3px solid hsl(36 82% 58% / 0.6);
+    border-radius: 50%;
+    background: radial-gradient(circle, hsl(30 45% 14% / 0.95), hsl(24 35% 8% / 0.95));
+    box-shadow: 0 0 40px -6px hsl(36 90% 55% / 0.45);
+    color: var(--candle-hot);
+    font-size: clamp(3rem, 6vw, 5.5rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+
+    &[data-urgent] {
+      border-color: var(--blood);
+      box-shadow: 0 0 50px -4px hsl(355 70% 50% / 0.7);
+      color: hsl(5 85% 66%);
+      animation: timerpulse 1s ease-in-out infinite;
+    }
+  }
+  .bigtimer__label {
+    margin-block-start: 0.4rem;
+    color: var(--bone-dim);
+    font-size: 0.95rem;
+    font-style: italic;
+    letter-spacing: 0.12em;
+  }
+  @keyframes timerpulse {
+    50% {
+      transform: scale(1.08);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bigtimer__num[data-urgent] {
+      animation: none;
+    }
+  }
+
+  /* Practice round: the TV explains each step under the question. */
+  .practice {
+    display: grid;
+    gap: 0.2rem;
+    max-inline-size: 60rem;
+    margin: 0.6rem auto 0;
+    padding: 0.6rem 1.2rem;
+    border: 1px dashed hsl(36 82% 58% / 0.55);
+    border-radius: var(--radius);
+    background: hsl(30 40% 12% / 0.85);
+    text-align: center;
+    animation: practicein 500ms ease-out both;
+  }
+  .practice__title {
+    color: var(--candle-hot);
+    font-size: clamp(1rem, 1.5vw, 1.4rem);
+    letter-spacing: 0.06em;
+  }
+  .practice__body {
+    color: var(--bone);
+    font-size: clamp(1rem, 1.6vw, 1.5rem);
+  }
+  @keyframes practicein {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+  }
+
+  /* Lobby: "How to play" cards over the lobby. */
+  .howto {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 2rem;
+    background: hsl(24 38% 4% / 0.82);
+    backdrop-filter: blur(4px);
+  }
+  .howto__card {
+    display: grid;
+    justify-items: center;
+    gap: 1rem;
+    inline-size: min(52rem, 100%);
+    padding: clamp(1.5rem, 4vw, 3.5rem);
+    border: 1px solid hsl(36 45% 60% / 0.45);
+    border-radius: calc(var(--radius) * 1.5);
+    background: radial-gradient(ellipse at top, hsl(30 42% 16%), var(--ink-2) 70%);
+    box-shadow: var(--shadow-deep), 0 0 80px -30px hsl(36 90% 55% / 0.5);
+    text-align: center;
+    animation: practicein 400ms ease-out both;
+  }
+  .howto__icon {
+    margin: 0;
+    font-size: clamp(3rem, 7vw, 5.5rem);
+    line-height: 1;
+  }
+  .howto__title {
+    margin: 0;
+    color: var(--candle-hot);
+    font-size: clamp(1.8rem, 3.6vw, 3rem);
+    text-wrap: balance;
+  }
+  .howto__body {
+    margin: 0;
+    max-inline-size: 40ch;
+    color: var(--bone);
+    font-size: clamp(1.2rem, 2.2vw, 1.9rem);
+    line-height: 1.4;
+    text-wrap: pretty;
+  }
+  .howto__next {
+    margin: 0;
+    color: var(--candle);
+    font-style: italic;
+    font-size: clamp(1rem, 1.6vw, 1.3rem);
+  }
+  .howto__dots {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    & li {
+      inline-size: 0.65rem;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: hsl(36 45% 60% / 0.3);
+    }
+    & li[data-on] {
+      background: var(--candle);
+    }
+  }
+  .howto__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .practice,
+    .howto__card {
+      animation: none;
+    }
+  }
+
   .seance[data-scare] .seance__board {
     animation: scare 700ms cubic-bezier(0.3, 0, 0.3, 1) both;
   }
@@ -1926,6 +2124,14 @@
   .admin__del[aria-pressed='true'] {
     border-color: var(--candle);
     color: var(--candle-hot);
+  }
+  .phone__practice {
+    margin: 0;
+    padding: 0.5rem 0.8rem;
+    border: 1px dashed hsl(36 82% 58% / 0.55);
+    border-radius: var(--radius);
+    color: var(--bone);
+    text-align: center;
   }
   .seance__pity,
   .phone__pity {

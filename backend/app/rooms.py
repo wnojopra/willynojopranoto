@@ -28,7 +28,7 @@ from typing import Any, Callable, Protocol
 
 from app import game, physics, relics
 from app.curses import CURSE_DECK, FINAL_CURSES
-from app.questions import DECK, FINAL_QUESTION, MEDIUM_DECK, YES_NO_SPOTS, Question
+from app.questions import DECK, FINAL_DECK, MEDIUM_DECK, YES_NO_SPOTS, Question
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +43,15 @@ MEDIUM_ANSWER_SECONDS = 15.0
 GUESS_SECONDS = 10.0
 ALL_IN_SECONDS = 2.5  # once everyone has bet, cut the timer down to this
 PULL_SECONDS = 20.0
+# Practice round (before round 1, on by default): slower, no points, no Relics.
+PRACTICE_DEFAULT = True
+PRACTICE_QUESTION = Question("yesno", "Practice: Is this house haunted?")
+PRACTICE_QUESTION_SECONDS = 30.0
+PRACTICE_ALL_IN_SECONDS = 5.0
+PRACTICE_PULL_SECONDS = 30.0
+# If the pull times out with the planchette this close to where it started,
+# nobody really chose: a random answer wins (board units; the ring is ~0.36-0.62 out).
+TIMEOUT_RANDOM_RADIUS = 0.18
 POT_PER_PLAYER = 50  # playtest knob: pot = POT_PER_PLAYER x players
 FINAL_POT_MULTIPLIER = 3
 MEDIUM_CORRECT_POINTS = 100  # each correct guess
@@ -246,6 +255,7 @@ class Room:
         # Host custom questions (loaded from the store when a game starts).
         self.custom_bets: list[Question] = []
         self.custom_medium: list[Question] = []
+        self.custom_final: list[Question] = []
         self.always_questions: set[Question] = set()
         self._player_subject_history: set[str] = set()
         # Curses: the card the board dealt at the last reveal, which stays in
@@ -257,6 +267,8 @@ class Room:
         # Relics.
         self.starter_relics = True  # deal one per player per game (no hunt yet)
         self.catchup_relics = True  # last place after rounds 3 and 6 gets a free Common
+        self.practice_on = PRACTICE_DEFAULT  # a no-stakes practice round before round 1
+        self._practice_pending = False
         self._catchup_done: set[int] = set()  # game rounds already handled this game
         self.last_catchup: dict[str, str] = {}  # player id -> Relic, this reveal (private keys)
         self.salted: set[str] = set()
@@ -385,6 +397,10 @@ class Room:
             if not on:
                 self.curse = None
 
+    def set_practice(self, on: object) -> None:
+        if isinstance(on, bool):
+            self.practice_on = on
+
     def set_catchup_relics(self, on: object) -> None:
         if isinstance(on, bool):
             self.catchup_relics = on
@@ -393,6 +409,7 @@ class Room:
         """(deck, question, always) from the admin page. Takes effect at the next pick."""
         self.custom_bets = [q for deck, q, _ in items if deck == "bets"]
         self.custom_medium = [q for deck, q, _ in items if deck == "medium"]
+        self.custom_final = [q for deck, q, _ in items if deck == "final"]
         self.always_questions = {q for _, q, always in items if always}
 
     def set_starter_relics(self, on: object) -> None:
@@ -441,6 +458,7 @@ class Room:
                 if not p.is_bot:
                     self._deal_starter(p)
         self.phase = "lobby"
+        self._practice_pending = self.practice_on
         return self.start_round()
 
     def start_round(self) -> bool:
@@ -453,7 +471,9 @@ class Room:
             self._show_results()
             return True
 
-        kind = self.plan[self.game_round]
+        practice = self._practice_pending
+        self._practice_pending = False
+        kind = "practice" if practice else self.plan[self.game_round]
         medium = self._pick_medium() if kind == "medium" else None
         if kind == "medium" and medium is None:
             kind = "bets"  # not enough players for a Medium round right now
@@ -467,8 +487,10 @@ class Room:
         if medium:
             self._used_mediums.add(medium.id)
 
-        if kind == "final":
-            self.question = FINAL_QUESTION
+        if practice:
+            self.question = PRACTICE_QUESTION
+        elif kind == "final":
+            self.question = self._pick_final()
         else:
             self.question = (
                 self._pick_question(MEDIUM_DECK, self.custom_medium, "medium")
@@ -487,6 +509,9 @@ class Room:
         base = POT_PER_PLAYER * len(self.players)
         if kind == "medium":
             self.pot = 0  # Medium rounds score separately; any rollover waits.
+            self.pot_bonus = 0
+        elif practice:
+            self.pot = base  # shown, never paid; any rollover waits for round 1
             self.pot_bonus = 0
         else:
             mult = FINAL_POT_MULTIPLIER if kind == "final" else 1
@@ -514,18 +539,21 @@ class Room:
             medium.bot_next_think = now + self._rng.uniform(2.0, 4.0)
 
         self.round_no += 1
-        self.game_round += 1
+        if not practice:
+            self.game_round += 1
         if medium:
             self.phase = "medium"
             self.phase_ends_at = now + MEDIUM_ANSWER_SECONDS
         else:
             self.phase = "question"
-            self.phase_ends_at = now + QUESTION_SECONDS
+            self.phase_ends_at = now + (PRACTICE_QUESTION_SECONDS if practice else QUESTION_SECONDS)
         self.touch()
         return True
 
     def back_to_lobby(self) -> None:
-        if self.phase in ("medium", "question", "pull"):
+        if self.round_kind == "practice" and self.phase in ("question", "pull"):
+            pass  # practice never counted as a round
+        elif self.phase in ("medium", "question", "pull"):
             # Abandon the round in progress: it will be replayed, and any
             # rolled-over candy goes back into the pile.
             self.game_round = max(0, self.game_round - 1)
@@ -542,6 +570,31 @@ class Room:
         self.medium_id = None
         self.shuffle_at = None
         self.planchette.reset()
+
+    def restart_game(self) -> None:
+        """Throws the current game away from any phase: everyone back to 0 in the
+        lobby, so late joiners can get in level. The host presses Start again."""
+        self.back_to_lobby()
+        for p in self.players.values():
+            p.reset_stats()
+            p.bet = None
+            p.reset_round_effects()
+        self.game_active = False
+        self.game_round = 0
+        self.plan = []
+        self.carryover = 0
+        self.pot = 0
+        self.pot_bonus = 0
+        self.awards = []
+        self.curse = None
+        self.final_curse = None
+        self.relic_events = []
+        self.salted.clear()
+        self.magnets.clear()
+        self._used_mediums.clear()
+        self._catchup_done.clear()
+        self._practice_pending = False
+        self.touch()
 
     def _show_results(self) -> None:
         self.awards = game.compute_awards(self.players.values())
@@ -568,7 +621,11 @@ class Room:
 
     def _labels_for(self, q: Question) -> list[tuple[str, str]]:
         if q.kind == "who":
-            return [(p.id, p.name) for p in self.players.values() if p.id != self.medium_id]
+            # Shuffled every round: in join order, the first player always sat at
+            # the top, nearest the planchette's start, and got picked far too often.
+            names = [(p.id, p.name) for p in self.players.values() if p.id != self.medium_id]
+            self._rng.shuffle(names)
+            return names
         if q.kind == "pick":
             return [(f"opt{i}", label) for i, label in enumerate(q.options)]
         return list(YES_NO_SPOTS)
@@ -587,7 +644,8 @@ class Room:
         bettors = [x for x in self._bettors() if not x.is_bot and x.connected]
         if all(x.bet is not None for x in bettors):
             # Everyone's in: don't make them stare at the timer.
-            self.phase_ends_at = min(self.phase_ends_at, self._clock() + ALL_IN_SECONDS)
+            grace = PRACTICE_ALL_IN_SECONDS if self.round_kind == "practice" else ALL_IN_SECONDS
+            self.phase_ends_at = min(self.phase_ends_at, self._clock() + grace)
         return True
 
     def medium_answers(self, player_id: str, spot_id: object) -> bool:
@@ -617,6 +675,8 @@ class Room:
             return "You don’t have that Relic."
         if self.phase not in ("medium", "question", "pull", "reveal"):
             return "Relics only work during a round."
+        if self.round_kind == "practice":
+            return "Relics rest during the practice round."
         if p.relic_round == self.round_no and self.round_kind != "final":
             return "One Relic per round (except in the Final Séance)."
         is_medium = p.id == self.medium_id
@@ -684,7 +744,7 @@ class Room:
             if self.shuffle_at is not None:
                 return "The board is already about to shuffle."
             now = self._clock()
-            halfway = self.phase_ends_at - PULL_SECONDS / 2
+            halfway = self.phase_ends_at - self._pull_seconds() / 2
             self.shuffle_at = max(halfway, now + relics.SHUFFLE_MIN_DELAY)
         elif relic.key == "rewind":
             self._rewind()
@@ -752,7 +812,7 @@ class Room:
         if self.phase == "question" and now >= self.phase_ends_at:
             self._lock_bets()
             self.phase = "pull"
-            self.phase_ends_at = now + PULL_SECONDS
+            self.phase_ends_at = now + self._pull_seconds()
             return True
         if self.phase != "pull":
             return False
@@ -791,12 +851,27 @@ class Room:
             self._shuffle_spots()
             return True  # spots moved: rebroadcast state
         if locked is None and now >= self.phase_ends_at:
-            spot, _ = physics.nearest_spot(self.planchette, self.spots, self.salted)
-            locked = spot.id if spot else None
+            locked = self._timeout_spot()
         if locked is not None:
             self._finish_round(locked)
             return True
         return False
+
+    def _timeout_spot(self) -> str | None:
+        """Where the board lands when the pull runs out without locking in.
+
+        If the planchette got somewhere, the nearest answer. If it's still near
+        the middle, nobody really chose, so a random answer: "nearest to the
+        middle" was always the same spot.
+        """
+        open_spots = [s for s in self.spots if s.id not in self.salted] or self.spots
+        if not open_spots:
+            return None
+        pl = self.planchette
+        if math.hypot(pl.x - physics.START_X, pl.y - physics.START_Y) < TIMEOUT_RANDOM_RADIUS:
+            return self._rng.choice(open_spots).id
+        spot, _ = physics.nearest_spot(pl, self.spots, self.salted)
+        return spot.id if spot else None
 
     def _rewind(self) -> None:
         """Séance Rewind: back to where the planchette was REWIND_SECONDS ago (or the pull's start)."""
@@ -851,6 +926,9 @@ class Room:
         if d > 1e-6:
             p.round_toward += (p.pull[0] * dx + p.pull[1] * dy) / d * dt
 
+    def _pull_seconds(self) -> float:
+        return PRACTICE_PULL_SECONDS if self.round_kind == "practice" else PULL_SECONDS
+
     def _finish_round(self, spot_id: str) -> None:
         self.result_spot_id = spot_id
         spot = next(s for s in self.spots if s.id == spot_id)
@@ -859,6 +937,10 @@ class Room:
         self.planchette.fx = self.planchette.fy = 0.0
         self.planchette.hover_spot = spot_id
         self.planchette.hover_time = physics.LOCK_SECONDS
+        if self.round_kind == "practice":
+            self._practice_result(spot_id)
+            self.phase = "reveal"
+            return
         haunted = self.players.get(spot_id)
         if haunted:
             haunted.haunted += 1
@@ -875,6 +957,14 @@ class Room:
         self._deal_catchup()
         self._deal_curse(haunted)
         self.phase = "reveal"
+
+    def _practice_result(self, spot_id: str) -> None:
+        """Shows what *would* have been paid. No points, marks, stats or curses."""
+        winners = [p for p in self._bettors() if p.bet == spot_id]
+        share = self.pot // len(winners) if winners else 0
+        self.last_payout = {p.id: share for p in winners}
+        self.last_rolled_over = not winners
+        self.curse = None
 
     def _deal_curse(self, victim: Player | None) -> None:
         """The previous curse ends at this reveal; the board may deal a new one."""
@@ -1010,6 +1100,25 @@ class Room:
         self._used_questions.add(q)
         return q
 
+    def _pick_final(self) -> Question:
+        """One final per game. Always-include custom finals go first; otherwise
+        rotate through the built-in and custom finals across games."""
+        always = [
+            q for q in self.custom_final if q in self.always_questions and q not in self._used_questions
+        ]
+        if always:
+            q = self._rng.choice(always)
+            self._used_questions.add(q)
+            return q
+        pool = FINAL_DECK + [q for q in self.custom_final if q not in FINAL_DECK]
+        available = [q for q in pool if q not in self._used_questions]
+        if not available:
+            self._used_questions -= set(pool)
+            available = list(pool)
+        q = self._rng.choice(available)
+        self._used_questions.add(q)
+        return q
+
     def _pick_subject(self) -> str:
         humans = [p.name for p in self.players.values() if not p.is_bot]
         pool = humans or [p.name for p in self.players.values()]
@@ -1087,6 +1196,7 @@ class Room:
                 "cursesOn": self.curses_on,
                 "starterRelics": self.starter_relics,
                 "catchupRelics": self.catchup_relics,
+                "practiceOn": self.practice_on,
             },
             "medium": (
                 {"playerId": self.medium_id, "answered": self.medium_answer is not None}

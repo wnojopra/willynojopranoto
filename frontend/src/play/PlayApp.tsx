@@ -291,12 +291,16 @@ export function PlayApp() {
     vibrate([30, 30, 60]);
   };
   const vision = crystal && crystal.roundNo === state.roundNo ? crystal : null;
-  const showTray = ['medium', 'question', 'pull', 'reveal'].includes(state.phase);
+  const practice = kind === 'practice';
+  // Relics sleep through the practice round.
+  const showTray = !practice && ['medium', 'question', 'pull', 'reveal'].includes(state.phase);
 
   const roundTag =
     state.game.roundKind === 'final'
       ? '🕯️ Final Séance'
-      : state.game.roundKind
+      : practice
+        ? '🎓 Practice · nothing counts'
+        : state.game.roundKind
         ? `${kind === 'medium' ? '🔮 ' : ''}Round ${state.game.round}/${state.game.totalRounds - 1}`
         : null;
 
@@ -366,7 +370,11 @@ export function PlayApp() {
               </p>
             )}
             <p className="phone__sub">
-              {medium ? 'Guess right for +100. Then pull the board there for +100 more.' : 'Secretly bet on where the board will land.'}
+              {medium
+                ? 'Guess right for +100. Then pull the board there for +100 more.'
+                : practice
+                  ? 'Step 1: tap where you think the board will land. Nobody else can see your pick.'
+                  : 'Secretly bet on where the board will land.'}
             </p>
             <SpotButtons
               state={state}
@@ -402,6 +410,9 @@ export function PlayApp() {
                   : 'Pull for what you believe.'}
                 {!medium && <span className="phone__betpot">🍬 {state.pot}</span>}
               </p>
+              {practice && (
+                <p className="phone__practice">Step 2: drag in the box below. Everyone moves the same planchette, so watch the TV.</p>
+              )}
               {vision?.counts && <CrystalLine state={state} me={me} counts={vision.counts} />}
               <MiniMap board={state.board} spots={state.spots} planchetteRef={planchetteRef} salted={state.effects.salted} magnets={state.effects.magnets} betSpotId={liveBet?.spotId ?? null} />
               <Touchpad onPull={(dx, dy) => send({ type: 'pull', dx, dy })} color={self?.color ?? '#e8a33d'} />
@@ -414,7 +425,7 @@ export function PlayApp() {
         <section className="phone__panel phone--center">
           <p className="phone__sub">The spirits have spoken…</p>
           <p className="phone__answer">{result.id === me ? 'YOU' : result.label}</p>
-          {result.id === me && <p className="phone__sub">The board has chosen you. 💀 Haunted.</p>}
+          {result.id === me && !practice && <p className="phone__sub">The board has chosen you. 💀 Haunted.</p>}
           {state.curse?.playerId === me && state.curse.roundNo === state.roundNo && (
             <div className="phone__cursed" role="alert">
               <p className="phone__cursedhead">💀 You’ve been cursed. Look at the TV.</p>
@@ -425,7 +436,14 @@ export function PlayApp() {
               {state.curse.alt && <p className="phone__sub">or: {state.curse.alt}</p>}
             </div>
           )}
-          {kind === 'medium' && medium ? (
+          {practice ? (
+            <p className="phone__practice">
+              {(state.reveal?.payout[me] ?? 0) > 0
+                ? `You called it! In a real round that’s +🍬 ${state.reveal?.payout[me]}.`
+                : 'Not this time. It was practice, so nothing counted.'}{' '}
+              Next up: the real thing.
+            </p>
+          ) : kind === 'medium' && medium ? (
             <MediumOutcome state={state} me={me} medium={medium} />
           ) : (
             <RevealOutcome state={state} me={me} betLabel={betLabel(betSpot?.id)} />

@@ -179,6 +179,8 @@ async def tv_socket(ws: WebSocket) -> None:
                 room.back_to_lobby()
             elif kind == "new_game":
                 room.new_game()
+            elif kind == "restart_game":
+                room.restart_game()
             elif kind == "set_length":
                 room.set_length(msg.get("length"))
             elif kind == "set_curses":
@@ -187,6 +189,8 @@ async def tv_socket(ws: WebSocket) -> None:
                 room.set_starter_relics(msg.get("on"))
             elif kind == "set_catchup_relics":
                 room.set_catchup_relics(msg.get("on"))
+            elif kind == "set_practice":
+                room.set_practice(msg.get("on"))
             elif kind == "dev_grant_relics":
                 # Playtesting aid; the button only renders on /tv?dev=1.
                 room.dev_grant_all()

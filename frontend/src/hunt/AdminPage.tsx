@@ -375,6 +375,7 @@ function QuestionsPanel() {
           <select id="q-deck" className="field__input" value={deck} onChange={(e) => setDeck(e.target.value as CustomQuestion['deck'])}>
             <option value="bets">🍬 Spirit Bets</option>
             <option value="medium">🔮 Medium (one player answers)</option>
+            <option value="final">🕯️ Final Séance (last round, 3× pot)</option>
           </select>
         </label>
         <label className="field">
@@ -396,7 +397,13 @@ function QuestionsPanel() {
             onChange={(e) => setText(e.target.value)}
             maxLength={140}
             required
-            placeholder={deck === 'medium' ? 'Who here would you trust with your browser history?' : 'Who still owes {player} $20?'}
+            placeholder={
+              deck === 'medium'
+                ? 'Who here would you trust with your browser history?'
+                : deck === 'final'
+                  ? 'Who will still be here when the candles go out?'
+                  : 'Who still owes {player} $20?'
+            }
           />
         </label>
         {kind === 'pick' && (
@@ -452,7 +459,7 @@ function QuestionsPanel() {
                     {q.options.length > 0 && `: ${q.options.join(' / ')}`}
                   </span>
                 </td>
-                <td>{q.deck === 'medium' ? '🔮 Medium' : '🍬 Bets'}</td>
+                <td>{q.deck === 'medium' ? '🔮 Medium' : q.deck === 'final' ? '🕯️ Final Séance' : '🍬 Bets'}</td>
                 <td>
                   <button className="btn btn--ghost admin__del" aria-pressed={q.always} onClick={() => toggle(q)}>
                     {q.always ? '⭐ Always' : 'Sometimes'}
