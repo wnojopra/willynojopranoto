@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Protocol
 
 from app.psych import rules
-from app.psych.traits import X_DECK, Y_DECK
+from app.psych.traits import DECKS, DEFAULT_DECK_X, DEFAULT_DECK_Y, X_DECK, Y_DECK
 
 log = logging.getLogger(__name__)
 
@@ -150,6 +150,9 @@ def validate_avatar(data: object) -> str | None:
     return AVATAR_PREFIX + base64.b64encode(raw).decode("ascii")
 
 
+DECK_CATALOG = [{"id": k, "name": name, "emoji": emoji, "count": len(words)} for k, (name, emoji, words) in DECKS.items()]
+
+
 class Deck:
     """Draws without repeats until empty, then reshuffles."""
 
@@ -195,8 +198,11 @@ class PsychRoom:
         self.avatars: dict[str, str] = {}
         self._avatar_at: dict[str, float] = {}
         self.winners: list[str] = []
-        self._x_deck = Deck(X_DECK, self._rng)
-        self._y_deck = Deck(Y_DECK, self._rng)
+        # Which deck feeds each axis (lobby picker). Piles are kept per deck, so
+        # the same deck on both axes never deals the same card twice in a row.
+        self.deck_x = DEFAULT_DECK_X
+        self.deck_y = DEFAULT_DECK_Y
+        self._piles: dict[str, Deck] = {}
         self._actor_since = clock()
         self.tv_conns: set[Conn] = set()
         self.player_conns: dict[str, Conn] = {}
@@ -308,6 +314,26 @@ class PsychRoom:
             return False
         self.target = n
         return True
+
+    def set_deck(self, axis: object, deck_id: object) -> bool:
+        """Lobby: choose the deck for the X or Y axis."""
+        if self.phase != "lobby" or axis not in ("x", "y") or not isinstance(deck_id, str) or deck_id not in DECKS:
+            return False
+        if axis == "x":
+            self.deck_x = deck_id
+        else:
+            self.deck_y = deck_id
+        return True
+
+    def _pile(self, deck_id: str) -> Deck:
+        if deck_id not in self._piles:
+            self._piles[deck_id] = Deck(DECKS[deck_id][2], self._rng)
+        return self._piles[deck_id]
+
+    def _draw_traits(self) -> tuple[str, str]:
+        x = self._pile(self.deck_x).draw()
+        y = self._pile(self.deck_y).draw()
+        return (x, y)
 
     def set_opinions(self, on: object) -> bool:
         """Lobby: guessers also place a second marker with their real opinion."""
@@ -433,7 +459,7 @@ class PsychRoom:
         """Host: new trait cards, before the main player has marked."""
         if self.phase != "secret":
             return False
-        self.traits = (self._x_deck.draw(), self._y_deck.draw())
+        self.traits = self._draw_traits()
         return True
 
     def next_turn(self) -> bool:
@@ -469,7 +495,7 @@ class PsychRoom:
         self.turn += 1
         self.phase = "secret"
         self.main_id = main_id
-        self.traits = (self._x_deck.draw(), self._y_deck.draw())
+        self.traits = self._draw_traits()
         self.secret = None
         self.order = rules.guess_order(self.seats, main_id)
         self.queue = list(self.order)
@@ -546,7 +572,13 @@ class PsychRoom:
             "secretMarked": self.secret is not None,
             "guesses": [{"playerId": pid, "x": sq[0], "y": sq[1]} for pid, sq in self.guesses.items()],
             "opinions": [{"playerId": pid, "x": sq[0], "y": sq[1]} for pid, sq in self.opinions.items()],
-            "settings": {"opinions": self.opinions_on, "opinionPoints": self.opinion_points_on},
+            "settings": {
+                "opinions": self.opinions_on,
+                "opinionPoints": self.opinion_points_on,
+                "deckX": self.deck_x,
+                "deckY": self.deck_y,
+            },
+            "decks": DECK_CATALOG,
             # The secret only leaves the server (to everyone) once it's revealed.
             "reveal": (
                 {

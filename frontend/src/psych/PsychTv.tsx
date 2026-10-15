@@ -5,7 +5,7 @@ import { Grid } from './Grid';
 import { HeadArt } from './HeadArt';
 import { HowToOverlay } from './HowTo';
 import { Crown, GoldMarker, Pawn, Token } from './Pawn';
-import type { Photos, PsyPlayer, PsyServerMsg, PsyState } from './protocol';
+import type { DeckInfo, Photos, PsyPlayer, PsyServerMsg, PsyState } from './protocol';
 import { pickStrikeVariant, Strike, type StrikeBag } from './Strike';
 import { ensureSession, loadPsychFonts, usePsychSocket } from './usePsychSocket';
 import './psych.css';
@@ -274,6 +274,11 @@ function Lobby({ state, photos, send, onHowTo }: { state: PsyState; photos: Phot
           )}
         </div>
 
+        <div className="psy-decks">
+          <DeckPicker label="Across ↔" hint="white cards" axis="x" value={state.settings.deckX} decks={state.decks} send={send} />
+          <DeckPicker label="Up ↕" hint="rainbow cards" axis="y" value={state.settings.deckY} decks={state.decks} send={send} />
+        </div>
+
         <div className="psy-lobby__toggles">
           <Toggle
             id="psy-opt-opinions"
@@ -297,6 +302,25 @@ function Lobby({ state, photos, send, onHowTo }: { state: PsyState; photos: Phot
         </button>
       </section>
     </main>
+  );
+}
+
+function DeckPicker({ label, hint, axis, value, decks, send }: { label: string; hint: string; axis: 'x' | 'y'; value: string; decks: DeckInfo[]; send: Send }) {
+  const id = `psy-deck-${axis}`;
+  return (
+    <label className={`psy-deck psy-deck--${axis}`} htmlFor={id}>
+      <span className="psy-deck__label">
+        <strong>{label}</strong>
+        <span className="psy-muted">{hint}</span>
+      </span>
+      <select id={id} className="psy-select" value={value} onChange={(e) => send({ type: 'set_deck', axis, deck: e.target.value })}>
+        {decks.map((d) => (
+          <option key={d.id} value={d.id}>
+            {d.emoji} {d.name}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -422,7 +446,11 @@ function Play({
           <span>
             Room <strong id="psy-room-code">{state.code}</strong>
           </span>
-          <span className="psy-roomtag__url">{location.host}/psychological/play</span>
+          <span className="psy-roomtag__url">
+            {location.host}
+            <wbr />
+            /psychological/play
+          </span>
         </div>
 
         <div className="psy-panel psy-banner" key={`${state.turn}-${state.phase}-${state.currentId}`}>

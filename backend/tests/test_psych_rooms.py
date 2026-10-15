@@ -319,3 +319,43 @@ def test_bots_place_second_markers():
     clock.t += rooms.BOT_DELAY_SECONDS + 0.1
     assert room.tick()
     assert room.phase == "reveal" and len(room.opinions) == 1
+
+
+# ---- Expansion packs ---------------------------------------------------------
+
+
+def test_default_decks_are_the_core_ones():
+    room, _, _ = make_room(2)
+    st = room.state_dict()
+    assert st["settings"]["deckX"] == "logical" and st["settings"]["deckY"] == "psycho"
+    assert [d["id"] for d in st["decks"]] == ["logical", "psycho", "internet_food", "dark", "life_skills"]
+
+
+def test_pick_decks_per_axis_lobby_only():
+    from app.psych.traits import DARK, LIFE_SKILLS
+
+    room, (a, b), _ = make_room(2)
+    assert room.set_deck("x", "life_skills")
+    assert room.set_deck("y", "dark")
+    assert not room.set_deck("z", "dark")
+    assert not room.set_deck("x", "nope")
+    assert not room.set_deck("x", ["dark"])
+    room.start()
+    assert room.traits[0] in LIFE_SKILLS and room.traits[1] in DARK
+    assert not room.set_deck("x", "logical")  # locked once the game starts
+
+
+def test_same_deck_on_both_axes_never_repeats_within_a_pass():
+    from app.psych.traits import INTERNET_FOOD
+
+    room, (a, b), _ = make_room(2)
+    room.set_deck("x", "internet_food")
+    room.set_deck("y", "internet_food")
+    room.start()
+    seen = []
+    for _ in range(len(INTERNET_FOOD) // 2):
+        x, y = room.traits
+        assert x != y
+        seen += [x, y]
+        room.redraw()
+    assert len(set(seen)) == len(seen) == len(INTERNET_FOOD)

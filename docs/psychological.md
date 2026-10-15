@@ -23,6 +23,25 @@ service as Spirit Board but fully separate from it.
 - **Winning:** first to **10** (the host can set 5–20). If several players reach it
   on the same reveal, the highest score wins, and a tie at the top is a shared win.
 
+### Expansion packs (lobby picker)
+
+The host picks a deck for each axis: **Across ↔** (white cards) and **Up ↕** (rainbow
+cards). The defaults are the core decks, and any deck can go on either axis. The
+same deck on both axes never deals the same card twice in a pass.
+
+| Pack | Cards | Examples |
+|---|---|---|
+| 🧠 Logical (core) | 125 | Studious, Stoic, Organized |
+| 🌈 Psycho (core) | 125 | Power-Hungry, Petty, Dramatic |
+| 🍕 Internet Brain + Foodie | 60 | Main character energy, Delulu, Snack goblin, Pineapple on pizza |
+| 🧟 Haunted + Apocalypse | 60 | Dies first in a horror movie, Final girl, Hides the bite, Doomsday prepper |
+| 🛠 Life Skills | 60 | Can parallel park, Folds a fitted sheet, Kills the spider |
+
+Packs live in `DECKS` in `backend/app/psych/traits.py` (every word is unique across
+all decks, and a test checks this). Each word needs a definition in
+`frontend/src/psych/definitions.ts`. Long phrases get smaller type and wrap on the
+cards.
+
 ### Variant: second marker (lobby toggles)
 
 - **Second marker:** after their guess, each guesser also places a small marker for
@@ -117,7 +136,7 @@ frontend/src/psych/
   `play_again`
 - **Phone → server:** `join{code,name}`, `mark{x,y[,ox,oy]}` (the secret or a guess,
   plus the second marker when that's on), `unmark`, `selfie{data|null}`
-- **TV → server (round 2):** `set_opinions{on}`, `set_opinion_points{on}`,
+- **TV → server (round 2+):** `set_deck{axis,deck}`, `set_opinions{on}`, `set_opinion_points{on}`,
   `adjust_score{playerId,delta}`
 - **Server → everyone:** `avatars{avatars}` when selfies change (kept out of `state`
   because they're large)

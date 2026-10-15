@@ -11,6 +11,13 @@ export interface PsyPlayer {
   score: number;
 }
 
+export interface DeckInfo {
+  id: string;
+  name: string;
+  emoji: string;
+  count: number;
+}
+
 export interface Guess {
   playerId: string;
   x: number;
@@ -34,7 +41,9 @@ export interface PsyState {
   guesses: Guess[];
   /** Second markers (the guesser's real opinion), when that variant is on. */
   opinions: Guess[];
-  settings: { opinions: boolean; opinionPoints: boolean };
+  settings: { opinions: boolean; opinionPoints: boolean; deckX: string; deckY: string };
+  /** Every deck the lobby picker can choose from. */
+  decks: DeckInfo[];
   reveal: { x: number; y: number; points: Record<string, number>; opinionPoints: Record<string, number> } | null;
   winners: string[];
   canStart: boolean;

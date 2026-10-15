@@ -45,7 +45,10 @@ function yHue(y: number): number {
 
 function WordCard({ axis, word, onWord }: { axis: 'x' | 'y'; word: string | undefined; onWord?: (w: string) => void }) {
   const cls = axis === 'x' ? 'psy-xcard' : 'psy-ycard';
-  const inner = <span className={`${cls}__word`}>{word ?? '?'}</span>;
+  // Expansion cards can be short phrases; those get smaller type and may wrap.
+  const len = word?.length ?? 0;
+  const size = len > 18 ? ' psy-word--xlong' : len > 11 ? ' psy-word--long' : '';
+  const inner = <span className={`${cls}__word${size}`}>{word ?? '?'}</span>;
   if (onWord && word) {
     return (
       <button type="button" className={`${cls} psy-wordbtn`} onClick={() => onWord(word)} aria-label={`${axis.toUpperCase()} axis: ${word}. Show definition`}>

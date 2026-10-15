@@ -622,8 +622,18 @@
   }
   .psy-host {
     justify-content: stretch;
+    flex-wrap: nowrap;
     & > .psy-btn {
       flex: 1;
+      min-width: 0;
+      padding-inline: 0.6rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 1.05rem;
+    }
+    & > .psy-btn--big {
+      font-size: 1.45rem;
     }
   }
 
@@ -999,7 +1009,11 @@
       color: #9cc2ff;
     }
   }
+  .psy-roomtag > span:first-child {
+    white-space: nowrap;
+  }
   .psy-roomtag__url {
+    min-width: 0;
     font-size: 0.8rem;
     color: #aab0ba;
     overflow-wrap: anywhere;
@@ -1383,6 +1397,73 @@
     & .psy-btn--big {
       flex: 1;
     }
+  }
+
+  /* Expansion packs: lobby picker + long card text */
+  .psy-decks {
+    display: grid;
+    gap: 0.5rem;
+  }
+  .psy-deck {
+    display: grid;
+    grid-template-columns: 11rem 1fr;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 12px;
+    background: #f6f7f9;
+  }
+  .psy-deck--y {
+    background:
+      linear-gradient(#f6f7f9, #f6f7f9) padding-box,
+      var(--psy-rainbow) border-box;
+    border: 2px solid transparent;
+  }
+  .psy-deck--x {
+    border: 2px solid #dfe5ee;
+  }
+  .psy-deck__label {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    & .psy-muted {
+      font-size: 0.8rem;
+    }
+  }
+  .psy-select {
+    width: 100%;
+    padding: 0.45rem 0.4rem;
+    font-size: 0.92rem;
+    border: 2px solid #d5dae2;
+    border-radius: 10px;
+    background: white;
+    color: var(--psy-ink);
+    font-family: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    &:focus-visible {
+      border-color: var(--psy-blue-2);
+    }
+  }
+  .psy-ycard__word,
+  .psy-xcard__word {
+    text-align: center;
+    text-wrap: balance;
+  }
+  .psy-word--long {
+    font-size: 0.78em;
+    white-space: normal;
+    max-inline-size: 13em;
+  }
+  .psy-word--xlong {
+    font-size: 0.64em;
+    white-space: normal;
+    max-inline-size: 13em;
+    line-height: 1.05;
+  }
+  .psy-ycard__word.psy-word--long,
+  .psy-ycard__word.psy-word--xlong {
+    white-space: normal;
   }
 
   /* ---------------------------------------------- bullseye celebrations -- */

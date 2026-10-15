@@ -63,3 +63,14 @@ def test_decks_are_full_and_disjoint():
         assert word in X_DECK
     for word in ("Competitive", "Power-Hungry"):
         assert word in Y_DECK
+
+
+def test_expansion_decks_are_unique_across_all_decks():
+    from app.psych.traits import DECKS
+
+    words = [w.casefold() for _, _, ws in DECKS.values() for w in ws]
+    assert len(words) == len(set(words))
+    for deck_id in ("internet_food", "dark", "life_skills"):
+        assert len(DECKS[deck_id][2]) == 60
+    # Long enough to read, short enough to fit on a card.
+    assert max(len(w) for w in words) <= 30

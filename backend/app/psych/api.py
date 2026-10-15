@@ -74,6 +74,8 @@ async def tv_socket(ws: WebSocket) -> None:
                 room.move_seat(msg.get("playerId"), msg.get("dir"))
             elif kind == "set_target":
                 room.set_target(msg.get("target"))
+            elif kind == "set_deck":
+                room.set_deck(msg.get("axis"), msg.get("deck"))
             elif kind == "set_opinions":
                 room.set_opinions(msg.get("on"))
             elif kind == "set_opinion_points":
