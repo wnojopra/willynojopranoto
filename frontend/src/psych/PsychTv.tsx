@@ -1,15 +1,29 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { QrCode } from '../tv/QrCode';
+import { defineTrait } from './definitions';
 import { Grid } from './Grid';
 import { HeadArt } from './HeadArt';
-import { GoldMarker, Pawn, Token } from './Pawn';
-import type { PsyPlayer, PsyServerMsg, PsyState } from './protocol';
+import { HowToOverlay } from './HowTo';
+import { Crown, GoldMarker, Pawn, Token } from './Pawn';
+import type { Photos, PsyPlayer, PsyServerMsg, PsyState } from './protocol';
+import { Strike } from './Strike';
 import { ensureSession, loadPsychFonts, usePsychSocket } from './usePsychSocket';
 import './psych.css';
 
 /** This tab's room code, so a refreshed TV gets its room back (checked server-side by device cookie). */
 const ROOM_KEY = 'psy-tv-room';
 const MAX_RETRIES = 8;
+const STRIKE_DELAY_MS = 700; // let the gold marker land first
+const STRIKE_MS = 3400;
+
+const WINNER_LINES = ['Reads people like a book.', 'Basically a licensed therapist now.', 'Knows you better than your mom.', 'Has seen into your soul. Sorry.'];
+const LOSER_LINES = [
+  'Reads people like a terms-of-service agreement.',
+  'Couldn’t read the room if it came in large print.',
+  'Has met these people before. Allegedly.',
+  'Thinks everyone is a closed book. Everyone disagrees.',
+  'Should maybe start listening when people talk.',
+];
 
 function savedRoom(): string | null {
   try {
@@ -53,12 +67,27 @@ function ConfirmButton({ id, label, confirmLabel, onConfirm, className }: { id: 
   );
 }
 
+function Toggle({ id, label, hint, on, disabled, onChange }: { id: string; label: string; hint: string; on: boolean; disabled?: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <label className={`psy-toggle ${disabled ? 'psy-toggle--disabled' : ''}`} htmlFor={id}>
+      <input id={id} type="checkbox" checked={on} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <span className="psy-toggle__track" aria-hidden="true" />
+      <span className="psy-toggle__text">
+        <strong>{label}</strong>
+        <span className="psy-muted">{hint}</span>
+      </span>
+    </label>
+  );
+}
+
 export function PsychTv() {
   const [state, setState] = useState<PsyState | null>(null);
+  const [photos, setPhotos] = useState<Photos>({});
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [retries, setRetries] = useState(0);
   const [ready, setReady] = useState(false);
+  const [howTo, setHowTo] = useState(false);
 
   useEffect(() => {
     document.title = 'Psychological';
@@ -68,6 +97,7 @@ export function PsychTv() {
 
   const onMessage = useCallback((msg: PsyServerMsg) => {
     if (msg.type === 'state') setState(msg);
+    else if (msg.type === 'avatars') setPhotos(msg.avatars);
     else if (msg.type === 'created') {
       saveRoom(msg.code);
       setRetries(0);
@@ -132,18 +162,25 @@ export function PsychTv() {
       </main>
     );
   } else if (state.phase === 'lobby') {
-    screen = <Lobby state={state} send={send} />;
+    screen = <Lobby state={state} photos={photos} send={send} onHowTo={() => setHowTo(true)} />;
   } else if (state.phase === 'gameover') {
-    screen = <GameOver state={state} send={send} />;
+    screen = <GameOver state={state} photos={photos} send={send} />;
   } else {
-    screen = <Play state={state} send={send} />;
+    screen = <Play state={state} photos={photos} send={send} onHowTo={() => setHowTo(true)} />;
   }
-  return <div className="psy-root psy-root--tv">{screen}</div>;
+  return (
+    <div className="psy-root psy-root--tv">
+      {screen}
+      {howTo && state && (
+        <HowToOverlay opinions={state.settings.opinions} opinionPoints={state.settings.opinionPoints} target={state.target} onClose={() => setHowTo(false)} />
+      )}
+    </div>
+  );
 }
 
 type Send = (msg: object) => void;
 
-function Lobby({ state, send }: { state: PsyState; send: Send }) {
+function Lobby({ state, photos, send, onHowTo }: { state: PsyState; photos: Photos; send: Send; onHowTo: () => void }) {
   const joinUrl = `${location.origin}/psychological/play?code=${state.code}`;
   const hasBots = state.players.some((p) => p.isBot);
   return (
@@ -156,6 +193,9 @@ function Lobby({ state, send }: { state: PsyState; send: Send }) {
           <span className="psy-byline">by Willy Nojopranoto</span>
         </h1>
         <p className="psy-sub psy-sub--light">How well do your friends really know you?</p>
+        <button id="psy-howto" type="button" className="psy-btn psy-btn--light" onClick={onHowTo}>
+          📖 How to play
+        </button>
       </section>
       <section className="psy-panel psy-lobby__panel">
         <div className="psy-lobby__join">
@@ -183,7 +223,7 @@ function Lobby({ state, send }: { state: PsyState; send: Send }) {
           <ol className="psy-roster">
             {state.players.map((p, i) => (
               <li key={p.id} className={`psy-roster__item ${p.connected ? '' : 'psy-roster__item--off'}`}>
-                <Pawn color={p.color} className="psy-roster__pawn" />
+                <Pawn color={p.color} photo={photos[p.id]} className="psy-roster__pawn" />
                 <span className="psy-roster__name">
                   {p.name}
                   {p.isBot && <span className="psy-muted"> (bot)</span>}
@@ -233,6 +273,24 @@ function Lobby({ state, send }: { state: PsyState; send: Send }) {
           )}
         </div>
 
+        <div className="psy-lobby__toggles">
+          <Toggle
+            id="psy-opt-opinions"
+            label="Second marker"
+            hint="Guessers also mark what they really think"
+            on={state.settings.opinions}
+            onChange={(on) => send({ type: 'set_opinions', on })}
+          />
+          <Toggle
+            id="psy-opt-opinion-points"
+            label="Half points"
+            hint="Second markers score half (1.5 / 1 / 0.5)"
+            on={state.settings.opinionPoints}
+            disabled={!state.settings.opinions}
+            onChange={(on) => send({ type: 'set_opinion_points', on })}
+          />
+        </div>
+
         <button id="psy-start" type="button" className="psy-btn psy-btn--primary psy-btn--big" disabled={!state.canStart} onClick={() => send({ type: 'start' })}>
           {state.canStart ? 'Start the game' : `Need ${state.minPlayers} players`}
         </button>
@@ -241,27 +299,60 @@ function Lobby({ state, send }: { state: PsyState; send: Send }) {
   );
 }
 
-function Play({ state, send }: { state: PsyState; send: Send }) {
+function Play({ state, photos, send, onHowTo }: { state: PsyState; photos: Photos; send: Send; onHowTo: () => void }) {
   const byId = new Map(state.players.map((p) => [p.id, p]));
   const main = state.mainId ? byId.get(state.mainId) : undefined;
   const current = state.currentId ? byId.get(state.currentId) : undefined;
   const revealing = state.phase === 'reveal';
   const guessed = new Set(state.guesses.map((g) => g.playerId));
   const standings = [...state.players].sort((a, b) => b.score - a.score);
+  const [editing, setEditing] = useState(false);
+  const [word, setWord] = useState<string | null>(null);
+  const step = state.settings.opinionPoints ? 0.5 : 1;
+
+  // Definition card closes on its own after a while.
+  useEffect(() => {
+    if (!word) return;
+    const t = setTimeout(() => setWord(null), 9000);
+    return () => clearTimeout(t);
+  }, [word]);
+  useEffect(() => setWord(null), [state.turn]);
+
+  // Bullseye celebration: once per turn, rotating through the variants.
+  const strikes = useRef(0);
+  const celebrated = useRef(0);
+  const [strike, setStrike] = useState<{ variant: number; player: PsyPlayer } | null>(null);
+  const bullseyeId = revealing && state.reveal ? Object.keys(state.reveal.points).find((id) => state.reveal!.points[id] === 3) : undefined;
+  useEffect(() => {
+    if (!bullseyeId || celebrated.current === state.turn) return;
+    const p = byId.get(bullseyeId);
+    if (!p) return;
+    celebrated.current = state.turn;
+    const variant = strikes.current++;
+    const show = setTimeout(() => setStrike({ variant, player: p }), STRIKE_DELAY_MS);
+    const hide = setTimeout(() => setStrike(null), STRIKE_DELAY_MS + STRIKE_MS);
+    return () => {
+      clearTimeout(show);
+      clearTimeout(hide);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bullseyeId, state.turn]);
 
   let banner: ReactNode;
   if (state.phase === 'secret') {
     banner = (
       <>
-        <Name p={main} /> is marking where they see themself…
+        <Name p={main} photos={photos} /> is marking where they see themself…
         <span className="psy-banner__hint">Secretly, on their phone. No peeking.</span>
       </>
     );
   } else if (state.phase === 'guessing') {
     banner = (
       <>
-        <Name p={current} />, where did <Name p={main} /> put themself?
-        <span className="psy-banner__hint">Taken squares are blocked.</span>
+        <Name p={current} photos={photos} />, where did <Name p={main} photos={photos} /> put themself?
+        <span className="psy-banner__hint">
+          {state.settings.opinions ? 'Then add a small marker for what you really think. ' : ''}Taken squares are blocked.
+        </span>
       </>
     );
   } else {
@@ -271,17 +362,19 @@ function Play({ state, send }: { state: PsyState; send: Send }) {
         {winners.map((w, i) => (
           <span key={w.id}>
             {i > 0 && ' & '}
-            <Name p={w} />
+            <Name p={w} photos={photos} />
           </span>
         ))}{' '}
         reached {state.target}!
       </>
     ) : (
       <>
-        Here's where <Name p={main} /> put themself.
+        Here's where <Name p={main} photos={photos} /> put themself.
       </>
     );
   }
+
+  const definition = word ? defineTrait(word) : null;
 
   return (
     <main className="psy-game">
@@ -292,18 +385,37 @@ function Play({ state, send }: { state: PsyState; send: Send }) {
             size="tv"
             traits={state.traits}
             players={state.players}
+            photos={photos}
             guesses={state.guesses}
+            opinions={state.opinions}
             secret={revealing ? state.reveal : null}
             showZones={revealing}
             points={revealing ? state.reveal?.points : undefined}
+            opinionPoints={revealing ? state.reveal?.opinionPoints : undefined}
+            onWord={(w) => setWord((cur) => (cur === w ? null : w))}
           />
+          {word && (
+            <button type="button" className="psy-define" onClick={() => setWord(null)} aria-live="polite">
+              <span className="psy-define__word">{word}</span>
+              <span className="psy-define__text">{definition ?? 'No definition yet. Use your imagination!'}</span>
+              <span className="psy-define__close psy-muted">Tap to close</span>
+            </button>
+          )}
         </div>
+        {strike && <Strike variant={strike.variant} name={strike.player.name} color={strike.player.color} photo={photos[strike.player.id]} />}
       </section>
 
       <aside className="psy-side">
+        <div className="psy-roomtag">
+          <span>
+            Room <strong id="psy-room-code">{state.code}</strong>
+          </span>
+          <span className="psy-roomtag__url">{location.host}/psychological/play</span>
+        </div>
+
         <div className="psy-panel psy-banner" key={`${state.turn}-${state.phase}-${state.currentId}`}>
           <p className="psy-kicker">
-            Turn {state.turn} · <Name p={main} />
+            Turn {state.turn} · <Name p={main} photos={photos} />
             ’s turn
           </p>
           <p className="psy-banner__text">{banner}</p>
@@ -321,10 +433,10 @@ function Play({ state, send }: { state: PsyState; send: Send }) {
               const p = byId.get(id);
               if (!p) return null;
               const now = id === state.currentId;
-              const pts = state.reveal?.points[id];
+              const pts = (state.reveal?.points[id] ?? 0) + (state.reveal?.opinionPoints[id] ?? 0);
               const stateText = guessed.has(id)
                 ? revealing
-                  ? `+${pts ?? 0}`
+                  ? `+${pts}`
                   : '✓'
                 : now
                   ? 'guessing…'
@@ -333,7 +445,7 @@ function Play({ state, send }: { state: PsyState; send: Send }) {
                     : 'skipped';
               return (
                 <li key={id} className={`psy-order__item ${now ? 'psy-order__item--now' : ''} ${p.connected ? '' : 'psy-order__item--off'}`}>
-                  <Token color={p.color} />
+                  <Token color={p.color} photo={photos[p.id]} />
                   <span>{p.name}</span>
                   <span className="psy-order__state">{stateText}</span>
                 </li>
@@ -343,17 +455,33 @@ function Play({ state, send }: { state: PsyState; send: Send }) {
         </div>
 
         <div className="psy-panel">
-          <h2 className="psy-h2">
-            Scores <span className="psy-muted">· first to {state.target}</span>
-          </h2>
+          <div className="psy-panel__head">
+            <h2 className="psy-h2">
+              Scores <span className="psy-muted">· first to {state.target}</span>
+            </h2>
+            <button id="psy-edit-scores" type="button" className="psy-icon psy-icon--wide" aria-pressed={editing} onClick={() => setEditing(!editing)}>
+              {editing ? 'Done' : '✎ Edit'}
+            </button>
+          </div>
           <ul className="psy-scores">
             {standings.map((p) => (
-              <li key={p.id} className="psy-scores__item">
-                <Token color={p.color} />
+              <li key={p.id} className={`psy-scores__item ${editing ? 'psy-scores__item--edit' : ''}`}>
+                <Token color={p.color} photo={photos[p.id]} />
                 <span className="psy-scores__name">{p.name}</span>
-                <span className="psy-scores__bar" aria-hidden="true">
-                  <span className="psy-scores__fill" style={{ width: `${Math.min(100, (p.score / state.target) * 100)}%`, backgroundColor: p.color }} />
-                </span>
+                {editing ? (
+                  <span className="psy-scores__edit">
+                    <button type="button" className="psy-icon" aria-label={`Take ${step} from ${p.name}`} disabled={p.score <= 0} onClick={() => send({ type: 'adjust_score', playerId: p.id, delta: -step })}>
+                      −
+                    </button>
+                    <button type="button" className="psy-icon" aria-label={`Give ${step} to ${p.name}`} onClick={() => send({ type: 'adjust_score', playerId: p.id, delta: step })}>
+                      +
+                    </button>
+                  </span>
+                ) : (
+                  <span className="psy-scores__bar" aria-hidden="true">
+                    <span className="psy-scores__fill" style={{ width: `${Math.min(100, (p.score / state.target) * 100)}%`, backgroundColor: p.color }} />
+                  </span>
+                )}
                 <strong className="psy-scores__num">{p.score}</strong>
               </li>
             ))}
@@ -379,16 +507,23 @@ function Play({ state, send }: { state: PsyState; send: Send }) {
           )}
           <ConfirmButton id="psy-end" label="End game" confirmLabel="Really end?" onConfirm={() => send({ type: 'play_again' })} />
         </div>
+        <button id="psy-howto-ingame" type="button" className="psy-linkbtn" onClick={onHowTo}>
+          📖 How to play
+        </button>
         <p className="psy-byline psy-byline--side">Psychological · by Willy Nojopranoto</p>
       </aside>
     </main>
   );
 }
 
-function GameOver({ state, send }: { state: PsyState; send: Send }) {
+function GameOver({ state, photos, send }: { state: PsyState; photos: Photos; send: Send }) {
   const byId = new Map(state.players.map((p) => [p.id, p]));
   const winners = state.winners.map((id) => byId.get(id)).filter(Boolean) as PsyPlayer[];
   const standings = [...state.players].sort((a, b) => b.score - a.score);
+  const low = standings.length ? standings[standings.length - 1].score : 0;
+  const losers = standings.length > 1 ? standings.filter((p) => p.score === low && !state.winners.includes(p.id)) : [];
+  const winnerLine = WINNER_LINES[state.turn % WINNER_LINES.length];
+  const loserLine = LOSER_LINES[state.turn % LOSER_LINES.length];
   return (
     <main className="psy-center">
       <div className="psy-panel psy-over">
@@ -396,16 +531,33 @@ function GameOver({ state, send }: { state: PsyState; send: Send }) {
         <div className="psy-podium">
           {winners.map((w) => (
             <div key={w.id} className="psy-podium__spot">
-              <Pawn color={w.color} className="psy-podium__pawn" title={w.name} />
+              <div className="psy-podium__royal">
+                <Crown className="psy-podium__crown" />
+                <Pawn color={w.color} photo={photos[w.id]} className="psy-podium__pawn" title={w.name} />
+              </div>
               <div className="psy-podium__block">{w.name}</div>
             </div>
           ))}
         </div>
-        <p className="psy-sub">{winners.length > 1 ? 'They know each other a little too well.' : 'Reads people like a book.'}</p>
+        <p className="psy-sub">{winners.length > 1 ? 'They know each other a little too well.' : winnerLine}</p>
+        {losers.length > 0 && (
+          <div className="psy-loser">
+            <span className="psy-loser__pawns">
+              {losers.map((l) => (
+                <Pawn key={l.id} color={l.color} photo={photos[l.id]} className="psy-loser__pawn" />
+              ))}
+            </span>
+            <p>
+              <strong>{losers.map((l) => l.name).join(' & ')}</strong>
+              <span className="psy-muted"> (last place): </span>
+              {loserLine}
+            </p>
+          </div>
+        )}
         <ol className="psy-scores psy-scores--final">
           {standings.map((p) => (
             <li key={p.id} className="psy-scores__item">
-              <Token color={p.color} />
+              <Token color={p.color} photo={photos[p.id]} />
               <span className="psy-scores__name">{p.name}</span>
               <strong className="psy-scores__num">{p.score}</strong>
             </li>
@@ -420,11 +572,11 @@ function GameOver({ state, send }: { state: PsyState; send: Send }) {
   );
 }
 
-function Name({ p }: { p: PsyPlayer | undefined }) {
+function Name({ p, photos }: { p: PsyPlayer | undefined; photos: Photos }) {
   if (!p) return <strong>someone</strong>;
   return (
     <strong className="psy-name">
-      <Token color={p.color} className="psy-name__token" />
+      <Token color={p.color} photo={photos[p.id]} className="psy-name__token" />
       {p.name}
     </strong>
   );

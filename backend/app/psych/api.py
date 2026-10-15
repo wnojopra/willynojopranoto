@@ -54,6 +54,7 @@ async def tv_socket(ws: WebSocket) -> None:
         room.tv_conns.add(ws)
         room.touch()
         await ws.send_json({"type": "created", "code": room.code})
+        await ws.send_json(room.avatars_msg())
         await room.broadcast_state()
 
         while True:
@@ -73,6 +74,12 @@ async def tv_socket(ws: WebSocket) -> None:
                 room.move_seat(msg.get("playerId"), msg.get("dir"))
             elif kind == "set_target":
                 room.set_target(msg.get("target"))
+            elif kind == "set_opinions":
+                room.set_opinions(msg.get("on"))
+            elif kind == "set_opinion_points":
+                room.set_opinion_points(msg.get("on"))
+            elif kind == "adjust_score":
+                room.adjust_score(msg.get("playerId"), msg.get("delta"))
             elif kind == "add_bot":
                 room.add_bot()
             elif kind == "remove_bot":
@@ -83,7 +90,10 @@ async def tv_socket(ws: WebSocket) -> None:
                 pid = msg.get("playerId")
                 if isinstance(pid, str):
                     conn = room.player_conns.pop(pid, None)
+                    had_avatar = pid in room.avatars
                     room.remove_player(pid)
+                    if had_avatar:
+                        await room.broadcast_avatars()
                     if conn is not None:
                         try:
                             await send_error(conn, "The host removed you from the game.")
@@ -139,6 +149,7 @@ async def play_socket(ws: WebSocket) -> None:
                 pass
         room.touch()
         await ws.send_json({"type": "joined", "playerId": player.id, "code": room.code})
+        await ws.send_json(room.avatars_msg())
         await room.broadcast_state()
         if room.main_id == player.id:
             await room.send_private()
@@ -147,13 +158,26 @@ async def play_socket(ws: WebSocket) -> None:
             msg = await recv_message(ws, limiter)
             if msg is None:
                 continue
-            if msg["type"] == "mark":
-                if room.mark(player.id, msg.get("x"), msg.get("y")):
+            kind = msg["type"]
+            if kind == "mark":
+                if room.mark(player.id, msg.get("x"), msg.get("y"), msg.get("ox"), msg.get("oy")):
                     room.touch()
                     await room.broadcast_state()
                     await room.send_private()
                 else:
                     await ws.send_json({"type": "mark_rejected"})
+            elif kind == "unmark":
+                if room.unmark(player.id):
+                    room.touch()
+                    await room.broadcast_state()
+                else:
+                    await ws.send_json({"type": "unmark_rejected"})
+            elif kind == "selfie":
+                if room.set_avatar(player.id, msg.get("data")):
+                    room.touch()
+                    await room.broadcast_avatars()
+                elif msg.get("data") is not None:
+                    await ws.send_json({"type": "selfie_rejected"})
     except (WebSocketDisconnect, ClientGone, asyncio.TimeoutError):
         pass
     finally:

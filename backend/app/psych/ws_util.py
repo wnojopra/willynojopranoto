@@ -14,6 +14,8 @@ from fastapi import WebSocket
 
 # Turn-based: phones send a handful of messages per turn.
 MAX_MESSAGE_BYTES = 256
+# Only "selfie" messages may be bigger (a ~128px JPEG as a data URL).
+MAX_SELFIE_MESSAGE_BYTES = 26_000
 RATE_PER_SEC = 10.0
 RATE_BURST = 20.0
 MAX_DROPPED_BEFORE_CLOSE = 200
@@ -47,13 +49,15 @@ async def recv_message(ws: WebSocket, limiter: RateLimiter) -> dict[str, Any] | 
         if limiter.dropped > MAX_DROPPED_BEFORE_CLOSE:
             raise ClientGone()
         return None
-    if len(text) > MAX_MESSAGE_BYTES:
+    if len(text) > MAX_SELFIE_MESSAGE_BYTES:
         return None
     try:
         msg = json.loads(text)
     except ValueError:
         return None
     if not isinstance(msg, dict) or not isinstance(msg.get("type"), str):
+        return None
+    if len(text) > MAX_MESSAGE_BYTES and msg["type"] != "selfie":
         return None
     return msg
 

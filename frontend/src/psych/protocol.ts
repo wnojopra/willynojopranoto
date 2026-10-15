@@ -32,7 +32,10 @@ export interface PsyState {
   traits: { x: string; y: string } | null;
   secretMarked: boolean;
   guesses: Guess[];
-  reveal: { x: number; y: number; points: Record<string, number> } | null;
+  /** Second markers (the guesser's real opinion), when that variant is on. */
+  opinions: Guess[];
+  settings: { opinions: boolean; opinionPoints: boolean };
+  reveal: { x: number; y: number; points: Record<string, number>; opinionPoints: Record<string, number> } | null;
   winners: string[];
   canStart: boolean;
   minPlayers: number;
@@ -44,6 +47,9 @@ export type PsyServerMsg =
   | { type: 'joined'; playerId: string; code: string }
   | { type: 'secret'; turn: number; x: number; y: number }
   | { type: 'mark_rejected' }
+  | { type: 'unmark_rejected' }
+  | { type: 'selfie_rejected' }
+  | { type: 'avatars'; avatars: Record<string, string> }
   | { type: 'error'; message: string };
 
 export const GRID = 10;
@@ -52,3 +58,6 @@ export const GRID = 10;
 export function isPale(color: string): boolean {
   return color.toLowerCase() === '#f4f4f4' || color.toLowerCase() === '#f5c518';
 }
+
+/** Selfies by player id (validated small JPEG data URLs from the server). */
+export type Photos = Record<string, string>;

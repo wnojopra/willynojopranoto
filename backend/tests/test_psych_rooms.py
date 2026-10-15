@@ -206,3 +206,116 @@ def test_device_owns_seat():
     with pytest.raises(JoinError):
         room.add_player("kim", device="dev-2")
     assert room.add_player("Kim", device="dev-1").id == p.id
+
+
+# ---- Playtest round 2: undo, second markers, point edits, selfies ----------
+
+
+def test_main_can_undo_until_someone_guesses():
+    room, (a, b, c), _ = make_room(3)
+    room.start()
+    room.mark(a, 4, 4)
+    assert room.unmark(a)
+    assert room.phase == "secret" and room.secret is None and room.current_id == a
+    room.mark(a, 9, 9)
+    assert not room.unmark(b)  # only the main player
+    room.mark(b, 1, 1)
+    assert not room.unmark(a)  # too late
+    assert room.secret == (9, 9)
+
+
+def test_second_markers_required_and_may_overlap():
+    room, (a, b, c), _ = make_room(3)
+    assert room.set_opinions(True)
+    room.start()
+    room.mark(a, 5, 5)
+    assert not room.mark(b, 1, 1)  # missing opinion
+    assert room.mark(b, 1, 1, 5, 5)
+    assert room.mark(c, 2, 2, 1, 1)  # opinion on someone's pawn is fine
+    assert room.phase == "reveal"
+    assert room.opinions == {b: (5, 5), c: (1, 1)}
+    # Just for fun by default: no points from opinions.
+    assert room.players[b].score == 0 and room.players[c].score == 0
+    assert room.state_dict()["opinions"] == [{"playerId": b, "x": 5, "y": 5}, {"playerId": c, "x": 1, "y": 1}]
+
+
+def test_second_markers_half_points():
+    room, (a, b, c), _ = make_room(3)
+    assert not room.set_opinion_points(True)  # needs second markers first
+    room.set_opinions(True)
+    assert room.set_opinion_points(True)
+    room.start()
+    room.mark(a, 5, 5)
+    room.mark(b, 5, 6, 5, 5)  # guess 2 + opinion 3/2
+    room.mark(c, 9, 9, 6, 6)  # guess 0 + opinion 1/2
+    assert room.players[b].score == 3.5
+    assert room.players[c].score == 0.5
+    st = room.state_dict()
+    assert st["reveal"]["opinionPoints"] == {b: 1.5, c: 0.5}
+    assert {p["id"]: p["score"] for p in st["players"]}[b] == 3.5
+    room.set_opinions(False)  # not outside the lobby
+    assert room.opinions_on
+
+
+def test_turning_off_second_markers_turns_off_half_points():
+    room, _, _ = make_room(2)
+    room.set_opinions(True)
+    room.set_opinion_points(True)
+    room.set_opinions(False)
+    assert not room.opinion_points_on
+
+
+def test_host_adjusts_points_and_winner_updates():
+    room, (a, b), _ = make_room(2)
+    room.target = 5
+    room.start()
+    assert room.adjust_score(b, 1) and room.players[b].score == 1
+    assert not room.adjust_score(b, 0.5)  # halves only with half points on
+    assert not room.adjust_score(b, 5) and not room.adjust_score(b, True) and not room.adjust_score("nope", 1)
+    assert room.adjust_score(b, -1) and not room.adjust_score(b, -1)  # never below 0
+    room.mark(a, 5, 5)
+    room.mark(b, 1, 1)
+    assert room.winners == []
+    room.players[b].score = 4
+    assert room.adjust_score(b, 1)
+    assert room.winners == [b]
+
+
+def _jpeg_url(size=200):
+    import base64
+    raw = b"\xff\xd8\xff\xe0" + b"\x00" * size + b"\xff\xd9"
+    return "data:image/jpeg;base64," + base64.b64encode(raw).decode()
+
+
+def test_selfie_validation_and_cooldown():
+    room, (a, b), clock = make_room(2)
+    assert room.set_avatar(a, _jpeg_url())
+    assert room.avatars[a].startswith("data:image/jpeg;base64,")
+    clock.t += 3
+    assert not room.set_avatar(a, "data:image/png;base64,AAAA")
+    clock.t += 3
+    assert not room.set_avatar(a, "data:image/jpeg;base64,<script>")
+    clock.t += 3
+    assert not room.set_avatar(a, _jpeg_url(rooms.MAX_AVATAR_BYTES))  # too big
+    clock.t += 3
+    import base64
+    not_jpeg = "data:image/jpeg;base64," + base64.b64encode(b"<svg onload=alert(1)>").decode()
+    assert not room.set_avatar(a, not_jpeg)
+    clock.t += 3
+    assert room.set_avatar(b, _jpeg_url())
+    assert not room.set_avatar(b, _jpeg_url())  # cooldown
+    clock.t += 3
+    assert room.set_avatar(b, None) and b not in room.avatars
+    room.remove_player(a)
+    assert a not in room.avatars
+
+
+def test_bots_place_second_markers():
+    room, (a,), clock = make_room(1)
+    room.add_bot()
+    room.set_opinions(True)
+    room.start()
+    room.mark(a, 5, 5)
+    clock.t += rooms.BOT_DELAY_SECONDS + 0.1
+    assert room.tick()
+    assert room.phase == "reveal" and len(room.opinions) == 1

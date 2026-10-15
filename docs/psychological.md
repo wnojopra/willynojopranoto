@@ -23,6 +23,14 @@ service as Spirit Board but fully separate from it.
 - **Winning:** first to **10** (the host can set 5–20). If several players reach it
   on the same reveal, the highest score wins, and a tie at the top is a shared win.
 
+### Variant: second marker (lobby toggles)
+
+- **Second marker:** after their guess, each guesser also places a small marker for
+  where *they* really think the main player is. It may sit on any square, including
+  on top of other pawns, and shows on the TV as soon as it's locked in.
+- **Half points** (needs Second marker): the second marker scores half
+  (1.5 / 1 / 0.5), so scores can end in .5.
+
 ### Host controls (TV)
 
 - Lobby: change the seat order (▲▼) to match the room, remove players, add/remove
@@ -30,7 +38,29 @@ service as Spirit Board but fully separate from it.
 - In a turn: **Skip** whoever is up (a skipped main player passes the turn on; a
   skipped guesser scores nothing), **New cards** (before the main player marks),
   and **End game** (two clicks).
+- **✎ Edit** on the scoreboard: fix anyone's points by hand (±1, or ±0.5 with half points).
+- **📖 How to play:** a 4–5 card tutorial (lobby and in game). Phones have a
+  how-to drawer in the lobby.
+- Tap a **trait card** on the TV (or phone) to see its definition
+  (`frontend/src/psych/definitions.ts`).
+- The room code stays on the TV during the game so people can rejoin.
 - There are no turn timers.
+
+### Players (phone)
+
+- **Selfie** in the lobby: it becomes your pawn. The phone's own camera opens via
+  `<input capture>` (no camera permission needed). It's cropped to a 128px JPEG,
+  validated server-side (real JPEG bytes, max 18 KB, one per 2s), kept only in memory,
+  and deleted when you leave or the room closes.
+- **Scores drawer** (closed by default) during the game.
+- The main player can **change their answer** until the first guess is in.
+
+### Fun stuff
+
+- A **bullseye** (3 points) sets off a bowling-alley-style celebration on the TV,
+  rotating through five: STRIKE!, MIND READER!, GET OUT OF MY HEAD!,
+  ARE YOU IN MY WALLS?, ONE SHARED BRAIN CELL (`Strike.tsx`).
+- The winner wears a badly drawn crown, and last place gets roasted.
 
 ### Edge cases
 
@@ -85,8 +115,12 @@ frontend/src/psych/
 - **TV → server:** `create{resume}`, `start`, `next_turn`, `skip`, `redraw`,
   `move_seat{playerId,dir}`, `set_target{target}`, `add_bot`, `remove_bot`, `kick{playerId}`,
   `play_again`
-- **Phone → server:** `join{code,name}`, `mark{x,y}` (the secret or a guess, depending on
-  the phase and whose turn it is)
+- **Phone → server:** `join{code,name}`, `mark{x,y[,ox,oy]}` (the secret or a guess,
+  plus the second marker when that's on), `unmark`, `selfie{data|null}`
+- **TV → server (round 2):** `set_opinions{on}`, `set_opinion_points{on}`,
+  `adjust_score{playerId,delta}`
+- **Server → everyone:** `avatars{avatars}` when selfies change (kept out of `state`
+  because they're large)
 - **Server → everyone:** `state` (phase, players in seat order, `mainId`, `currentId`,
   `order`, `queue`, `traits`, `guesses`, `reveal`, `winners`, …)
 - **Server → main player only:** `secret{turn,x,y}`. The secret is never in `state`

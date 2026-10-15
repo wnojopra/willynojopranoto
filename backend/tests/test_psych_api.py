@@ -71,3 +71,20 @@ def test_out_of_turn_mark_rejected():
                 recv_until(tv, "state", lambda m: m["phase"] == "secret")
                 p1.send_json({"type": "mark", "x": 99, "y": 1})
                 recv_until(p1, "mark_rejected")
+
+
+def test_only_selfies_may_be_big():
+    from app.psych.ws_util import MAX_MESSAGE_BYTES
+
+    with TestClient(app) as c:
+        with c.websocket_connect("/ws/psych/tv", headers=ORIGIN) as tv:
+            tv.send_json({"type": "create"})
+            code = recv_until(tv, "created")["code"]
+            with c.websocket_connect("/ws/psych/play", headers=ORIGIN) as p1:
+                p1.send_json({"type": "join", "code": code, "name": "Ann"})
+                recv_until(p1, "joined")
+                # A big non-selfie message is dropped silently...
+                p1.send_json({"type": "mark", "x": 1, "y": 1, "pad": "x" * (MAX_MESSAGE_BYTES + 10)})
+                # ...and a bad selfie is rejected.
+                p1.send_json({"type": "selfie", "data": "data:image/jpeg;base64," + "A" * 400})
+                assert recv_until(p1, "selfie_rejected")

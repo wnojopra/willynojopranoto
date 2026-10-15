@@ -15,6 +15,8 @@ Phases:
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
 import hmac
 import logging
 import random
@@ -39,6 +41,13 @@ MAX_TARGET = 20
 BOT_DELAY_SECONDS = 1.5
 LOOP_SECONDS = 0.25
 ROOM_IDLE_SECONDS = 10 * 60  # close rooms with no TV for this long
+MAX_SCORE = 99  # host point edits stay within 0..MAX_SCORE
+
+# Selfies: small JPEGs (the phone crops and shrinks them to ~128px first).
+# Kept in memory only, and dropped with the player or the room.
+AVATAR_PREFIX = "data:image/jpeg;base64,"
+MAX_AVATAR_BYTES = 18_000
+AVATAR_COOLDOWN_SECONDS = 2.0  # each new selfie is broadcast to every screen
 
 # No vowels, so room codes can't spell anything rude.
 CODE_ALPHABET = "BCDFGHJKLMNPQRSTVWXZ"
@@ -105,7 +114,8 @@ class PsychPlayer:
     is_bot: bool = False
     connected: bool = True
     device: str | None = None
-    score: int = 0
+    # Whole points, or halves when second markers score.
+    score: float = 0
 
     def to_dict(self) -> dict:
         return {
@@ -114,8 +124,30 @@ class PsychPlayer:
             "color": self.color,
             "isBot": self.is_bot,
             "connected": self.connected,
-            "score": self.score,
+            "score": num(self.score),
         }
+
+
+def num(v: float) -> float | int:
+    """7.0 -> 7 for display; halves stay as 7.5."""
+    return int(v) if float(v).is_integer() else v
+
+
+def validate_avatar(data: object) -> str | None:
+    """A small JPEG data URL, or None. Checked by decoding, not just by prefix."""
+    if not isinstance(data, str) or not data.startswith(AVATAR_PREFIX):
+        return None
+    b64 = data[len(AVATAR_PREFIX):]
+    if len(b64) > (MAX_AVATAR_BYTES * 4) // 3 + 4:
+        return None
+    try:
+        raw = base64.b64decode(b64, validate=True)
+    except (binascii.Error, ValueError):
+        return None
+    if len(raw) > MAX_AVATAR_BYTES or not raw.startswith(b"\xff\xd8\xff") or not raw.rstrip(b"\x00").endswith(b"\xff\xd9"):
+        return None
+    # Re-encode from the decoded bytes so only canonical base64 goes back out.
+    return AVATAR_PREFIX + base64.b64encode(raw).decode("ascii")
 
 
 class Deck:
@@ -155,6 +187,13 @@ class PsychRoom:
         self.queue: list[str] = []  # guessers still to go; queue[0] is up
         self.guesses: dict[str, Square] = {}
         self.points: dict[str, int] = {}
+        # Second-marker variant: each guesser's real opinion of the main player.
+        self.opinions_on = False
+        self.opinion_points_on = False
+        self.opinions: dict[str, Square] = {}
+        self.opinion_points: dict[str, float] = {}
+        self.avatars: dict[str, str] = {}
+        self._avatar_at: dict[str, float] = {}
         self.winners: list[str] = []
         self._x_deck = Deck(X_DECK, self._rng)
         self._y_deck = Deck(Y_DECK, self._rng)
@@ -216,7 +255,10 @@ class PsychRoom:
         self.seats = [s for s in self.seats if s != player_id]
         self.order = [s for s in self.order if s != player_id]
         self.guesses.pop(player_id, None)  # their square opens back up
+        self.opinions.pop(player_id, None)
         self.points.pop(player_id, None)
+        self.opinion_points.pop(player_id, None)
+        self.avatars.pop(player_id, None)
         self.winners = [w for w in self.winners if w != player_id]
         if was_main:
             self.main_id = None
@@ -267,6 +309,52 @@ class PsychRoom:
         self.target = n
         return True
 
+    def set_opinions(self, on: object) -> bool:
+        """Lobby: guessers also place a second marker with their real opinion."""
+        if self.phase != "lobby" or not isinstance(on, bool):
+            return False
+        self.opinions_on = on
+        if not on:
+            self.opinion_points_on = False
+        return True
+
+    def set_opinion_points(self, on: object) -> bool:
+        """Lobby: second markers score half points (needs second markers on)."""
+        if self.phase != "lobby" or not isinstance(on, bool) or (on and not self.opinions_on):
+            return False
+        self.opinion_points_on = on
+        return True
+
+    def adjust_score(self, player_id: object, delta: object) -> bool:
+        """Host: fix someone's points by hand (+/-1, or +/-0.5 with half points)."""
+        p = self.players.get(player_id) if isinstance(player_id, str) else None
+        allowed = (-1, 1, -0.5, 0.5) if self.opinion_points_on else (-1, 1)
+        if p is None or isinstance(delta, bool) or delta not in allowed:
+            return False
+        new = min(MAX_SCORE, max(0, p.score + delta))  # type: ignore[operator]
+        if new == p.score:
+            return False
+        p.score = new
+        if self.phase == "reveal":
+            self.winners = rules.winners({q.id: q.score for q in self.players.values()}, self.target)
+        return True
+
+    def set_avatar(self, player_id: str, data: object) -> bool:
+        """A player's selfie (or None to remove it)."""
+        if player_id not in self.players:
+            return False
+        now = self._clock()
+        if now - self._avatar_at.get(player_id, -1e9) < AVATAR_COOLDOWN_SECONDS:
+            return False
+        self._avatar_at[player_id] = now
+        if data is None:
+            return self.avatars.pop(player_id, None) is not None
+        url = validate_avatar(data)
+        if url is None:
+            return False
+        self.avatars[player_id] = url
+        return True
+
     # ---- Turn flow -------------------------------------------------------
 
     @property
@@ -290,8 +378,12 @@ class PsychRoom:
         self._start_turn(self.seats[0])
         return True
 
-    def mark(self, player_id: str, x: object, y: object) -> bool:
-        """The main player's secret mark, or the current guesser's guess."""
+    def mark(self, player_id: str, x: object, y: object, ox: object = None, oy: object = None) -> bool:
+        """The main player's secret mark, or the current guesser's guess.
+
+        With second markers on, a guess must come with the guesser's real
+        opinion (ox, oy), which may sit on any square.
+        """
         if not rules.valid_square(x, y) or player_id != self.current_id:
             return False
         sq = (x, y)  # type: ignore[assignment]
@@ -304,11 +396,24 @@ class PsychRoom:
             return True
         if sq in self.guesses.values():
             return False  # someone already claimed it
+        if self.opinions_on:
+            if not rules.valid_square(ox, oy):
+                return False
+            self.opinions[player_id] = (ox, oy)  # type: ignore[assignment]
         self.guesses[player_id] = sq
         self.queue.pop(0)
         self._actor_since = self._clock()
         if not self.queue:
             self._reveal()
+        return True
+
+    def unmark(self, player_id: str) -> bool:
+        """The main player takes back their secret mark, until someone has guessed."""
+        if self.phase != "guessing" or player_id != self.main_id or self.guesses:
+            return False
+        self.secret = None
+        self.phase = "secret"
+        self._actor_since = self._clock()
         return True
 
     def skip(self) -> bool:
@@ -370,14 +475,21 @@ class PsychRoom:
         self.queue = list(self.order)
         self.guesses = {}
         self.points = {}
+        self.opinions = {}
+        self.opinion_points = {}
         self._actor_since = self._clock()
 
     def _reveal(self) -> None:
         assert self.secret is not None
         self.phase = "reveal"
         self.points = {pid: rules.score(sq, self.secret) for pid, sq in self.guesses.items()}
+        self.opinion_points = (
+            {pid: rules.score(sq, self.secret) / 2 for pid, sq in self.opinions.items()}
+            if self.opinion_points_on
+            else {}
+        )
         for pid, pts in self.points.items():
-            self.players[pid].score += pts
+            self.players[pid].score += pts + self.opinion_points.get(pid, 0)
         self.winners = rules.winners({p.id: p.score for p in self.players.values()}, self.target)
 
     def _to_lobby(self) -> None:
@@ -389,6 +501,8 @@ class PsychRoom:
         self.queue = []
         self.guesses = {}
         self.points = {}
+        self.opinions = {}
+        self.opinion_points = {}
         self.winners = []
 
     # ---- Bots ------------------------------------------------------------
@@ -408,6 +522,9 @@ class PsychRoom:
             if (x, y) not in taken
         ]
         x, y = self._rng.choice(open_squares)
+        if self.phase == "guessing" and self.opinions_on:
+            ox, oy = self._rng.randint(1, rules.GRID_SIZE), self._rng.randint(1, rules.GRID_SIZE)
+            return self.mark(actor.id, x, y, ox, oy)
         return self.mark(actor.id, x, y)
 
     # ---- Messages ----------------------------------------------------------
@@ -428,9 +545,16 @@ class PsychRoom:
             "traits": {"x": self.traits[0], "y": self.traits[1]} if self.traits else None,
             "secretMarked": self.secret is not None,
             "guesses": [{"playerId": pid, "x": sq[0], "y": sq[1]} for pid, sq in self.guesses.items()],
+            "opinions": [{"playerId": pid, "x": sq[0], "y": sq[1]} for pid, sq in self.opinions.items()],
+            "settings": {"opinions": self.opinions_on, "opinionPoints": self.opinion_points_on},
             # The secret only leaves the server (to everyone) once it's revealed.
             "reveal": (
-                {"x": self.secret[0], "y": self.secret[1], "points": dict(self.points)}
+                {
+                    "x": self.secret[0],
+                    "y": self.secret[1],
+                    "points": dict(self.points),
+                    "opinionPoints": {pid: num(v) for pid, v in self.opinion_points.items()},
+                }
                 if shown and self.secret is not None
                 else None
             ),
@@ -444,6 +568,12 @@ class PsychRoom:
         if self.secret is None or self.phase not in ("guessing", "reveal"):
             return None
         return {"type": "secret", "turn": self.turn, "x": self.secret[0], "y": self.secret[1]}
+
+    def avatars_msg(self) -> dict:
+        return {"type": "avatars", "avatars": dict(self.avatars)}
+
+    async def broadcast_avatars(self) -> None:
+        await self._send_all(self.avatars_msg(), list(self.tv_conns) + list(self.player_conns.values()))
 
     async def broadcast_state(self) -> None:
         await self._send_all(self.state_dict(), list(self.tv_conns) + list(self.player_conns.values()))
