@@ -1,10 +1,17 @@
+import { lazy, Suspense } from 'react';
 import { AdminPage, PrintSheet } from './hunt/AdminPage';
 import { ClaimPage, RelicsPage } from './hunt/ClaimPage';
 import { PlayApp } from './play/PlayApp';
 import { TvApp } from './tv/TvApp';
 
+// Psychological: a separate game, loaded as its own chunk (JS + CSS) only on its pages.
+const PsychTv = lazy(() => import('./psych/PsychTv').then((m) => ({ default: m.PsychTv })));
+const PsychPlay = lazy(() => import('./psych/PsychPlay').then((m) => ({ default: m.PsychPlay })));
+
 export function App() {
   const path = location.pathname.replace(/\/+$/, '');
+  if (path === '/psychological') return <Suspense fallback={null}><PsychTv /></Suspense>;
+  if (path === '/psychological/play') return <Suspense fallback={null}><PsychPlay /></Suspense>;
   if (path === '/tv') return <TvApp />;
   if (path === '/play') return <PlayApp />;
   if (path === '/relics') return <RelicsPage />;

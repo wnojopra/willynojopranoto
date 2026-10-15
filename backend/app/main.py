@@ -19,6 +19,7 @@ from starlette.requests import Request
 from app import hunt_api
 from app.origins import origin_ok
 from app.rooms import JoinError, RoomLimitError, RoomManager
+from app.psych import api as psych_api  # Psychological: a separate game at /psychological
 
 logging.basicConfig(level=os.environ.get("SB_LOG_LEVEL", "INFO"))
 log = logging.getLogger("spiritboard")
@@ -62,6 +63,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(hunt_api.router)
+app.include_router(psych_api.router)
 manager = RoomManager()
 
 
@@ -345,6 +347,8 @@ if STATIC_DIR.is_dir():
     @app.api_route("/admin", methods=["GET", "HEAD"])
     @app.api_route("/admin/print", methods=["GET", "HEAD"])
     @app.api_route("/claim/{token}", methods=["GET", "HEAD"])
+    @app.api_route("/psychological", methods=["GET", "HEAD"])
+    @app.api_route("/psychological/play", methods=["GET", "HEAD"])
     async def spa_routes(request: Request) -> FileResponse:
         response = FileResponse(_index, headers={"Cache-Control": "no-store"})
         hunt_api.ensure_client_cookies(request, response)

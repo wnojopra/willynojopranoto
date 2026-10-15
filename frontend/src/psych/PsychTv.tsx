@@ -1,0 +1,431 @@
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { QrCode } from '../tv/QrCode';
+import { Grid } from './Grid';
+import { HeadArt } from './HeadArt';
+import { GoldMarker, Pawn, Token } from './Pawn';
+import type { PsyPlayer, PsyServerMsg, PsyState } from './protocol';
+import { ensureSession, loadPsychFonts, usePsychSocket } from './usePsychSocket';
+import './psych.css';
+
+/** This tab's room code, so a refreshed TV gets its room back (checked server-side by device cookie). */
+const ROOM_KEY = 'psy-tv-room';
+const MAX_RETRIES = 8;
+
+function savedRoom(): string | null {
+  try {
+    return sessionStorage.getItem(ROOM_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveRoom(code: string | null) {
+  try {
+    if (code) sessionStorage.setItem(ROOM_KEY, code);
+    else sessionStorage.removeItem(ROOM_KEY);
+  } catch {
+    // Without sessionStorage a refresh just makes a new room.
+  }
+}
+
+/** A button that needs a second click within a few seconds (no blocking confirm()). */
+function ConfirmButton({ id, label, confirmLabel, onConfirm, className }: { id: string; label: string; confirmLabel: string; onConfirm: () => void; className?: string }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(t);
+  }, [armed]);
+  return (
+    <button
+      id={id}
+      type="button"
+      className={`psy-btn ${armed ? 'psy-btn--danger' : className ?? 'psy-btn--ghost'}`}
+      onClick={() => {
+        if (armed) {
+          setArmed(false);
+          onConfirm();
+        } else setArmed(true);
+      }}
+    >
+      {armed ? confirmLabel : label}
+    </button>
+  );
+}
+
+export function PsychTv() {
+  const [state, setState] = useState<PsyState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [retries, setRetries] = useState(0);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    document.title = 'Psychological';
+    loadPsychFonts();
+    ensureSession().then(() => setReady(true));
+  }, []);
+
+  const onMessage = useCallback((msg: PsyServerMsg) => {
+    if (msg.type === 'state') setState(msg);
+    else if (msg.type === 'created') {
+      saveRoom(msg.code);
+      setRetries(0);
+    } else if (msg.type === 'error') setError(msg.message);
+  }, []);
+
+  // Recomputed per attempt (not when the code arrives, which would reconnect).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const firstMessage = useMemo(() => JSON.stringify({ type: 'create', resume: savedRoom() }), [attempt]);
+  const { status, send } = usePsychSocket(ready ? '/ws/psych/tv' : null, firstMessage, onMessage, attempt);
+
+  const lost = status === 'closed' && !error;
+  useEffect(() => {
+    if (!lost || retries >= MAX_RETRIES) return;
+    const id = setTimeout(() => {
+      setRetries((n) => n + 1);
+      setAttempt((n) => n + 1);
+    }, Math.min(8000, 800 * 2 ** retries));
+    return () => clearTimeout(id);
+  }, [lost, retries]);
+
+  let screen;
+  if (error || (lost && retries >= MAX_RETRIES)) {
+    screen = (
+      <main className="psy-center">
+        <div className="psy-panel">
+          <h1 className="psy-title">Connection lost</h1>
+          <p className="psy-sub">{error ?? 'Lost connection to the game server.'}</p>
+          <div className="psy-row">
+            {!error && (
+              <button
+                id="psy-tv-reconnect"
+                type="button"
+                className="psy-btn psy-btn--primary"
+                onClick={() => {
+                  setRetries(0);
+                  setAttempt((n) => n + 1);
+                }}
+              >
+                Reconnect
+              </button>
+            )}
+            <button
+              id="psy-tv-new"
+              type="button"
+              className="psy-btn psy-btn--ghost"
+              onClick={() => {
+                saveRoom(null);
+                location.reload();
+              }}
+            >
+              Start a new game
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  } else if (!state) {
+    screen = (
+      <main className="psy-center">
+        <p className="psy-sub">Setting up the board…</p>
+      </main>
+    );
+  } else if (state.phase === 'lobby') {
+    screen = <Lobby state={state} send={send} />;
+  } else if (state.phase === 'gameover') {
+    screen = <GameOver state={state} send={send} />;
+  } else {
+    screen = <Play state={state} send={send} />;
+  }
+  return <div className="psy-root psy-root--tv">{screen}</div>;
+}
+
+type Send = (msg: object) => void;
+
+function Lobby({ state, send }: { state: PsyState; send: Send }) {
+  const joinUrl = `${location.origin}/psychological/play?code=${state.code}`;
+  const hasBots = state.players.some((p) => p.isBot);
+  return (
+    <main className="psy-lobby">
+      <section className="psy-lobby__art">
+        <HeadArt className="psy-lobby__head" />
+        <h1 className="psy-logo">
+          <span className="psy-logo__psycho">Psycho</span>
+          <span className="psy-logo__logical">logical</span>
+          <span className="psy-byline">by Willy Nojopranoto</span>
+        </h1>
+        <p className="psy-sub psy-sub--light">How well do your friends really know you?</p>
+      </section>
+      <section className="psy-panel psy-lobby__panel">
+        <div className="psy-lobby__join">
+          <div>
+            <p className="psy-kicker">Join on your phone</p>
+            <p className="psy-url">
+              {location.host}
+              <wbr />
+              /psychological/play
+            </p>
+            <p className="psy-kicker">Room code</p>
+            <p className="psy-code" id="psy-code">
+              {state.code}
+            </p>
+          </div>
+          <QrCode value={joinUrl} className="psy-qr" label={`Scan to join room ${state.code}`} />
+        </div>
+
+        <h2 className="psy-h2">
+          Players <span className="psy-muted">(turn order)</span>
+        </h2>
+        {state.players.length === 0 ? (
+          <p className="psy-muted">Waiting for players…</p>
+        ) : (
+          <ol className="psy-roster">
+            {state.players.map((p, i) => (
+              <li key={p.id} className={`psy-roster__item ${p.connected ? '' : 'psy-roster__item--off'}`}>
+                <Pawn color={p.color} className="psy-roster__pawn" />
+                <span className="psy-roster__name">
+                  {p.name}
+                  {p.isBot && <span className="psy-muted"> (bot)</span>}
+                </span>
+                <span className="psy-roster__tools">
+                  <button type="button" className="psy-icon" aria-label={`Move ${p.name} earlier`} disabled={i === 0} onClick={() => send({ type: 'move_seat', playerId: p.id, dir: -1 })}>
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    className="psy-icon"
+                    aria-label={`Move ${p.name} later`}
+                    disabled={i === state.players.length - 1}
+                    onClick={() => send({ type: 'move_seat', playerId: p.id, dir: 1 })}
+                  >
+                    ▼
+                  </button>
+                  <button type="button" className="psy-icon psy-icon--x" aria-label={`Remove ${p.name}`} onClick={() => send({ type: 'kick', playerId: p.id })}>
+                    ✕
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        <div className="psy-lobby__settings">
+          <span className="psy-kicker">First to</span>
+          <button type="button" className="psy-icon" aria-label="Lower target score" disabled={state.target <= 5} onClick={() => send({ type: 'set_target', target: state.target - 1 })}>
+            −
+          </button>
+          <strong className="psy-target" id="psy-target">
+            {state.target}
+          </strong>
+          <button type="button" className="psy-icon" aria-label="Raise target score" disabled={state.target >= 20} onClick={() => send({ type: 'set_target', target: state.target + 1 })}>
+            +
+          </button>
+          <span className="psy-kicker">points</span>
+          <span className="psy-spacer" />
+          <button id="psy-add-bot" type="button" className="psy-btn psy-btn--ghost psy-btn--small" onClick={() => send({ type: 'add_bot' })}>
+            + Bot
+          </button>
+          {hasBots && (
+            <button id="psy-remove-bot" type="button" className="psy-btn psy-btn--ghost psy-btn--small" onClick={() => send({ type: 'remove_bot' })}>
+              − Bot
+            </button>
+          )}
+        </div>
+
+        <button id="psy-start" type="button" className="psy-btn psy-btn--primary psy-btn--big" disabled={!state.canStart} onClick={() => send({ type: 'start' })}>
+          {state.canStart ? 'Start the game' : `Need ${state.minPlayers} players`}
+        </button>
+      </section>
+    </main>
+  );
+}
+
+function Play({ state, send }: { state: PsyState; send: Send }) {
+  const byId = new Map(state.players.map((p) => [p.id, p]));
+  const main = state.mainId ? byId.get(state.mainId) : undefined;
+  const current = state.currentId ? byId.get(state.currentId) : undefined;
+  const revealing = state.phase === 'reveal';
+  const guessed = new Set(state.guesses.map((g) => g.playerId));
+  const standings = [...state.players].sort((a, b) => b.score - a.score);
+
+  let banner: ReactNode;
+  if (state.phase === 'secret') {
+    banner = (
+      <>
+        <Name p={main} /> is marking where they see themself…
+        <span className="psy-banner__hint">Secretly, on their phone. No peeking.</span>
+      </>
+    );
+  } else if (state.phase === 'guessing') {
+    banner = (
+      <>
+        <Name p={current} />, where did <Name p={main} /> put themself?
+        <span className="psy-banner__hint">Taken squares are blocked.</span>
+      </>
+    );
+  } else {
+    const winners = state.winners.map((id) => byId.get(id)).filter(Boolean) as PsyPlayer[];
+    banner = winners.length ? (
+      <>
+        {winners.map((w, i) => (
+          <span key={w.id}>
+            {i > 0 && ' & '}
+            <Name p={w} />
+          </span>
+        ))}{' '}
+        reached {state.target}!
+      </>
+    ) : (
+      <>
+        Here's where <Name p={main} /> put themself.
+      </>
+    );
+  }
+
+  return (
+    <main className="psy-game">
+      <section className="psy-stage">
+        <div className="psy-boardcard">
+          <HeadArt className="psy-boardcard__head" />
+          <Grid
+            size="tv"
+            traits={state.traits}
+            players={state.players}
+            guesses={state.guesses}
+            secret={revealing ? state.reveal : null}
+            showZones={revealing}
+            points={revealing ? state.reveal?.points : undefined}
+          />
+        </div>
+      </section>
+
+      <aside className="psy-side">
+        <div className="psy-panel psy-banner" key={`${state.turn}-${state.phase}-${state.currentId}`}>
+          <p className="psy-kicker">
+            Turn {state.turn} · <Name p={main} />
+            ’s turn
+          </p>
+          <p className="psy-banner__text">{banner}</p>
+        </div>
+
+        <div className="psy-panel">
+          <h2 className="psy-h2">Guessing order</h2>
+          <ol className="psy-order">
+            <li className={`psy-order__item ${state.phase === 'secret' ? 'psy-order__item--now' : ''}`}>
+              <GoldMarker className="psy-order__gold" />
+              <span>{main?.name ?? '—'}</span>
+              <span className="psy-order__state">{state.secretMarked ? '✓ marked' : 'marking…'}</span>
+            </li>
+            {state.order.map((id) => {
+              const p = byId.get(id);
+              if (!p) return null;
+              const now = id === state.currentId;
+              const pts = state.reveal?.points[id];
+              const stateText = guessed.has(id)
+                ? revealing
+                  ? `+${pts ?? 0}`
+                  : '✓'
+                : now
+                  ? 'guessing…'
+                  : state.queue.includes(id)
+                    ? ''
+                    : 'skipped';
+              return (
+                <li key={id} className={`psy-order__item ${now ? 'psy-order__item--now' : ''} ${p.connected ? '' : 'psy-order__item--off'}`}>
+                  <Token color={p.color} />
+                  <span>{p.name}</span>
+                  <span className="psy-order__state">{stateText}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+
+        <div className="psy-panel">
+          <h2 className="psy-h2">
+            Scores <span className="psy-muted">· first to {state.target}</span>
+          </h2>
+          <ul className="psy-scores">
+            {standings.map((p) => (
+              <li key={p.id} className="psy-scores__item">
+                <Token color={p.color} />
+                <span className="psy-scores__name">{p.name}</span>
+                <span className="psy-scores__bar" aria-hidden="true">
+                  <span className="psy-scores__fill" style={{ width: `${Math.min(100, (p.score / state.target) * 100)}%`, backgroundColor: p.color }} />
+                </span>
+                <strong className="psy-scores__num">{p.score}</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="psy-row psy-host">
+          {revealing ? (
+            <button id="psy-next" type="button" className="psy-btn psy-btn--primary psy-btn--big" onClick={() => send({ type: 'next_turn' })}>
+              {state.winners.length ? 'See the winner' : 'Next turn'}
+            </button>
+          ) : (
+            <>
+              <button id="psy-skip" type="button" className="psy-btn psy-btn--ghost" onClick={() => send({ type: 'skip' })}>
+                Skip {current?.name ?? ''}
+              </button>
+              {state.phase === 'secret' && (
+                <button id="psy-redraw" type="button" className="psy-btn psy-btn--ghost" onClick={() => send({ type: 'redraw' })}>
+                  New cards
+                </button>
+              )}
+            </>
+          )}
+          <ConfirmButton id="psy-end" label="End game" confirmLabel="Really end?" onConfirm={() => send({ type: 'play_again' })} />
+        </div>
+        <p className="psy-byline psy-byline--side">Psychological · by Willy Nojopranoto</p>
+      </aside>
+    </main>
+  );
+}
+
+function GameOver({ state, send }: { state: PsyState; send: Send }) {
+  const byId = new Map(state.players.map((p) => [p.id, p]));
+  const winners = state.winners.map((id) => byId.get(id)).filter(Boolean) as PsyPlayer[];
+  const standings = [...state.players].sort((a, b) => b.score - a.score);
+  return (
+    <main className="psy-center">
+      <div className="psy-panel psy-over">
+        <p className="psy-kicker">{winners.length > 1 ? "It's a tie!" : 'Winner'}</p>
+        <div className="psy-podium">
+          {winners.map((w) => (
+            <div key={w.id} className="psy-podium__spot">
+              <Pawn color={w.color} className="psy-podium__pawn" title={w.name} />
+              <div className="psy-podium__block">{w.name}</div>
+            </div>
+          ))}
+        </div>
+        <p className="psy-sub">{winners.length > 1 ? 'They know each other a little too well.' : 'Reads people like a book.'}</p>
+        <ol className="psy-scores psy-scores--final">
+          {standings.map((p) => (
+            <li key={p.id} className="psy-scores__item">
+              <Token color={p.color} />
+              <span className="psy-scores__name">{p.name}</span>
+              <strong className="psy-scores__num">{p.score}</strong>
+            </li>
+          ))}
+        </ol>
+        <p className="psy-byline psy-byline--ink">Psychological · by Willy Nojopranoto</p>
+        <button id="psy-again" type="button" className="psy-btn psy-btn--primary psy-btn--big" onClick={() => send({ type: 'play_again' })}>
+          Play again
+        </button>
+      </div>
+    </main>
+  );
+}
+
+function Name({ p }: { p: PsyPlayer | undefined }) {
+  if (!p) return <strong>someone</strong>;
+  return (
+    <strong className="psy-name">
+      <Token color={p.color} className="psy-name__token" />
+      {p.name}
+    </strong>
+  );
+}

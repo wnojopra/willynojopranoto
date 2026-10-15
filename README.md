@@ -80,6 +80,13 @@ Design doc: [`docs/design.md`](docs/design.md)
 - **Reconnects**: a refreshed or dropped TV gets its room back (same game, same players).
   Phones rejoin on their own after a refresh, a locked screen, or a Wi-Fi blip
 
+## 🧠 Psychological (separate game, same app)
+
+A digital take on PlayMonster's *Psychological*: TV at **`/psychological`**, phones at
+**`/psychological/play`**. Totally separate from Spirit Board (own rooms, own WebSockets
+`/ws/psych/*`, own lazily loaded JS/CSS chunk). Rules, design, and files:
+[`docs/psychological.md`](docs/psychological.md).
+
 ## Layout
 
 ```
