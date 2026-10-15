@@ -6,7 +6,7 @@ import { HeadArt } from './HeadArt';
 import { HowToOverlay } from './HowTo';
 import { Crown, GoldMarker, Pawn, Token } from './Pawn';
 import type { Photos, PsyPlayer, PsyServerMsg, PsyState } from './protocol';
-import { Strike } from './Strike';
+import { pickStrikeVariant, Strike, type StrikeBag } from './Strike';
 import { ensureSession, loadPsychFonts, usePsychSocket } from './usePsychSocket';
 import './psych.css';
 
@@ -88,6 +88,7 @@ export function PsychTv() {
   const [retries, setRetries] = useState(0);
   const [ready, setReady] = useState(false);
   const [howTo, setHowTo] = useState(false);
+  const strikeBag = useRef<StrikeBag>({ remaining: [] });
 
   useEffect(() => {
     document.title = 'Psychological';
@@ -166,7 +167,7 @@ export function PsychTv() {
   } else if (state.phase === 'gameover') {
     screen = <GameOver state={state} photos={photos} send={send} />;
   } else {
-    screen = <Play state={state} photos={photos} send={send} onHowTo={() => setHowTo(true)} />;
+    screen = <Play state={state} photos={photos} send={send} onHowTo={() => setHowTo(true)} strikeBag={strikeBag} />;
   }
   return (
     <div className="psy-root psy-root--tv">
@@ -299,7 +300,19 @@ function Lobby({ state, photos, send, onHowTo }: { state: PsyState; photos: Phot
   );
 }
 
-function Play({ state, photos, send, onHowTo }: { state: PsyState; photos: Photos; send: Send; onHowTo: () => void }) {
+function Play({
+  state,
+  photos,
+  send,
+  onHowTo,
+  strikeBag,
+}: {
+  state: PsyState;
+  photos: Photos;
+  send: Send;
+  onHowTo: () => void;
+  strikeBag: React.RefObject<StrikeBag>;
+}) {
   const byId = new Map(state.players.map((p) => [p.id, p]));
   const main = state.mainId ? byId.get(state.mainId) : undefined;
   const current = state.currentId ? byId.get(state.currentId) : undefined;
@@ -318,8 +331,7 @@ function Play({ state, photos, send, onHowTo }: { state: PsyState; photos: Photo
   }, [word]);
   useEffect(() => setWord(null), [state.turn]);
 
-  // Bullseye celebration: once per turn, rotating through the variants.
-  const strikes = useRef(0);
+  // Bullseye celebration: once per turn, picked at random without repeats.
   const celebrated = useRef(0);
   const [strike, setStrike] = useState<{ variant: number; player: PsyPlayer } | null>(null);
   const bullseyeId = revealing && state.reveal ? Object.keys(state.reveal.points).find((id) => state.reveal!.points[id] === 3) : undefined;
@@ -328,7 +340,7 @@ function Play({ state, photos, send, onHowTo }: { state: PsyState; photos: Photo
     const p = byId.get(bullseyeId);
     if (!p) return;
     celebrated.current = state.turn;
-    const variant = strikes.current++;
+    const variant = pickStrikeVariant(strikeBag.current);
     const show = setTimeout(() => setStrike({ variant, player: p }), STRIKE_DELAY_MS);
     const hide = setTimeout(() => setStrike(null), STRIKE_DELAY_MS + STRIKE_MS);
     return () => {

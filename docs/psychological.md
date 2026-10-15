@@ -58,7 +58,7 @@ service as Spirit Board but fully separate from it.
 ### Fun stuff
 
 - A **bullseye** (3 points) sets off a bowling-alley-style celebration on the TV,
-  rotating through five: STRIKE!, MIND READER!, GET OUT OF MY HEAD!,
+  picked at random without repeats from five: STRIKE!, MIND READER!, GET OUT OF MY HEAD!,
   ARE YOU IN MY WALLS?, ONE SHARED BRAIN CELL (`Strike.tsx`).
 - The winner wears a badly drawn crown, and last place gets roasted.
 

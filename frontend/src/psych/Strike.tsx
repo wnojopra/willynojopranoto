@@ -3,9 +3,30 @@ import { Pawn } from './Pawn';
 
 /**
  * Bowling-alley "STRIKE!" style celebrations for a 3-point bullseye on the TV.
- * They take turns (variant = number of bullseyes so far, mod 5). Pure SVG/CSS.
+ * Chosen at random without repeats until all 5 have played. Pure SVG/CSS.
  */
 export const STRIKE_VARIANTS = 5;
+
+export interface StrikeBag {
+  remaining: number[];
+  last?: number;
+}
+
+/**
+ * Picks a random variant in 0..STRIKE_VARIANTS-1 without repeating any variant
+ * until all have been played, and avoids a back-to-back repeat on refill.
+ */
+export function pickStrikeVariant(bag: StrikeBag, rng: () => number = Math.random): number {
+  if (bag.remaining.length === 0) {
+    bag.remaining = Array.from({ length: STRIKE_VARIANTS }, (_, i) => i);
+  }
+  const pool = bag.remaining.length > 1 && bag.last !== undefined ? bag.remaining.filter((v) => v !== bag.last) : bag.remaining;
+  const idx = Math.min(pool.length - 1, Math.floor(rng() * pool.length));
+  const pick = pool[idx];
+  bag.remaining = bag.remaining.filter((v) => v !== pick);
+  bag.last = pick;
+  return pick;
+}
 
 interface StrikeProps {
   variant: number;
