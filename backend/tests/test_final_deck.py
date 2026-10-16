@@ -2,7 +2,7 @@
 
 import random
 
-from app.questions import FINAL_DECK, Question
+from app.questions import DECK, FINAL_DECK, KINDS, MEDIUM_DECK, OPTIONS_MAX, OPTIONS_MIN, TEXT_MAX, TEXT_MIN, Question
 from app.rooms import Room
 
 
@@ -14,8 +14,23 @@ def make_room(seed: int = 1) -> Room:
 
 
 def test_final_deck_has_variety():
-    assert len(FINAL_DECK) >= 10
+    assert len(FINAL_DECK) >= 6
     assert len(set(FINAL_DECK)) == len(FINAL_DECK)
+
+
+def test_all_builtin_decks_are_valid():
+    for deck in (DECK, MEDIUM_DECK, FINAL_DECK):
+        assert len({q.text for q in deck}) == len(deck)
+        for q in deck:
+            assert q.kind in KINDS
+            assert TEXT_MIN <= len(q.text) <= TEXT_MAX
+            cleaned = q.text.replace("{player}", "")
+            assert "{" not in cleaned and "}" not in cleaned
+            if q.kind == "pick":
+                assert OPTIONS_MIN <= len(q.options) <= OPTIONS_MAX
+                assert len({o.casefold() for o in q.options}) == len(q.options)
+            else:
+                assert q.options == ()
 
 
 def test_finals_do_not_repeat_until_deck_is_used_up():

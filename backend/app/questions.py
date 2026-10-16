@@ -31,66 +31,117 @@ YES_NO_SPOTS = [
 
 # Spirit Bets rounds.
 DECK: list[Question] = [
+    # --- Spooktacular VI & Tonight's Party --------------------------------
+    Question("who", "Who in this room is already thinking about going to bed?"),
+    Question("who", "Who did / is going to tear Mimi’s house apart the hardest looking for clues?"),
+    Question("who", "Who is most likely to find a clue Mimi hid in 2023 and forgot about?"),
+    Question("who", "Who put the least effort into their costume tonight?"),
+    Question("who", "Who is going to get wrecked by Justin’s drinks first?"),
+    Question("who", "Who is going to blame the AI when they lose this game?"),
+    Question("who", "Who here could drink the entire room under the table without breaking a sweat?"),
+    Question("who", "Who is most likely to corner a hostage at 11pm to play one more board game?"),
+    # --- Friend Group Lore & Roasts ---------------------------------------
+    Question("who", "Who is going to be the reason White Elephant gets cancelled this year?"),
+    Question("who", "Who would collude with their spouse just to escape a bad White Elephant gift?"),
+    Question("who", "Who gets the angriest at losing?"),
+    Question("who", "Who here has been forced to consume the most Stray Kids content against their will?"),
+    Question("who", "Who would bring stinky food into a haunted house and scare the ghosts away?"),
+    Question("who", "Who could eat 5,000 calories tonight and still be the fittest person here tomorrow?"),
+    Question("who", "Who is most likely to get paged by their work in the middle of a séance?"),
+    Question("who", "Who is most likely to tell a dad joke so bad the ghost leaves the room?"),
+    Question("who", "Who is showing up 45 minutes late to their own haunting?"),
+    # --- Spooky & Unhinged Hypotheticals ----------------------------------
     Question("who", "Who would be the first to die in a horror movie?"),
-    Question("who", "Who would hook up with the ghost instead of running?"),
-    Question("who", "Who would sell out the whole group to the demon for $50?"),
+    Question("who", "Who would survive a horror movie by sacrificing everyone else?"),
+    Question("who", "Who would try to analyze or medically diagnose the ghost instead of running?"),
     Question("who", "Who has the most haunted search history?"),
-    Question("who", "Who would get possessed and nobody would notice?"),
-    Question("who", "Who would read the cursed book out loud \u201cjust to see\u201d?"),
-    Question("who", "Who would try to start an OnlyFans with the ghost?"),
-    Question("who", "Who would charge the demon rent?"),
-    Question("who", "Who is most likely to have a body in their basement?"),
-    Question("who", "Who would survive the horror movie by sacrificing everyone else?"),
-    Question("yesno", "Is {player} the real reason the lights keep flickering?"),
-    Question("yesno", "Has {player} ever ghosted someone worse than an actual ghost?"),
-    Question("yesno", "Would {player} survive a zombie apocalypse past day 2?"),
-    Question("yesno", "Will {player} survive the night?"),
+    Question("who", "Who would sell out the whole group to the demon for a Michelin-star dinner?"),
+    # --- Yes / No / Maybe / Ask Again -------------------------------------
+    Question("yesno", "Will {player} still be awake at 1:00am tonight?"),
+    Question("yesno", "Will White Elephant actually happen this year before January ends?"),
+    Question("yesno", "Does Mimi actually remember where she hid all the clues tonight?"),
+    Question("yesno", "Would {player} survive a horror movie past the opening credits?"),
+    Question("yesno", "Will we see Justin and Athena again before Spooktacular VII?"),
+    # --- Pick One (options <= 16 chars for the board) ---------------------
     Question(
         "pick",
-        "What is {player}\u2019s ghost form?",
-        ("Victorian child", "Slutty spirit", "HOA ghost", "Costco ghost"),
+        "Why will White Elephant get cancelled again?",
+        ("Natalie’s abroad", "Busy till March", "Rocks rocks rocks", "People ghosting"),
     ),
     Question(
         "pick",
-        "What\u2019s in {player}\u2019s cursed basement?",
-        ("Browser history", "400 Crocs", "More basement", "Their ex"),
+        "What is {player} doing at 10:15pm tonight?",
+        ("Dead asleep", "Drinking", "Hunting for clues", "Eating"),
     ),
     Question(
         "pick",
-        "What\u2019s actually haunting this house?",
-        ("A Victorian kid", "Mold", "The landlord", "Someone\u2019s ex"),
+        "What is still hidden in Mimi’s house from a past party?",
+        ("A 2022 clue", "D&D props", "Penalty drink", "Costume pieces"),
+    ),
+    Question(
+        "pick",
+        "Where is Natalie every November and December?",
+        ("Stray Kids tour", "In a spreadsheet", "Another country", "Dodging Xmas"),
+    ),
+    Question(
+        "pick",
+        "What is Curtis’s secret to staying the fittest in the group?",
+        ("Pure willpower", "Motor oil", "Badminton aura", "Dark magic"),
+    ),
+    Question(
+        "pick",
+        "What is the secret ingredient in Justin’s next cocktail?",
+        ("Liquid nitrogen", "Edible smoke", "Aviary alchemy", "80-proof love"),
+    ),
+    Question(
+        "pick",
+        "What would clear the ghosts out of this house fastest?",
+        ("Durian", "Jon’s dad jokes", "AI slop", "Kpop fancam"),
+    ),
+    Question(
+        "pick",
+        "What is {player}’s ghost form?",
+        ("Sleepy uncle", "Orb of memes", "Lil bitch ass ghost", "Slutty spirit"),
     ),
 ]
 
 # Medium rounds: the Medium answers honestly, everyone else guesses.
 # On "who" boards the Medium's own name is removed.
 MEDIUM_DECK: list[Question] = [
-    Question("who", "Who in this room would you trust to help you hide a body?"),
-    Question("who", "Who here would you least want to be stuck in a haunted elevator with?"),
-    Question("who", "Who in this room would you sacrifice first to save yourself from the demon?"),
+    Question("who", "Who in this room would you trust to plan your entire international vacation?"),
+    Question("who", "Who in this room would you pick as your doubles partner in life-or-death badminton?"),
+    Question("who", "Who here would you text first if you had a weird medical question at 2am?"),
+    Question("who", "Who in this room is most likely to fall asleep on the couch before this game ends?"),
+    Question("who", "Who here would you trust to help you hide a body and never tell anyone?"),
+    Question("who", "Who in this room has the most mysterious life outside of Spooktacular?"),
+    Question("who", "Who here would you trust to mix you a drink without ending your night early?"),
+    Question("who", "Who in this room would you recruit first for a D&D campaign?"),
     Question("who", "Who here would you call to bail you out of ghost jail?"),
-    Question("who", "Which person here would you want haunting your ex?"),
     Question(
         "pick",
-        "What would you do if the ghost was hot?",
-        ("Run", "Flirt", "Move in", "Start a podcast"),
+        "You unwrap a hated Super Soaker at White Elephant. What is your move?",
+        ("Spouse collusion", "Loud grunting", "Accept my fate", "Cancel Xmas"),
+    ),
+    Question(
+        "pick",
+        "Which penalty would you least want to draw during Mimi’s clue hunt?",
+        ("Mystery shot", "Bite of durian", "Hot sauce challenge", "Slap"),
+    ),
+    Question(
+        "pick",
+        "What would you do if the ghost haunting your house was hot?",
+        ("Run", "Flirt", "Charge it rent", "Tell Cynthia"),
     ),
 ]
 
 # The Final Séance (3x pot): one per game, rotating through the deck across games.
 FINAL_DECK: list[Question] = [
-    Question("who", "Who in this room is going to hell first?"),
-    Question("who", "Who here would sell their soul for the least?"),
-    Question("who", "Who in this room is secretly already a ghost?"),
-    Question("who", "Who would the demon possess first, and get bored of fastest?"),
-    Question("who", "Who here would summon a demon by accident?"),
-    Question("who", "Who in this room has the most cursed search history?"),
-    Question("who", "Who will haunt the rest of us when they go?"),
-    Question("who", "Who here would make a deal with the devil and still lose?"),
-    Question("who", "Who in this room would the ghosts vote off first?"),
-    Question("who", "Who should never, ever be left alone with a Ouija board?"),
-    Question("who", "Who here is the reason this house is haunted?"),
-    Question("who", "Who in this room would survive the whole horror movie?"),
+    Question("who", "Who in this room is the undisputed MVP of Spooktacular VI?"),
+    Question("who", "Who here would sell out the entire friend group to the demon first?"),
+    Question("who", "Who in this room will haunt the rest of us the hardest when they become a ghost?"),
+    Question("who", "Who here has the most chaotic energy hiding behind a respectable adult life?"),
+    Question("who", "Who in this room is going to need the longest recovery time tomorrow morning?"),
+    Question("who", "Who here is the true final boss of this friend group?"),
 ]
 FINAL_QUESTION = FINAL_DECK[0]
 
