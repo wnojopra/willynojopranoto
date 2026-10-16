@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # Builds with Cloud Build and deploys Spirit Board to Cloud Run.
 #
-#   ./deploy.sh            # normal deploy (scales to zero when idle)
-#   PARTY=1 ./deploy.sh    # party night: keep one instance warm all evening
+#   ./deploy.sh                  # party default: keep one instance warm
+#   MIN_INSTANCES=0 ./deploy.sh  # scale to zero when idle
 set -euo pipefail
 
 PROJECT="${PROJECT:-nojo-client}"
 REGION="${REGION:-us-west1}"
 SERVICE="${SERVICE:-spirit-board}"
-MIN_INSTANCES=0
-if [[ "${PARTY:-0}" == "1" ]]; then MIN_INSTANCES=1; fi
+MIN_INSTANCES="${MIN_INSTANCES:-1}"
 
 cd "$(dirname "$0")"
 

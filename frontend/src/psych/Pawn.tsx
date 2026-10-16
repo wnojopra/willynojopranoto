@@ -10,27 +10,25 @@ interface PawnProps {
   color: string;
   className?: string;
   title?: string;
-  /** A selfie: drawn as a big round face on the pawn's body. */
+  /** A selfie: replaces the pawn with a color-outlined square photo. */
   photo?: string;
 }
 
-/** A person-shaped game piece on a square base, like the physical pawns. */
+/** A person-shaped game piece on a square base, or a color-outlined square selfie. */
 export function Pawn({ color, className, title, photo }: PawnProps) {
   const clip = useSvgId();
   const stroke = isPale(color) ? '#8a8f98' : 'rgba(0,0,0,0.28)';
   const a11y = { role: title ? 'img' : undefined, 'aria-label': title, 'aria-hidden': title ? undefined : true } as const;
   if (photo) {
     return (
-      <svg className={`psy-pawn psy-pawn--photo ${className ?? ''}`} viewBox="0 0 40 48" {...a11y}>
+      <svg className={`psy-pawn psy-pawn--photo ${className ?? ''}`} viewBox="0 0 40 40" {...a11y}>
         <defs>
           <clipPath id={clip}>
-            <circle cx="20" cy="16" r="14" />
+            <rect x="4" y="4" width="32" height="32" rx="3.5" />
           </clipPath>
         </defs>
-        <rect x="5" y="38" width="30" height="8" rx="2" fill={color} stroke={stroke} strokeWidth="1.2" />
-        <path d="M13 38 L15 28 L25 28 L27 38 Z" fill={color} stroke={stroke} strokeWidth="1.2" strokeLinejoin="round" />
-        <circle cx="20" cy="16" r="15.5" fill={color} stroke={stroke} strokeWidth="1" />
-        <image href={photo} x="6" y="2" width="28" height="28" clipPath={`url(#${clip})`} preserveAspectRatio="xMidYMid slice" />
+        <rect x="1" y="1" width="38" height="38" rx="6" fill={color} stroke={stroke} strokeWidth="1.2" />
+        <image href={photo} x="4" y="4" width="32" height="32" clipPath={`url(#${clip})`} preserveAspectRatio="xMidYMid slice" />
       </svg>
     );
   }
