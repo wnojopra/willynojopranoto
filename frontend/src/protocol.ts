@@ -92,6 +92,8 @@ export interface RelicInfo {
   timing: 'pull' | 'bet' | 'any';
   target: 'player' | 'spot' | 'text' | null;
   blurb: string;
+  hint?: string;
+  help?: string;
 }
 
 /** A Relic someone used this round. Public, except `by` is null for Ghost Whisper. */

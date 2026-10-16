@@ -18,6 +18,7 @@ export function relicBlocked(info: RelicInfo, state: StateMsg, me: string, usedR
   const isMedium = state.medium?.playerId === me;
   const kind = state.game.roundKind;
   if (!ROUND_PHASES.has(state.phase)) return 'Only during a round';
+  if (kind === 'practice') return 'Relics rest in practice';
   if (usedRound === state.roundNo && kind !== 'final') return 'One per round';
   if (info.timing === 'pull' && (state.phase !== 'pull' || isMedium)) return isMedium ? 'Not for the Medium' : 'During the pull';
   if (info.timing === 'bet') {
@@ -29,7 +30,13 @@ export function relicBlocked(info: RelicInfo, state: StateMsg, me: string, usedR
   return null;
 }
 
-/** Your Relics, as a strip of buttons. Tapping one opens a sheet to aim it. */
+function timingLabel(info: RelicInfo): string {
+  if (info.timing === 'pull') return 'Use during the pull';
+  if (info.timing === 'bet') return 'Use while betting or pulling';
+  return 'Use any time in a round';
+}
+
+/** Your Relics, as a strip of buttons. Tapping one opens a sheet to inspect or aim it. */
 export function RelicTray({
   state,
   me,
@@ -37,6 +44,7 @@ export function RelicTray({
   error,
   myBet = null,
   onCast,
+  onInspect,
 }: {
   state: StateMsg;
   me: string;
@@ -45,6 +53,7 @@ export function RelicTray({
   /** Our current bet/guess (for the Tarot Card sheet). */
   myBet?: string | null;
   onCast: (key: RelicKey, target: string | null, text: string | null) => void;
+  onInspect?: (key: RelicKey) => void;
 }) {
   const [aiming, setAiming] = useState<RelicKey | null>(null);
   if (mine.relics.length === 0) return null;
@@ -55,6 +64,12 @@ export function RelicTray({
     setAiming(null);
     onCast(key, target, text);
   };
+  const openSheet = (key: RelicKey) => {
+    setAiming(key);
+    onInspect?.(key);
+  };
+  const aimingInfo = aiming ? state.relicCatalog[aiming] : undefined;
+  const aimingBlocked = aimingInfo ? relicBlocked(aimingInfo, state, me, mine.usedRound) : null;
 
   return (
     <section className="relics" aria-label="Your Relics">
@@ -63,22 +78,26 @@ export function RelicTray({
           const info = state.relicCatalog[key];
           if (!info) return null;
           const blocked = relicBlocked(info, state, me, mine.usedRound);
+          const summary = info.hint ?? info.blurb;
           return (
             <button
               key={key}
               id={`relic-${key}`}
               className="relic"
               data-tier={info.tier}
-              disabled={blocked !== null}
-              onClick={() => setAiming(key)}
-              aria-label={`${info.name}${n > 1 ? ` ×${n}` : ''}${blocked ? ` (${blocked})` : ''}`}
+              data-blocked={blocked ? '' : undefined}
+              onClick={() => openSheet(key)}
+              aria-label={`${info.name}${n > 1 ? ` ×${n}` : ''} — ${summary}${blocked ? ` (${blocked})` : ' (Ready to use)'}`}
             >
               <span className="relic__emoji" aria-hidden="true">
                 {info.emoji}
               </span>
               <span className="relic__name">{info.name}</span>
               {n > 1 && <span className="relic__count">×{n}</span>}
-              {blocked && <span className="relic__why">{blocked}</span>}
+              <span className="relic__hint">{summary}</span>
+              <span className="relic__why" data-ready={blocked === null ? '' : undefined}>
+                {blocked ? `${blocked} · tap for info` : '⚡ Ready · tap to use'}
+              </span>
             </button>
           );
         })}
@@ -88,8 +107,16 @@ export function RelicTray({
           {error}
         </p>
       )}
-      {aiming && state.relicCatalog[aiming] && relicBlocked(state.relicCatalog[aiming], state, me, mine.usedRound) === null && (
-        <RelicSheet info={state.relicCatalog[aiming]} state={state} me={me} myBet={myBet} onCast={cast} onClose={() => setAiming(null)} />
+      {aimingInfo && (
+        <RelicSheet
+          info={aimingInfo}
+          blocked={aimingBlocked}
+          state={state}
+          me={me}
+          myBet={myBet}
+          onCast={cast}
+          onClose={() => setAiming(null)}
+        />
       )}
     </section>
   );
@@ -97,6 +124,7 @@ export function RelicTray({
 
 function RelicSheet({
   info,
+  blocked,
   state,
   me,
   myBet,
@@ -104,6 +132,7 @@ function RelicSheet({
   onClose,
 }: {
   info: RelicInfo;
+  blocked: string | null;
   state: StateMsg;
   me: string;
   myBet: string | null;
@@ -130,8 +159,15 @@ function RelicSheet({
   // Safari doesn't support closedby yet: close on a tap outside the sheet.
   const onBackdrop = (e: MouseEvent<HTMLDialogElement>) => {
     if ('closedBy' in HTMLDialogElement.prototype) return;
+    if (e.target !== e.currentTarget) return;
     const r = e.currentTarget.getBoundingClientRect();
-    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) e.currentTarget.close();
+    const isDialogContent =
+      r.top <= e.clientY &&
+      e.clientY <= r.top + r.height &&
+      r.left <= e.clientX &&
+      e.clientX <= r.left + r.width;
+    if (isDialogContent) return;
+    e.currentTarget.close();
   };
 
   const sendWhisper = (e: FormEvent) => {
@@ -148,65 +184,84 @@ function RelicSheet({
       <h2 id="relic-sheet-title" className="sheet__title">
         <span aria-hidden="true">{info.emoji}</span> {info.name}
       </h2>
-      <p className="sheet__blurb">{info.blurb}</p>
+      <p className="sheet__meta">
+        <span className="sheet__tier" data-tier={info.tier}>
+          {info.tier}
+        </span>{' '}
+        · {timingLabel(info)}
+      </p>
+      <p className="sheet__blurb">{info.help ?? info.blurb}</p>
 
-      {info.target === 'player' && (
-        <div className="sheet__grid" role="group" aria-label="Pick a victim">
-          {targets.map((p) => (
-            <button key={p.id} id={`relic-target-${p.id}`} className="betgrid__btn" onClick={() => onCast(info.key, p.id)}>
-              <span className="avatar avatar--sm" style={{ backgroundColor: p.color }} aria-hidden="true" /> {p.name}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {info.target === 'spot' && (
-        <div className="sheet__grid" role="group" aria-label="Pick a spot">
-          {spots.map((s) => (
-            <button
-              key={s.id}
-              id={`relic-target-${s.id}`}
-              className="betgrid__btn"
-              onClick={() => onCast(info.key, s.id)}
-              disabled={info.key === 'tarot' && s.id === myBet}
-            >
-              {s.id === me ? `${s.label} (you)` : s.label}
-              {info.key === 'tarot' && s.id === myBet && ' · your bet'}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {info.target === 'text' && (
-        <form className="sheet__whisper" onSubmit={sendWhisper}>
-          <label className="field">
-            <span className="field__label">Your anonymous whisper</span>
-            <input
-              id="relic-text"
-              className="field__input"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              maxLength={WHISPER_MAX}
-              autoComplete="off"
-              required
-              placeholder="I know what you did…"
-            />
-          </label>
-          <button id="relic-send" className="btn btn--primary" type="submit" disabled={!text.trim()}>
-            Whisper it
+      {blocked !== null ? (
+        <>
+          <p className="sheet__blocked" role="status">
+            ⏳ Not right now: <strong>{blocked}</strong>
+          </p>
+          <button id="relic-cancel" className="btn btn--primary" onClick={() => ref.current?.close()}>
+            Got it
           </button>
-        </form>
-      )}
+        </>
+      ) : (
+        <>
+          {info.target === 'player' && (
+            <div className="sheet__grid" role="group" aria-label="Pick a victim">
+              {targets.map((p) => (
+                <button key={p.id} id={`relic-target-${p.id}`} className="betgrid__btn" onClick={() => onCast(info.key, p.id)}>
+                  <span className="avatar avatar--sm" style={{ backgroundColor: p.color }} aria-hidden="true" /> {p.name}
+                </button>
+              ))}
+            </div>
+          )}
 
-      {info.target === null && (
-        <button id="relic-confirm" className="btn btn--primary btn--big" onClick={() => onCast(info.key)}>
-          Use it
-        </button>
-      )}
+          {info.target === 'spot' && (
+            <div className="sheet__grid" role="group" aria-label="Pick a spot">
+              {spots.map((s) => (
+                <button
+                  key={s.id}
+                  id={`relic-target-${s.id}`}
+                  className="betgrid__btn"
+                  onClick={() => onCast(info.key, s.id)}
+                  disabled={info.key === 'tarot' && s.id === myBet}
+                >
+                  {s.id === me ? `${s.label} (you)` : s.label}
+                  {info.key === 'tarot' && s.id === myBet && ' · your bet'}
+                </button>
+              ))}
+            </div>
+          )}
 
-      <button id="relic-cancel" className="btn btn--ghost" onClick={() => ref.current?.close()}>
-        Never mind
-      </button>
+          {info.target === 'text' && (
+            <form className="sheet__whisper" onSubmit={sendWhisper}>
+              <label className="field">
+                <span className="field__label">Your anonymous whisper</span>
+                <input
+                  id="relic-text"
+                  className="field__input"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  maxLength={WHISPER_MAX}
+                  autoComplete="off"
+                  required
+                  placeholder="I know what you did…"
+                />
+              </label>
+              <button id="relic-send" className="btn btn--primary" type="submit" disabled={!text.trim()}>
+                Whisper it
+              </button>
+            </form>
+          )}
+
+          {info.target === null && (
+            <button id="relic-confirm" className="btn btn--primary btn--big" onClick={() => onCast(info.key)}>
+              Use it
+            </button>
+          )}
+
+          <button id="relic-cancel" className="btn btn--ghost" onClick={() => ref.current?.close()}>
+            Never mind
+          </button>
+        </>
+      )}
     </dialog>
   );
 }

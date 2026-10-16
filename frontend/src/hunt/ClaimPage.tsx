@@ -12,7 +12,7 @@ function RelicCard({ info, fresh }: { info: RelicInfo | undefined; fresh: boolea
       <figcaption>
         <span className="relicprize__tier">{info.tier}</span>
         <strong className="relicprize__name">{info.name}</strong>
-        <span className="relicprize__blurb">{info.blurb}</span>
+        <span className="relicprize__blurb">{info.help ?? info.blurb}</span>
       </figcaption>
     </figure>
   );

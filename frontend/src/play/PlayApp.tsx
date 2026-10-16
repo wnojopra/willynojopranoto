@@ -67,6 +67,8 @@ export function PlayApp() {
   const planchetteRef = useRef<PlanchetteState | null>(null);
   // Private: our Relics, Crystal Ball vision, and the last cast error.
   const [myRelics, setMyRelics] = useState<MyRelics>({ relics: [], usedRound: 0 });
+  const prevRelicsRef = useRef<RelicKey[] | null>(null);
+  const [spotlight, setSpotlight] = useState<RelicKey[]>([]);
   const [crystal, setCrystal] = useState<CrystalVision | null>(null);
   const [relicError, setRelicError] = useState<string | null>(null);
   // Hunt Relics this phone carries (they load server-side when we join).
@@ -101,9 +103,26 @@ export function PlayApp() {
       case 'answer_ok':
         setMyAnswer({ spotId: msg.spotId, roundNo: msg.roundNo, auto: msg.auto });
         break;
-      case 'relics':
+      case 'relics': {
+        const before = prevRelicsRef.current;
+        prevRelicsRef.current = msg.relics;
         setMyRelics({ relics: msg.relics, usedRound: msg.usedRound });
+        if (before === null) {
+          if (msg.relics.length > 0) setSpotlight([...new Set(msg.relics)]);
+        } else {
+          const oldCounts = new Map<RelicKey, number>();
+          for (const k of before) oldCounts.set(k, (oldCounts.get(k) ?? 0) + 1);
+          const newCounts = new Map<RelicKey, number>();
+          for (const k of msg.relics) newCounts.set(k, (newCounts.get(k) ?? 0) + 1);
+          const added: RelicKey[] = [];
+          for (const [k, n] of newCounts) {
+            if (n > (oldCounts.get(k) ?? 0)) added.push(k);
+          }
+          if (added.length > 0) setSpotlight(added);
+          else if (msg.relics.length === 0) setSpotlight([]);
+        }
         break;
+      }
       case 'crystal':
         setCrystal({ roundNo: msg.roundNo, counts: msg.counts ?? null, crossed: msg.crossed ?? null });
         break;
@@ -289,13 +308,14 @@ export function PlayApp() {
   };
   const castRelic = (key: RelicKey, target: string | null, text: string | null) => {
     setRelicError(null);
+    setSpotlight((prev) => prev.filter((k) => k !== key));
     send({ type: 'relic', key, target, text });
     vibrate([30, 30, 60]);
   };
   const vision = crystal && crystal.roundNo === state.roundNo ? crystal : null;
   const practice = kind === 'practice';
-  // Relics sleep through the practice round.
-  const showTray = !practice && ['medium', 'question', 'pull', 'reveal'].includes(state.phase);
+  const showTray = state.phase !== 'results';
+  const activeSpotlight = spotlight.filter((k) => myRelics.relics.includes(k));
 
   const roundTag =
     state.game.roundKind === 'final'
@@ -455,7 +475,44 @@ export function PlayApp() {
       )}
 
       {state.phase === 'results' && <PhoneResults state={state} me={me} />}
-      {showTray && <RelicTray state={state} me={me} mine={myRelics} error={relicError} myBet={liveBet?.spotId ?? null} onCast={castRelic} />}
+      {activeSpotlight.length > 0 && state.phase !== 'pull' && state.phase !== 'results' && (
+        <aside className="relicspot" aria-label="Your Relic details">
+          <div className="relicspot__head">
+            <span className="relicspot__kicker">
+              ✨ {activeSpotlight.length === 1 ? 'New Relic in your tray' : `Your Relics (${activeSpotlight.length})`}
+            </span>
+            <button id="relicspot-dismiss" className="relicspot__close" onClick={() => setSpotlight([])}>
+              Got it ×
+            </button>
+          </div>
+          {activeSpotlight.map((k) => {
+            const info = state.relicCatalog[k];
+            if (!info) return null;
+            return (
+              <div key={k} className="relicspot__item" data-tier={info.tier}>
+                <span className="relicspot__emoji" aria-hidden="true">
+                  {info.emoji}
+                </span>
+                <div className="relicspot__body">
+                  <strong className="relicspot__name">{info.name}</strong>
+                  <p className="relicspot__help">{info.help ?? info.blurb}</p>
+                </div>
+              </div>
+            );
+          })}
+        </aside>
+      )}
+      {showTray && (
+        <RelicTray
+          state={state}
+          me={me}
+          mine={myRelics}
+          error={relicError}
+          myBet={liveBet?.spotId ?? null}
+          onCast={castRelic}
+          onInspect={(k) => setSpotlight((prev) => prev.filter((x) => x !== k))}
+        />
+      )}
     </main>
   );
 }

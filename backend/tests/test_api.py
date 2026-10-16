@@ -69,3 +69,12 @@ def test_phone_bad_code_gets_error():
         with c.websocket_connect("/ws/play", headers=ORIGIN) as phone:
             phone.send_json({"type": "join", "code": "ZZZZ", "name": "Kevin"})
             assert phone.receive_json()["type"] == "error"
+
+
+def test_relic_catalog_includes_player_hints_and_help():
+    with TestClient(app) as c:
+        catalog = c.get("/api/catalog").json()["relics"]
+        assert len(catalog) == 13
+        for item in catalog.values():
+            assert item["hint"] and len(item["hint"]) <= 28
+            assert item["help"] and item["help"] != item["blurb"]
