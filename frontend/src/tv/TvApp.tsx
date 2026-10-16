@@ -572,9 +572,6 @@ function Seance({
             <p className="seance__answer">{result.label}</p>
           </div>
         )}
-        {state.phase === 'reveal' && newCurse && cursed && (
-          <CurseCard key={newCurse.roundNo} curse={newCurse} victim={cursed} />
-        )}
         <RelicCards state={state} events={freshRelics} />
         {state.phase === 'pull' && (
           <div className="bigtimer" aria-hidden="true">
@@ -583,6 +580,9 @@ function Seance({
           </div>
         )}
       </div>
+      {state.phase === 'reveal' && newCurse && cursed && (
+        <CurseCard key={newCurse.roundNo} curse={newCurse} victim={cursed} />
+      )}
 
       <footer className="seance__foot">
         {state.phase === 'pull' && (
@@ -675,7 +675,7 @@ function Results({ state, send }: { state: StateMsg; send: Send }) {
         ))}
       </ol>
 
-      <ul className="awards" aria-label="Awards">
+      <ul className="awards" aria-label="Awards" tabIndex={0}>
         {awards.map((a, i) => (
           <li key={a.key} className="award" style={{ animationDelay: `${ranked.length * 220 + 400 + i * 350}ms` }}>
             <span className="award__emoji" aria-hidden="true">
@@ -712,27 +712,36 @@ function CurseCard({ curse, victim }: { curse: Curse; victim: Player }) {
   const [open, setOpen] = useState(true);
   if (!open) return null;
   return (
-    <div className="seance__overlay cursecard" role="alertdialog" aria-labelledby="curse-title" aria-describedby="curse-text">
-      <p id="curse-title" className="cursecard__head">
-        💀 The board has cursed <strong style={{ color: victim.color }}>{victim.name}</strong>
-      </p>
-      <p id="curse-text" className="cursecard__text">
-        {curse.drink && (
-          <span className="cursecard__drink" aria-label="Drinking card">
-            🍺{' '}
-          </span>
-        )}
-        {curse.text}
-      </p>
-      {curse.drink && curse.alt && (
-        <p className="cursecard__alt">
-          <span className="cursecard__or">or</span> {curse.alt}
+    <div className="cursebackdrop" onClick={() => setOpen(false)}>
+      <div
+        className="cursecard"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="curse-title"
+        aria-describedby="curse-text"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p id="curse-title" className="cursecard__head">
+          💀 The board has cursed <strong style={{ color: victim.color }}>{victim.name}</strong>
         </p>
-      )}
-      <p className="cursecard__foot">The curse holds until the next reveal.</p>
-      <button id="tv-curse-ok" className="btn btn--primary" onClick={() => setOpen(false)}>
-        So it is written
-      </button>
+        <p id="curse-text" className="cursecard__text">
+          {curse.drink && (
+            <span className="cursecard__drink" aria-label="Drinking card">
+              🍺{' '}
+            </span>
+          )}
+          {curse.text}
+        </p>
+        {curse.drink && curse.alt && (
+          <p className="cursecard__alt">
+            <span className="cursecard__or">or</span> {curse.alt}
+          </p>
+        )}
+        <p className="cursecard__foot">The curse holds until the next reveal.</p>
+        <button id="tv-curse-ok" className="btn btn--primary" onClick={() => setOpen(false)}>
+          So it is written
+        </button>
+      </div>
     </div>
   );
 }

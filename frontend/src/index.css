@@ -1302,13 +1302,34 @@
     }
   }
   .awards {
+    --scrollbar-thumb: hsl(36 45% 60% / 0.45);
+    --scrollbar-track: transparent;
     grid-area: awards;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-content: start;
     gap: 0.75rem;
     min-block-size: 0;
-    overflow: hidden;
+    padding-block-end: 0.25rem;
+    padding-inline-end: 0.35rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+  @supports not (scrollbar-color: auto) {
+    .awards::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+    .awards::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      border-radius: 999px;
+    }
+    .awards::-webkit-scrollbar-track {
+      background: var(--scrollbar-track);
+    }
   }
   .award {
     display: grid;
@@ -1425,9 +1446,22 @@
       color: hsl(355 90% 85%);
     }
   }
+  .cursebackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: clamp(1rem, 2.5vw, 2rem);
+    background: hsl(24 38% 4% / 0.8);
+    backdrop-filter: blur(4px);
+    /* Wait until the bet tokens have had their moment, then slam in. */
+    animation: curse-in 400ms 5s ease both;
+  }
   .cursecard {
-    margin: auto;
-    inline-size: min(92%, 46rem);
+    display: grid;
+    justify-items: center;
+    inline-size: min(92vw, 46rem);
     block-size: fit-content;
     gap: 0.75rem;
     padding: clamp(1.25rem, 3vw, 2.5rem);
@@ -1438,8 +1472,7 @@
       var(--shadow-deep),
       inset 0 0 0 1px hsl(355 55% 48% / 0.6),
       0 0 80px -10px hsl(355 70% 40% / 0.55);
-    pointer-events: auto;
-    /* Wait until the bet tokens have had their moment, then slam in. */
+    text-align: center;
     animation: slam 650ms 5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
   }
   .cursecard__head {
@@ -2380,6 +2413,9 @@
 }
 @keyframes fade-in {
   from { opacity: 0; }
+}
+@keyframes curse-in {
+  from { opacity: 0; visibility: hidden; }
 }
 @keyframes slam {
   from { opacity: 0; transform: scale(1.6); filter: blur(8px); }
