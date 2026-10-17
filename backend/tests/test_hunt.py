@@ -52,11 +52,12 @@ def test_claim_flow_name_once_then_yours_then_taken(fresh_store):
     assert kevin.get(f"/api/claim/{code.token}").json() == {"status": "yours", "relic": "hex"}
     assert post(sarah, f"/api/claim/{code.token}", {"name": "Sarah"}).json()["status"] == "taken"
     assert kevin.get("/api/me").json() == {"name": "Kevin", "relics": ["hex"]}
-    # Second code: no name needed now.
+    # Second code: no name needed now; tier-created codes roll their Relic upfront for stickers.
     (code2,) = make_codes(fresh_store, relic=None, tier="cursed")
+    assert code2.relic is not None and hunt.relics.CATALOG[code2.relic].tier == "cursed"
     assert kevin.get(f"/api/claim/{code2.token}").json()["status"] == "unclaimed"
     r2 = post(kevin, f"/api/claim/{code2.token}").json()
-    assert r2["status"] == "claimed" and hunt.relics.CATALOG[r2["relic"]].tier == "cursed"
+    assert r2 == {"status": "claimed", "relic": code2.relic}
 
 
 def test_claim_rejects_bad_tokens_names_and_missing_csrf(fresh_store):

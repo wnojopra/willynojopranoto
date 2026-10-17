@@ -347,8 +347,39 @@ export function PlayApp() {
       {state.phase === 'lobby' && (
         <section className="phone__panel phone--center">
           <p className="phone__big">You’re in.</p>
-          <p className="phone__sub">Eyes on the TV. The séance begins soon.</p>
-          <p className="phone__sub">{state.players.length} spirits gathered</p>
+          <p className="phone__sub">
+            Eyes on the TV. The séance begins soon · {state.players.length}{' '}
+            {state.players.length === 1 ? 'spirit' : 'spirits'} gathered
+          </p>
+          <aside className="phone__howto" aria-label="How to play">
+            <h2 className="phone__howtotitle">📜 How to play</h2>
+            <ol className="phone__howtolist">
+              <li>
+                <span aria-hidden="true">🍬</span>
+                <div>
+                  <strong>Bet in secret</strong> — Each question, secretly pick where you think the planchette will land.
+                </div>
+              </li>
+              <li>
+                <span aria-hidden="true">👻</span>
+                <div>
+                  <strong>Pull together</strong> — Everyone drags on their phone at once to move the same planchette on the TV.
+                </div>
+              </li>
+              <li>
+                <span aria-hidden="true">🤝</span>
+                <div>
+                  <strong>Split the pot</strong> — Everyone who bet on the spot it lands on splits the candy.
+                </div>
+              </li>
+              <li>
+                <span aria-hidden="true">🧿</span>
+                <div>
+                  <strong>Relics &amp; Curses</strong> — Tap your Relics below to see how they cheat the board. If the board lands on your name, you’re Haunted!
+                </div>
+              </li>
+            </ol>
+          </aside>
         </section>
       )}
 

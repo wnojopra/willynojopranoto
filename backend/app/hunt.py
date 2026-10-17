@@ -254,12 +254,15 @@ class MemoryStore:
             if len(self.codes) + count > MAX_CODES:
                 raise ValueError(f"That would be more than {MAX_CODES} codes.")
             now = time.time()
-            made = [Code(new_token(), label, relic, tier, now + i * 1e-6) for i in range(count)]
+            made = [Code(new_token(), label, roll_prize(relic, tier), tier, now + i * 1e-6) for i in range(count)]
             for c in made:
                 self.codes[c.token] = c
             return made
 
     async def list_codes(self) -> list[Code]:
+        for c in self.codes.values():
+            if c.relic is None:
+                c.relic = c.claimed_relic or roll_prize(None, c.tier)
         return sorted(self.codes.values(), key=lambda c: c.created_at)
 
     async def delete_code(self, token: str) -> bool:
@@ -336,7 +339,7 @@ class FirestoreStore:
         if total + count > MAX_CODES:
             raise ValueError(f"That would be more than {MAX_CODES} codes.")
         now = time.time()
-        made = [Code(new_token(), label, relic, tier, now + i * 1e-6) for i in range(count)]
+        made = [Code(new_token(), label, roll_prize(relic, tier), tier, now + i * 1e-6) for i in range(count)]
         batch = self._db.batch()
         for c in made:
             batch.create(self._codes.document(c.token), c.to_doc())
@@ -345,6 +348,13 @@ class FirestoreStore:
 
     async def list_codes(self) -> list[Code]:
         out = [Code.from_doc(snap.id, snap.to_dict() or {}) async for snap in self._codes.stream()]
+        unrolled = [c for c in out if c.relic is None]
+        if unrolled:
+            batch = self._db.batch()
+            for c in unrolled:
+                c.relic = c.claimed_relic or roll_prize(None, c.tier)
+                batch.update(self._codes.document(c.token), {"relic": c.relic})
+            await batch.commit()
         return sorted(out, key=lambda c: c.created_at)
 
     async def delete_code(self, token: str) -> bool:

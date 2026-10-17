@@ -500,10 +500,14 @@ export function AdminPage() {
 
 function Stickers() {
   const [codes, setCodes] = useState<AdminCode[] | null>(null);
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    getJson<{ codes: AdminCode[] }>('/api/admin/codes').then(
-      (r) => setCodes(r.codes.filter((c) => !c.claimed)),
+    Promise.all([getJson<{ codes: AdminCode[] }>('/api/admin/codes'), getCatalog()]).then(
+      ([r, cat]) => {
+        setCodes(r.codes.filter((c) => !c.claimed));
+        setCatalog(cat);
+      },
       (e) => setError(errMsg(e)),
     );
   }, []);
@@ -522,14 +526,21 @@ function Stickers() {
       </div>
       <ul className="stickers" id="stickers">
         {codes.map((c) => {
-          const hint: Tier = c.relic ? 'any' : (c.tier ?? 'any');
+          const r = c.relic ? catalog?.[c.relic] : undefined;
+          const hint: Tier = c.tier ?? 'any';
+          const emoji = r ? r.emoji : TIER_EMOJI[hint];
+          const name = r ? r.name : 'Mystery Relic';
           return (
             <li key={c.token} className="sticker">
-              <QrCode className="sticker__qr" value={`${location.origin}/claim/${c.token}`} label="Scan for a Relic" />
-              <span className="sticker__title">👻 Spirit Board</span>
-              <span className="sticker__cta">
-                Scan for a Relic <span aria-hidden="true">{TIER_EMOJI[hint]}</span>
+              <span className="sticker__title">👻 Spirit Board Relic</span>
+              <span className="sticker__relic">
+                <span className="sticker__emoji" aria-hidden="true">
+                  {emoji}
+                </span>{' '}
+                {name}
               </span>
+              <QrCode className="sticker__qr" value={`${location.origin}/claim/${c.token}`} label={`Scan for ${name}`} />
+              <span className="sticker__warn">Do not scan until the séance starts</span>
               {c.label && <span className="sticker__label">{c.label}</span>}
             </li>
           );

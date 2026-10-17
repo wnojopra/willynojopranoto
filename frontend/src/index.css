@@ -919,6 +919,44 @@
     color: var(--bone-dim);
     font-style: italic;
   }
+  .phone__howto {
+    display: grid;
+    gap: 0.55rem;
+    inline-size: min(100%, 28rem);
+    margin-block-start: 0.35rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid hsl(36 45% 60% / 0.28);
+    border-radius: var(--radius);
+    background: hsl(24 30% 10% / 0.85);
+    text-align: start;
+  }
+  .phone__howtotitle {
+    margin: 0;
+    color: var(--candle-hot);
+    font-size: 0.85rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .phone__howtolist {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--bone-dim);
+    font-size: 0.92rem;
+    line-height: 1.35;
+
+    & li {
+      display: grid;
+      grid-template-columns: 1.4rem minmax(0, 1fr);
+      align-items: start;
+      gap: 0.45rem;
+    }
+    & strong {
+      color: var(--bone);
+    }
+  }
   .phone__question {
     font-size: 1.6rem;
     line-height: 1.2;
@@ -2445,7 +2483,7 @@
   .sticker {
     display: grid;
     justify-items: center;
-    gap: 0.1rem;
+    gap: 0.14rem;
     padding: 0.15in;
     border: 1px dashed hsl(36 45% 60% / 0.5);
     border-radius: 12px;
@@ -2455,8 +2493,8 @@
     break-inside: avoid;
   }
   .sticker__qr {
-    inline-size: 1.4in;
-    block-size: 1.4in;
+    inline-size: 1.35in;
+    block-size: 1.35in;
 
     & .qr__bg {
       fill: hsl(40 55% 92%);
@@ -2466,16 +2504,28 @@
     }
   }
   .sticker__title {
-    font-size: 0.95rem;
+    color: hsl(24 25% 32%);
+    font-size: 0.65rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
-  .sticker__cta {
-    font-size: 0.8rem;
+  .sticker__relic {
+    font-size: 1.02rem;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+  .sticker__emoji {
+    font-size: 1.2rem;
+  }
+  .sticker__warn {
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.2;
   }
   .sticker__label {
     color: hsl(24 15% 40%);
-    font-size: 0.65rem;
+    font-size: 0.62rem;
   }
 
   @media print {
