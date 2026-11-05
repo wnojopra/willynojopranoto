@@ -26,16 +26,16 @@ def test_health_has_security_headers():
 def test_rejects_foreign_origin():
     with TestClient(app) as c:
         with pytest.raises(WebSocketDisconnect):
-            with c.websocket_connect("/ws/tv", headers={"origin": "https://evil.example"}) as ws:
+            with c.websocket_connect("/ws/spiritboard/tv", headers={"origin": "https://evil.example"}) as ws:
                 ws.receive_json()
 
 
 def test_tv_creates_room_and_phone_joins():
     with TestClient(app) as c:
-        with c.websocket_connect("/ws/tv", headers=ORIGIN) as tv:
+        with c.websocket_connect("/ws/spiritboard/tv", headers=ORIGIN) as tv:
             tv.send_json({"type": "create"})
             code = recv_until(tv, "created")["code"]
-            with c.websocket_connect("/ws/play", headers=ORIGIN) as phone:
+            with c.websocket_connect("/ws/spiritboard/play", headers=ORIGIN) as phone:
                 phone.send_json({"type": "join", "code": code.lower(), "name": "Kevin"})
                 joined = recv_until(phone, "joined")
                 assert joined["code"] == code
@@ -66,7 +66,7 @@ def test_tv_creates_room_and_phone_joins():
 
 def test_phone_bad_code_gets_error():
     with TestClient(app) as c:
-        with c.websocket_connect("/ws/play", headers=ORIGIN) as phone:
+        with c.websocket_connect("/ws/spiritboard/play", headers=ORIGIN) as phone:
             phone.send_json({"type": "join", "code": "ZZZZ", "name": "Kevin"})
             assert phone.receive_json()["type"] == "error"
 
@@ -78,3 +78,23 @@ def test_relic_catalog_includes_player_hints_and_help():
         for item in catalog.values():
             assert item["hint"] and len(item["hint"]) <= 28
             assert item["help"] and item["help"] != item["blurb"]
+
+
+def test_spa_routes_serve_index_with_security_headers():
+    with TestClient(app) as c:
+        for route in (
+            "/",
+            "/spiritboard",
+            "/spiritboard/play",
+            "/spiritboard/relics",
+            "/spiritboard/admin",
+            "/spiritboard/admin/print",
+            "/spiritboard/claim/abcdefghijklmnop",
+            "/psychological",
+            "/psychological/play",
+        ):
+            r = c.get(route)
+            assert r.status_code == 200, route
+            assert "text/html" in r.headers["content-type"]
+            assert r.headers["cache-control"] == "no-store"
+

@@ -6,9 +6,9 @@ import random
 import pytest
 from fastapi.testclient import TestClient
 
-from app import hunt, hunt_api
 from app.main import app
-from app.rooms import Room
+from app.spiritboard import hunt, hunt_api
+from app.spiritboard.rooms import Room
 
 ORIGIN = "https://testserver"
 
@@ -204,7 +204,7 @@ def test_custom_questions_validate_and_crud(monkeypatch, fresh_store):
 
 
 def test_always_include_questions_come_up_in_the_game():
-    from app.questions import Question
+    from app.spiritboard.questions import Question
 
     room = Room("ABCD", rng=random.Random(3))
     for n in ("Ann", "Ben", "Cy"):

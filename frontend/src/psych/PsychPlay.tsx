@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { ensureSession, loadPsychFonts, useGameSocket } from '../shared/useGameSocket';
 import { defineTrait } from './definitions';
 import { Grid } from './Grid';
 import { HowToList } from './HowTo';
 import { Pawn, Token } from './Pawn';
 import type { Photos, PsyPlayer, PsyServerMsg, PsyState } from './protocol';
-import { ensureSession, loadPsychFonts, usePsychSocket } from './usePsychSocket';
 import './psych.css';
 
 interface JoinInfo {
@@ -140,7 +140,7 @@ export function PsychPlay() {
   }, []);
 
   const firstMessage = join ? JSON.stringify({ type: 'join', code: join.code, name: join.name }) : null;
-  const { status, send } = usePsychSocket(join && ready ? '/ws/psych/play' : null, firstMessage, onMessage, attempt);
+  const { status, send } = useGameSocket<PsyServerMsg>(join && ready ? '/ws/psych/play' : null, firstMessage, onMessage, attempt);
 
   // Clear the pick whenever the turn or who's up changes.
   const turnKey = state ? `${state.turn}-${state.phase}-${state.currentId}` : '';
@@ -245,6 +245,9 @@ export function PsychPlay() {
             <button id="psy-join" type="submit" className="psy-btn psy-btn--primary psy-btn--big">
               Join
             </button>
+            <p className="psy-muted">
+              Hosting on a big screen? <a href="/psychological">Open the TV view</a>
+            </p>
           </form>
         </main>
       </div>

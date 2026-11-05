@@ -2,8 +2,8 @@
 
 import random
 
-from app.questions import DECK, FINAL_DECK, KINDS, MEDIUM_DECK, OPTIONS_MAX, OPTIONS_MIN, TEXT_MAX, TEXT_MIN, Question
-from app.rooms import Room
+from app.spiritboard.questions import DECK, FINAL_DECK, KINDS, MEDIUM_DECK, OPTIONS_MAX, OPTIONS_MIN, TEXT_MAX, TEXT_MIN, Question
+from app.spiritboard.rooms import Room
 
 
 def make_room(seed: int = 1) -> Room:

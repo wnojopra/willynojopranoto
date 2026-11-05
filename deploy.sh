@@ -8,7 +8,7 @@ set -euo pipefail
 PROJECT="${PROJECT:-nojo-client}"
 REGION="${REGION:-us-west1}"
 SERVICE="${SERVICE:-spirit-board}"
-MIN_INSTANCES="${MIN_INSTANCES:-1}"
+MIN_INSTANCES="${MIN_INSTANCES:-0}"
 
 cd "$(dirname "$0")"
 

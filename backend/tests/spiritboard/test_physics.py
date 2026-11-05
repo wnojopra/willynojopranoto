@@ -1,6 +1,6 @@
 import math
 
-from app import physics
+from app.spiritboard import physics
 
 
 def test_sanitize_pull_clamps_and_rejects_garbage():

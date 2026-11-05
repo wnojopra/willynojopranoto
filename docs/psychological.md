@@ -99,14 +99,12 @@ deck sizes and that no word is in both decks.
 
 ## Isolation from Spirit Board
 
-Only additive lines touch Spirit Board files:
-- `backend/app/main.py`: the router import, `include_router`, and two SPA routes.
-- `frontend/src/App.tsx`: two `React.lazy` routes, so the game's JS and CSS are
-  separate chunks that Spirit Board pages never load.
+Both games live in their own packages (`backend/app/psych/` + `frontend/src/psych/` and `backend/app/spiritboard/` + `frontend/src/spiritboard/`), sharing only:
+- `backend/app/shared/`: origin validation (`origins.py`), device/CSRF cookies (`cookies.py`), WebSocket rate limiting (`ws.py`), and room/name normalization (`rooms_util.py`).
+- `frontend/src/shared/`: `QrCode.tsx` and `useGameSocket.ts`.
+- `frontend/src/App.tsx`: `React.lazy` routes so each game's JS and CSS load as separate chunks.
 
-The game imports only the shared origin check (`app/origins.py`) and device cookie
-reader (`hunt_api.device_of`), plus the `tv/QrCode.tsx` component. It has its own
-room manager (Spirit Board codes don't work on the Psychological join screen),
+It has its own room manager (Spirit Board codes don't work on the Psychological join screen),
 uses no 30 Hz tick (state is sent when it changes; a 4 Hz loop only moves bots), and
 its CSS is in `@layer psych` with `psy-` class names.
 
@@ -115,11 +113,10 @@ its CSS is in `@layer psych` with `psy-` class names.
 ```
 backend/app/psych/
   rules.py     pure scoring, guessing order, winners
-  traits.py    the two word decks
+  traits.py    the trait card decks
   rooms.py     PsychRoom (phase machine) + PsychRoomManager
   api.py       /ws/psych/tv and /ws/psych/play
-  ws_util.py   rate limiter + message validation (a copy, so we never import main.py)
-backend/tests/test_psych_*.py
+backend/tests/psych/test_psych_*.py
 frontend/src/psych/
   PsychTv.tsx  lobby, board + sidebar, reveal, game over
   PsychPlay.tsx join, waiting, tap-a-square + lock in

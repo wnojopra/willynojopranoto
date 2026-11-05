@@ -3,7 +3,7 @@
 import collections
 import random
 
-from app.rooms import Room
+from app.spiritboard.rooms import Room
 
 
 def play_idle_rounds(n_players: int, games: int, seed: int) -> collections.Counter:
@@ -41,7 +41,7 @@ def test_who_spots_are_shuffled_each_round():
     room = Room("ABCD", rng=random.Random(3))
     for i in range(6):
         room.add_player(f"P{i}")
-    from app.questions import Question
+    from app.spiritboard.questions import Question
 
     q = Question("who", "Who?")
     orders = {tuple(i for i, _ in room._labels_for(q)) for _ in range(20)}

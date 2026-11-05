@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { QrCode } from '../tv/QrCode';
+import { QrCode } from '../shared/QrCode';
+import { ensureSession, loadPsychFonts, useGameSocket } from '../shared/useGameSocket';
 import { defineTrait } from './definitions';
 import { Grid } from './Grid';
 import { HeadArt } from './HeadArt';
@@ -7,7 +8,6 @@ import { HowToOverlay } from './HowTo';
 import { Crown, GoldMarker, Pawn, Token } from './Pawn';
 import type { DeckInfo, Photos, PsyPlayer, PsyServerMsg, PsyState } from './protocol';
 import { pickStrikeVariant, Strike, type StrikeBag } from './Strike';
-import { ensureSession, loadPsychFonts, usePsychSocket } from './usePsychSocket';
 import './psych.css';
 
 /** This tab's room code, so a refreshed TV gets its room back (checked server-side by device cookie). */
@@ -108,7 +108,7 @@ export function PsychTv() {
   // Recomputed per attempt (not when the code arrives, which would reconnect).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const firstMessage = useMemo(() => JSON.stringify({ type: 'create', resume: savedRoom() }), [attempt]);
-  const { status, send } = usePsychSocket(ready ? '/ws/psych/tv' : null, firstMessage, onMessage, attempt);
+  const { status, send } = useGameSocket<PsyServerMsg>(ready ? '/ws/psych/tv' : null, firstMessage, onMessage, attempt);
 
   const lost = status === 'closed' && !error;
   useEffect(() => {
@@ -194,9 +194,14 @@ function Lobby({ state, photos, send, onHowTo }: { state: PsyState; photos: Phot
           <span className="psy-byline">by Willy Nojopranoto</span>
         </h1>
         <p className="psy-sub psy-sub--light">How well do your friends really know you?</p>
-        <button id="psy-howto" type="button" className="psy-btn psy-btn--light" onClick={onHowTo}>
-          📖 How to play
-        </button>
+        <div className="psy-row">
+          <button id="psy-howto" type="button" className="psy-btn psy-btn--light" onClick={onHowTo}>
+            📖 How to play
+          </button>
+          <a id="psy-to-phone" className="psy-btn psy-btn--light" href="/psychological/play">
+            📱 Join on this device
+          </a>
+        </div>
       </section>
       <section className="psy-panel psy-lobby__panel">
         <div className="psy-lobby__join">

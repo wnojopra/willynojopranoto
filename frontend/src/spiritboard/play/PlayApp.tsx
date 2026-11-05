@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { loadSpiritFonts, useGameSocket } from '../../shared/useGameSocket';
 import { getMe } from '../hunt/api';
 import type { PlanchetteState, Player, PrivatePick, RelicKey, ServerMsg, StateMsg } from '../protocol';
-import { useGameSocket } from '../useGameSocket';
+import '../spiritboard.css';
 import { MiniMap } from './MiniMap';
 import { RelicEffects, RelicTray, type MyRelics } from './RelicTray';
 import { Touchpad } from './Touchpad';
@@ -75,6 +76,8 @@ export function PlayApp() {
   const [huntCount, setHuntCount] = useState(0);
 
   useEffect(() => {
+    document.title = 'Spirit Board';
+    loadSpiritFonts();
     getMe().then(
       (m) => {
         if (m.name) setName((n) => n || m.name || '');
@@ -148,7 +151,7 @@ export function PlayApp() {
   }, []);
 
   const firstMessage = join ? JSON.stringify({ type: 'join', code: join.code, name: join.name }) : null;
-  const { status, send } = useGameSocket(join ? '/ws/play' : null, firstMessage, onMessage, attempt);
+  const { status, send } = useGameSocket<ServerMsg>(join ? '/ws/spiritboard/play' : null, firstMessage, onMessage, attempt);
 
   useWakeLock(me !== null);
   useRevealBuzz(state, me);
@@ -234,12 +237,15 @@ export function PlayApp() {
           )}
           {huntCount > 0 && (
             <p className="joinform__hunt" id="join-hunt">
-              ✨ {huntCount} hunt Relic{huntCount === 1 ? '' : 's'} will come with you. <a href="/relics">See them</a>
+              ✨ {huntCount} hunt Relic{huntCount === 1 ? '' : 's'} will come with you. <a href="/spiritboard/relics">See them</a>
             </p>
           )}
           <button id="join-submit" className="btn btn--primary btn--big" type="submit">
             Join the séance
           </button>
+          <p className="phone__sub">
+            Hosting on a big screen? <a href="/spiritboard">Open the TV view</a>
+          </p>
         </form>
       </main>
     );

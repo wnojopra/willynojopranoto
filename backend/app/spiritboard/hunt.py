@@ -21,13 +21,13 @@ import time
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from app import questions, relics
+from app.shared.cookies import DEVICE_RE, new_device_id, valid_device
+from app.spiritboard import questions, relics
 
 log = logging.getLogger("spiritboard.hunt")
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{16}")
 QUESTION_ID_RE = re.compile(r"[A-Za-z0-9_-]{12}")
-DEVICE_RE = re.compile(r"[A-Za-z0-9_-]{43}")
 LABEL_MAX = 40
 MAX_BATCH = 100
 MAX_CODES = 500
@@ -43,20 +43,12 @@ def new_token() -> str:
     return secrets.token_urlsafe(12)
 
 
-def new_device_id() -> str:
-    return secrets.token_urlsafe(32)
-
-
 def valid_token(raw: object) -> bool:
     return isinstance(raw, str) and TOKEN_RE.fullmatch(raw) is not None
 
 
 def valid_question_id(raw: object) -> bool:
     return isinstance(raw, str) and QUESTION_ID_RE.fullmatch(raw) is not None
-
-
-def valid_device(raw: object) -> bool:
-    return isinstance(raw, str) and DEVICE_RE.fullmatch(raw) is not None
 
 
 def clean_label(raw: object) -> str:

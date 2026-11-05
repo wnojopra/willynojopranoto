@@ -1,42 +1,28 @@
 import { lazy, Suspense } from 'react';
-import { AdminPage, PrintSheet } from './hunt/AdminPage';
-import { ClaimPage, RelicsPage } from './hunt/ClaimPage';
-import { PlayApp } from './play/PlayApp';
-import { TvApp } from './tv/TvApp';
+import { HomePage } from './home/HomePage';
 
-// Psychological: a separate game, loaded as its own chunk (JS + CSS) only on its pages.
+// Spirit Board: loaded as its own chunk only on /spiritboard* pages.
+const TvApp = lazy(() => import('./spiritboard/tv/TvApp').then((m) => ({ default: m.TvApp })));
+const PlayApp = lazy(() => import('./spiritboard/play/PlayApp').then((m) => ({ default: m.PlayApp })));
+const RelicsPage = lazy(() => import('./spiritboard/hunt/ClaimPage').then((m) => ({ default: m.RelicsPage })));
+const ClaimPage = lazy(() => import('./spiritboard/hunt/ClaimPage').then((m) => ({ default: m.ClaimPage })));
+const AdminPage = lazy(() => import('./spiritboard/hunt/AdminPage').then((m) => ({ default: m.AdminPage })));
+const PrintSheet = lazy(() => import('./spiritboard/hunt/AdminPage').then((m) => ({ default: m.PrintSheet })));
+
+// Psychological: loaded as its own chunk only on /psychological* pages.
 const PsychTv = lazy(() => import('./psych/PsychTv').then((m) => ({ default: m.PsychTv })));
 const PsychPlay = lazy(() => import('./psych/PsychPlay').then((m) => ({ default: m.PsychPlay })));
 
 export function App() {
   const path = location.pathname.replace(/\/+$/, '');
+  if (path === '/spiritboard') return <Suspense fallback={null}><TvApp /></Suspense>;
+  if (path === '/spiritboard/play') return <Suspense fallback={null}><PlayApp /></Suspense>;
+  if (path === '/spiritboard/relics') return <Suspense fallback={null}><RelicsPage /></Suspense>;
+  if (path === '/spiritboard/admin') return <Suspense fallback={null}><AdminPage /></Suspense>;
+  if (path === '/spiritboard/admin/print') return <Suspense fallback={null}><PrintSheet /></Suspense>;
+  const claim = /^\/spiritboard\/claim\/([A-Za-z0-9_-]{1,64})$/.exec(path);
+  if (claim) return <Suspense fallback={null}><ClaimPage token={claim[1]} /></Suspense>;
   if (path === '/psychological') return <Suspense fallback={null}><PsychTv /></Suspense>;
   if (path === '/psychological/play') return <Suspense fallback={null}><PsychPlay /></Suspense>;
-  if (path === '/tv') return <TvApp />;
-  if (path === '/play') return <PlayApp />;
-  if (path === '/relics') return <RelicsPage />;
-  if (path === '/admin') return <AdminPage />;
-  if (path === '/admin/print') return <PrintSheet />;
-  const claim = /^\/claim\/([A-Za-z0-9_-]{1,64})$/.exec(path);
-  if (claim) return <ClaimPage token={claim[1]} />;
-  return <Home />;
-}
-
-function Home() {
-  return (
-    <main className="home">
-      <h1 className="home__title">
-        Spirit Board <span className="byline">by Willy Nojopranoto</span>
-      </h1>
-      <p className="home__tagline">Ten hands. One planchette. No take-backs.</p>
-      <nav className="home__choices" aria-label="Choose a screen">
-        <a id="home-host" className="btn btn--primary" href="/tv">
-          Host on this screen
-        </a>
-        <a id="home-join" className="btn" href="/play">
-          Join from my phone
-        </a>
-      </nav>
-    </main>
-  );
+  return <HomePage />;
 }

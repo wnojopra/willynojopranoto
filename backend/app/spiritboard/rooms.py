@@ -26,9 +26,18 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol
 
-from app import game, physics, relics
-from app.curses import CURSE_DECK, FINAL_CURSES
-from app.questions import DECK, FINAL_DECK, MEDIUM_DECK, YES_NO_SPOTS, Question
+from app.shared.rooms_util import (
+    CODE_ALPHABET,
+    CODE_LENGTH,
+    NAME_RE,
+    JoinError,
+    RoomLimitError,
+    normalize_code,
+    normalize_name,
+)
+from app.spiritboard import game, physics, relics
+from app.spiritboard.curses import CURSE_DECK, FINAL_CURSES
+from app.spiritboard.questions import DECK, FINAL_DECK, MEDIUM_DECK, YES_NO_SPOTS, Question
 
 log = logging.getLogger(__name__)
 
@@ -61,13 +70,6 @@ INPUT_STALE_SECONDS = 0.5
 TICK_HZ = 30
 PHONE_TICK_EVERY = 2  # phones get ticks at TICK_HZ / 2
 ROOM_IDLE_SECONDS = 10 * 60  # close rooms with no TV for this long
-
-# No vowels, so room codes can't spell anything rude. 20^4 = 160k codes.
-CODE_ALPHABET = "BCDFGHJKLMNPQRSTVWXZ"
-CODE_LENGTH = 4
-
-# Letters (any language), digits, spaces, and a little punctuation.
-NAME_RE = re.compile(r"[\w .'\-]{1,14}")
 
 COLORS = [
     "#e8a33d",  # candle
@@ -114,33 +116,6 @@ BOT_NAMES = [
 
 class Conn(Protocol):
     async def send_json(self, data: Any) -> None: ...
-
-
-class JoinError(Exception):
-    """A player-facing reason a join was rejected."""
-
-
-class RoomLimitError(Exception):
-    pass
-
-
-def normalize_name(raw: object) -> str:
-    if not isinstance(raw, str):
-        raise JoinError("Pick a name.")
-    name = unicodedata.normalize("NFKC", raw)
-    name = " ".join(name.split())
-    if not NAME_RE.fullmatch(name):
-        raise JoinError("Names are 1\u201314 letters, numbers, or spaces.")
-    return name
-
-
-def normalize_code(raw: object) -> str | None:
-    if not isinstance(raw, str):
-        return None
-    code = raw.strip().upper()
-    if len(code) != CODE_LENGTH or any(c not in CODE_ALPHABET for c in code):
-        return None
-    return code
 
 
 @dataclass

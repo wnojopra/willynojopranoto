@@ -49,7 +49,7 @@ def test_psych_full_turn_over_websockets():
 
 def test_spirit_board_code_does_not_resolve_in_psych():
     with TestClient(app) as c:
-        with c.websocket_connect("/ws/tv", headers=ORIGIN) as tv:
+        with c.websocket_connect("/ws/spiritboard/tv", headers=ORIGIN) as tv:
             tv.send_json({"type": "create"})
             code = recv_until(tv, "created")["code"]
             with c.websocket_connect("/ws/psych/play", headers=ORIGIN) as phone:
@@ -74,7 +74,7 @@ def test_out_of_turn_mark_rejected():
 
 
 def test_only_selfies_may_be_big():
-    from app.psych.ws_util import MAX_MESSAGE_BYTES
+    from app.psych.api import MAX_MESSAGE_BYTES
 
     with TestClient(app) as c:
         with c.websocket_connect("/ws/psych/tv", headers=ORIGIN) as tv:

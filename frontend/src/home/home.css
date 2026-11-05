@@ -1,0 +1,333 @@
+@layer home {
+  .wn-root {
+    --wn-bg: #0c0f17;
+    --wn-bg-elevated: #141926;
+    --wn-bg-card: #181f30;
+    --wn-border: rgb(255 255 255 / 0.1);
+    --wn-border-strong: rgb(255 255 255 / 0.22);
+    --wn-text: #f3f5f9;
+    --wn-muted: #9ca6ba;
+    --wn-accent: #63b3ed;
+    --wn-amber: #f6ad55;
+    --wn-violet: #b794f4;
+    --wn-radius: 18px;
+    --wn-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+    min-block-size: 100dvh;
+    background:
+      radial-gradient(90% 60% at 15% 0%, rgb(99 179 237 / 0.12), transparent 65%),
+      radial-gradient(80% 55% at 85% 10%, rgb(183 148 244 / 0.12), transparent 65%),
+      var(--wn-bg);
+    color: var(--wn-text);
+    font-family: var(--wn-sans);
+    line-height: 1.55;
+    display: flex;
+    flex-direction: column;
+
+    & :focus-visible {
+      outline: 3px solid var(--wn-accent);
+      outline-offset: 3px;
+    }
+  }
+
+  .wn-shell {
+    inline-size: min(1040px, 100% - 2.5rem);
+    margin-inline: auto;
+    padding-block: 2.5rem 4rem;
+    flex: 1;
+    display: grid;
+    gap: 3.5rem;
+  }
+
+  /* ---------------------------------------------------------------- Header */
+  .wn-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-block-end: 1.25rem;
+    border-block-end: 1px solid var(--wn-border);
+  }
+
+  .wn-brand {
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: -0.01em;
+    color: var(--wn-text);
+    text-decoration: none;
+  }
+
+  .wn-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .wn-nav__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    min-block-size: 38px;
+    padding-block: 0.35rem;
+    padding-inline: 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--wn-border);
+    background: rgb(255 255 255 / 0.03);
+    color: var(--wn-muted);
+    font-size: 0.92rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: border-color 140ms ease, color 140ms ease, background-color 140ms ease;
+
+    &:hover {
+      color: var(--wn-text);
+      border-color: var(--wn-border-strong);
+      background: rgb(255 255 255 / 0.07);
+    }
+  }
+
+  /* ------------------------------------------------------------------ Hero */
+  .wn-hero {
+    display: grid;
+    gap: 1.1rem;
+    max-inline-size: 68ch;
+  }
+
+  .wn-kicker {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--wn-accent);
+  }
+
+  .wn-title {
+    font-size: clamp(2.1rem, 1.5rem + 3vw, 3.25rem);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.12;
+    text-wrap: balance;
+  }
+
+  .wn-bio {
+    font-size: clamp(1.05rem, 0.98rem + 0.35vw, 1.2rem);
+    color: var(--wn-muted);
+    text-wrap: pretty;
+  }
+
+  /* -------------------------------------------------------------- Sections */
+  .wn-section {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .wn-section__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .wn-h2 {
+    font-size: clamp(1.35rem, 1.15rem + 0.8vw, 1.65rem);
+    font-weight: 750;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  .wn-section__sub {
+    color: var(--wn-muted);
+    font-size: 0.95rem;
+  }
+
+  /* ------------------------------------------------------------ Game Cards */
+  .wn-games {
+    inline-size: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    grid-auto-rows: auto;
+    gap: 1.25rem;
+  }
+
+  .wn-card {
+    grid-row: span 3;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-rows: subgrid;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-radius: var(--wn-radius);
+    border: 1px solid var(--wn-border);
+    background: linear-gradient(165deg, var(--wn-bg-card), var(--wn-bg-elevated));
+    box-shadow: 0 18px 40px -20px rgb(0 0 0 / 0.65);
+    transition: border-color 160ms ease, transform 160ms ease;
+
+    &:hover {
+      border-color: var(--wn-border-strong);
+      transform: translateY(-2px);
+    }
+  }
+
+  .wn-card--spirit {
+    border-color: rgb(246 173 85 / 0.28);
+    background:
+      radial-gradient(90% 80% at 100% 0%, rgb(246 173 85 / 0.14), transparent 65%),
+      linear-gradient(165deg, #211814, #14100e);
+  }
+
+  .wn-card--psych {
+    border-color: rgb(99 179 237 / 0.28);
+    background:
+      radial-gradient(90% 80% at 100% 0%, rgb(183 148 244 / 0.16), transparent 65%),
+      linear-gradient(165deg, #172138, #111625);
+  }
+
+  .wn-card__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .wn-card__title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  .wn-badge {
+    display: inline-flex;
+    align-items: center;
+    padding-block: 0.2rem;
+    padding-inline: 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--wn-border);
+    background: rgb(255 255 255 / 0.05);
+    color: var(--wn-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .wn-card__desc {
+    color: var(--wn-muted);
+    font-size: 0.98rem;
+    text-wrap: pretty;
+  }
+
+  .wn-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    padding-block-start: 0.25rem;
+  }
+
+  .wn-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45em;
+    min-block-size: 44px;
+    padding-block: 0.55rem;
+    padding-inline: 1.15rem;
+    border-radius: 999px;
+    border: 1px solid var(--wn-border-strong);
+    background: rgb(255 255 255 / 0.06);
+    color: var(--wn-text);
+    font-size: 0.95rem;
+    font-weight: 650;
+    text-decoration: none;
+    cursor: pointer;
+    transition: filter 140ms ease, transform 120ms ease, background-color 140ms ease;
+
+    &:hover {
+      background: rgb(255 255 255 / 0.12);
+    }
+    &:active {
+      transform: translateY(1px);
+    }
+  }
+
+  .wn-btn--spirit {
+    border-color: transparent;
+    background: linear-gradient(135deg, #f6ad55, #dd6b20);
+    color: #1a110b;
+    font-weight: 750;
+
+    &:hover {
+      background: linear-gradient(135deg, #fbd38d, #ed8936);
+    }
+  }
+
+  .wn-btn--psych {
+    border-color: transparent;
+    background: linear-gradient(135deg, #4299e1, #805ad5);
+    color: #ffffff;
+    font-weight: 750;
+
+    &:hover {
+      filter: brightness(1.1);
+    }
+  }
+
+  /* --------------------------------------------------------------- Projects */
+  .wn-projects {
+    inline-size: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    grid-auto-rows: auto;
+    gap: 1rem;
+  }
+
+  .wn-project {
+    grid-row: span 2;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    grid-template-rows: subgrid;
+    gap: 0.45rem;
+    padding: 1.2rem 1.35rem;
+    border-radius: 14px;
+    border: 1px solid var(--wn-border);
+    background: rgb(255 255 255 / 0.025);
+    color: var(--wn-text);
+    text-decoration: none;
+    transition: border-color 140ms ease, background-color 140ms ease;
+
+    &:hover {
+      border-color: var(--wn-border-strong);
+      background: rgb(255 255 255 / 0.05);
+    }
+  }
+
+  .wn-project__title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .wn-project__desc {
+    color: var(--wn-muted);
+    font-size: 0.92rem;
+    text-wrap: pretty;
+  }
+
+  /* ---------------------------------------------------------------- Footer */
+  .wn-footer {
+    padding-block-start: 1.5rem;
+    border-block-start: 1px solid var(--wn-border);
+    color: var(--wn-muted);
+    font-size: 0.88rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+}

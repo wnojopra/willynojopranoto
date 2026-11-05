@@ -29,6 +29,15 @@ from typing import Any, Callable, Protocol
 
 from app.psych import rules
 from app.psych.traits import DECKS, DEFAULT_DECK_X, DEFAULT_DECK_Y, X_DECK, Y_DECK
+from app.shared.rooms_util import (
+    CODE_ALPHABET,
+    CODE_LENGTH,
+    NAME_RE,
+    JoinError,
+    RoomLimitError,
+    normalize_code,
+    normalize_name,
+)
 
 log = logging.getLogger(__name__)
 
@@ -48,11 +57,6 @@ MAX_SCORE = 99  # host point edits stay within 0..MAX_SCORE
 AVATAR_PREFIX = "data:image/jpeg;base64,"
 MAX_AVATAR_BYTES = 18_000
 AVATAR_COOLDOWN_SECONDS = 2.0  # each new selfie is broadcast to every screen
-
-# No vowels, so room codes can't spell anything rude.
-CODE_ALPHABET = "BCDFGHJKLMNPQRSTVWXZ"
-CODE_LENGTH = 4
-NAME_RE = re.compile(r"[\w .'\-]{1,14}")
 
 # The physical game's six pawn colours first, then six more in the same style.
 COLORS = [
@@ -78,32 +82,6 @@ Square = tuple[int, int]
 
 class Conn(Protocol):
     async def send_json(self, data: Any) -> None: ...
-
-
-class JoinError(Exception):
-    """A player-facing reason a join was rejected."""
-
-
-class RoomLimitError(Exception):
-    pass
-
-
-def normalize_name(raw: object) -> str:
-    if not isinstance(raw, str):
-        raise JoinError("Pick a name.")
-    name = " ".join(unicodedata.normalize("NFKC", raw).split())
-    if not NAME_RE.fullmatch(name):
-        raise JoinError("Names are 1\u201314 letters, numbers, or spaces.")
-    return name
-
-
-def normalize_code(raw: object) -> str | None:
-    if not isinstance(raw, str):
-        return None
-    code = raw.strip().upper()
-    if len(code) != CODE_LENGTH or any(c not in CODE_ALPHABET for c in code):
-        return None
-    return code
 
 
 @dataclass

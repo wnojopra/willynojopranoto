@@ -1,9 +1,11 @@
-"""Origin checks shared by the WebSocket endpoints and the cookie-authenticated HTTP API."""
+"""Origin checks shared by WebSocket endpoints and cookie-authenticated HTTP APIs."""
 
 from __future__ import annotations
 
 import os
 from urllib.parse import urlsplit
+
+from fastapi import WebSocket
 
 ALLOWED_ORIGINS = {
     o.strip()
@@ -22,3 +24,8 @@ def origin_ok(origin: str | None, host: str | None) -> bool:
         return True
     # Same-origin (production: the frontend is served by this service).
     return bool(host) and urlsplit(origin).netloc == host
+
+
+def ws_origin_allowed(ws: WebSocket) -> bool:
+    """Blocks cross-site WebSocket hijacking: browsers always send Origin."""
+    return origin_ok(ws.headers.get("origin"), ws.headers.get("host"))

@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PsyServerMsg } from './protocol';
 
 export type ConnStatus = 'idle' | 'connecting' | 'open' | 'closed';
 
-function wsUrl(path: string): string {
+export function wsUrl(path: string): string {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${proto}//${location.host}${path}`;
 }
 
 /**
- * Opens a WebSocket and sends `firstMessage` once open. Pass `path = null` to
- * stay disconnected; bump `attempt` to reconnect.
+ * Opens a WebSocket to the game server and sends `firstMessage` once open.
+ *
+ * Pass `path = null` to stay disconnected. Bump `attempt` to reconnect.
  */
-export function usePsychSocket(
+export function useGameSocket<T extends { type: string }>(
   path: string | null,
   firstMessage: string | null,
-  onMessage: (msg: PsyServerMsg) => void,
+  onMessage: (msg: T) => void,
   attempt = 0,
 ) {
   const [status, setStatus] = useState<ConnStatus>('idle');
@@ -47,7 +47,7 @@ export function usePsychSocket(
         return;
       }
       if (msg && typeof msg === 'object' && typeof (msg as { type?: unknown }).type === 'string') {
-        handlerRef.current(msg as PsyServerMsg);
+        handlerRef.current(msg as T);
       }
     };
     ws.onclose = () => {
@@ -75,15 +75,26 @@ export function ensureSession(): Promise<void> {
   );
 }
 
-const FONTS_URL =
+/** Injects a Google Fonts stylesheet once without blocking rendering. */
+export function loadFonts(id: string, href: string): void {
+  if (document.getElementById(id)) return;
+  const link = document.createElement('link');
+  link.id = id;
+  link.rel = 'stylesheet';
+  link.href = href;
+  document.head.appendChild(link);
+}
+
+const SPIRIT_FONTS_URL =
+  'https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@500;600;700&display=swap';
+
+const PSYCH_FONTS_URL =
   'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Nunito:wght@400;600;800&display=swap';
 
-/** Adds the game's fonts once, without blocking rendering (allowed by the CSP's style-src). */
+export function loadSpiritFonts(): void {
+  loadFonts('sb-fonts', SPIRIT_FONTS_URL);
+}
+
 export function loadPsychFonts(): void {
-  if (document.getElementById('psy-fonts')) return;
-  const link = document.createElement('link');
-  link.id = 'psy-fonts';
-  link.rel = 'stylesheet';
-  link.href = FONTS_URL;
-  document.head.appendChild(link);
+  loadFonts('psy-fonts', PSYCH_FONTS_URL);
 }

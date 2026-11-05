@@ -22,16 +22,24 @@ import time
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
-from app import hunt, questions
-from app.origins import origin_ok
-from app.rooms import RELIC_CATALOG_DICT, JoinError, normalize_name
+from app.shared.cookies import (
+    COOKIE_CSRF,
+    COOKIE_DEVICE,
+    DEVICE_MAX_AGE,
+    Limiter,
+    check_csrf as _check_csrf,
+    client_ip as _client_ip,
+    device_of,
+    ensure_client_cookies,
+    set_cookie as _set_cookie,
+)
+from app.shared.rooms_util import JoinError, normalize_name
+from app.spiritboard import hunt, questions
+from app.spiritboard.rooms import RELIC_CATALOG_DICT
 
 log = logging.getLogger("spiritboard.api")
 
-COOKIE_DEVICE = "__Host-sb_device"
-COOKIE_CSRF = "__Host-sb_csrf"
 COOKIE_ADMIN = "__Host-sb_admin"
-DEVICE_MAX_AGE = 30 * 24 * 3600
 ADMIN_TTL = 12 * 3600
 
 store: hunt.HuntStore = hunt.make_store(
@@ -42,73 +50,6 @@ store: hunt.HuntStore = hunt.make_store(
 def _admin_passcode() -> str | None:
     code = os.environ.get("SB_ADMIN_PASSCODE", "").strip()
     return code or None
-
-
-# ---- Cookies ----------------------------------------------------------------
-
-
-def _set_cookie(response: Response, name: str, value: str, max_age: int, *, http_only: bool, same_site: str) -> None:
-    # __Host- prefix: Secure, Path=/, and no Domain, so it can't leak to subdomains.
-    response.set_cookie(
-        name, value, max_age=max_age, path="/", secure=True, httponly=http_only, samesite=same_site
-    )
-
-
-def ensure_client_cookies(request: Request, response: Response) -> None:
-    """Gives this browser a device id and a CSRF token if it doesn't have valid ones."""
-    if not hunt.valid_device(request.cookies.get(COOKIE_DEVICE)):
-        _set_cookie(response, COOKIE_DEVICE, hunt.new_device_id(), DEVICE_MAX_AGE, http_only=True, same_site="lax")
-    csrf = request.cookies.get(COOKIE_CSRF, "")
-    if not (isinstance(csrf, str) and len(csrf) == 43):
-        # Readable by our JS (that's the point of double-submit); not a credential by itself.
-        _set_cookie(response, COOKIE_CSRF, secrets.token_urlsafe(32), DEVICE_MAX_AGE, http_only=False, same_site="lax")
-
-
-def device_of(cookies: dict[str, str]) -> str | None:
-    dev = cookies.get(COOKIE_DEVICE)
-    return dev if hunt.valid_device(dev) else None
-
-
-def _check_csrf(request: Request) -> None:
-    if not origin_ok(request.headers.get("origin"), request.headers.get("host")):
-        raise HTTPException(403, "Bad origin.")
-    cookie = request.cookies.get(COOKIE_CSRF, "")
-    header = request.headers.get("x-csrf-token", "")
-    if not cookie or not hmac.compare_digest(cookie.encode(), header.encode()):
-        raise HTTPException(403, "Refresh the page and try again.")
-
-
-# ---- Rate limiting ----------------------------------------------------------
-
-
-class Limiter:
-    """Token buckets per key, in memory (the service runs as a single instance)."""
-
-    def __init__(self, per_minute: float, burst: float) -> None:
-        self.rate = per_minute / 60.0
-        self.burst = burst
-        self.buckets: dict[str, tuple[float, float]] = {}
-
-    def allow(self, key: str) -> bool:
-        now = time.monotonic()
-        if len(self.buckets) > 5000:  # crude cap so the dict can't grow without bound
-            self.buckets = {k: v for k, v in self.buckets.items() if now - v[1] < 600}
-        tokens, last = self.buckets.get(key, (self.burst, now))
-        tokens = min(self.burst, tokens + (now - last) * self.rate)
-        if tokens < 1:
-            self.buckets[key] = (tokens, now)
-            return False
-        self.buckets[key] = (tokens - 1, now)
-        return True
-
-
-def _client_ip(request: Request) -> str:
-    # Cloud Run appends the real client address to X-Forwarded-For. Callers can
-    # spoof earlier entries, so per-IP limits are paired with global ones.
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[-1].strip()
-    return request.client.host if request.client else "?"
 
 
 claim_limiter = Limiter(per_minute=20, burst=10)

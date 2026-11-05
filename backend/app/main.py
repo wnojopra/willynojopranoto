@@ -1,35 +1,22 @@
-"""FastAPI entrypoint: WebSocket endpoints for the TV and phones."""
+"""FastAPI entrypoint for willynojopranoto.com and hosted games."""
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 import os
-import time
 from pathlib import Path
-from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-from app import hunt_api
-from app.origins import origin_ok
-from app.rooms import JoinError, RoomLimitError, RoomManager
-from app.psych import api as psych_api  # Psychological: a separate game at /psychological
+from app.psych import api as psych_api
+from app.shared.cookies import ensure_client_cookies
+from app.spiritboard import api as spiritboard_api, hunt_api
 
 logging.basicConfig(level=os.environ.get("SB_LOG_LEVEL", "INFO"))
-log = logging.getLogger("spiritboard")
-
-MAX_MESSAGE_BYTES = 512
-# Phones send ~20 pulls/sec; allow headroom but cap abuse.
-RATE_PER_SEC = 40.0
-RATE_BURST = 60.0
-MAX_DROPPED_BEFORE_CLOSE = 400
-JOIN_TIMEOUT_SECONDS = 30
 
 _default_static = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 STATIC_DIR = Path(os.environ.get("SB_STATIC_DIR", str(_default_static)))
@@ -63,8 +50,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(hunt_api.router)
+app.include_router(spiritboard_api.router)
 app.include_router(psych_api.router)
-manager = RoomManager()
 
 
 @app.get("/api/health")
@@ -76,282 +63,32 @@ async def health() -> dict:
 async def session(request: Request) -> JSONResponse:
     """Makes sure this browser has its device + CSRF cookies (the dev server path)."""
     response = JSONResponse({"ok": True})
-    hunt_api.ensure_client_cookies(request, response)
+    ensure_client_cookies(request, response)
     return response
-
-
-# ---- WebSocket helpers -----------------------------------------------------
-
-
-def origin_allowed(ws: WebSocket) -> bool:
-    """Blocks cross-site WebSocket hijacking: browsers always send Origin."""
-    return origin_ok(ws.headers.get("origin"), ws.headers.get("host"))
-
-
-class RateLimiter:
-    def __init__(self) -> None:
-        self.tokens = RATE_BURST
-        self.last = time.monotonic()
-        self.dropped = 0
-
-    def allow(self) -> bool:
-        now = time.monotonic()
-        self.tokens = min(RATE_BURST, self.tokens + (now - self.last) * RATE_PER_SEC)
-        self.last = now
-        if self.tokens >= 1:
-            self.tokens -= 1
-            return True
-        self.dropped += 1
-        return False
-
-
-class ClientGone(Exception):
-    pass
-
-
-async def recv_message(ws: WebSocket, limiter: RateLimiter) -> dict[str, Any] | None:
-    """Receives one validated JSON message, or None if it should be ignored."""
-    text = await ws.receive_text()
-    if not limiter.allow():
-        if limiter.dropped > MAX_DROPPED_BEFORE_CLOSE:
-            raise ClientGone()
-        return None
-    if len(text) > MAX_MESSAGE_BYTES:
-        return None
-    try:
-        msg = json.loads(text)
-    except ValueError:
-        return None
-    if not isinstance(msg, dict) or not isinstance(msg.get("type"), str):
-        return None
-    return msg
-
-
-async def send_error(ws: WebSocket, message: str) -> None:
-    await ws.send_json({"type": "error", "message": message})
-
-
-# ---- TV --------------------------------------------------------------------
-
-
-@app.websocket("/ws/tv")
-async def tv_socket(ws: WebSocket) -> None:
-    if not origin_allowed(ws):
-        await ws.close(code=1008)
-        return
-    await ws.accept()
-    limiter = RateLimiter()
-    room = None
-    try:
-        msg = await asyncio.wait_for(recv_message(ws, limiter), JOIN_TIMEOUT_SECONDS)
-        if not msg or msg["type"] != "create":
-            await ws.close(code=1008)
-            return
-        device = hunt_api.device_of(ws.cookies)
-        # A refreshed TV asks for its room back. Only the browser that created
-        # it (same HttpOnly device cookie) gets it; anyone else gets a new room.
-        old = manager.get(msg.get("resume"))
-        if old is not None and old.is_host(device):
-            room = old
-            log.info("TV reattached to its room")
-        else:
-            try:
-                room = manager.create_room()
-            except RoomLimitError:
-                await send_error(ws, "Too many s\u00e9ances right now. Try again later.")
-                await ws.close()
-                return
-            room.host_device = device
-        room.tv_conns.add(ws)
-        room.touch()
-        await ws.send_json({"type": "created", "code": room.code})
-        await room.broadcast_state()
-
-        while True:
-            msg = await recv_message(ws, limiter)
-            if msg is None:
-                continue
-            kind = msg["type"]
-            if kind in ("start_round", "new_game") and (kind == "new_game" or not room.game_active):
-                await load_custom_questions(room)  # a new game picks up the host's latest questions
-            if kind == "start_round":
-                room.start_round()
-            elif kind == "add_bot":
-                room.add_bot()
-            elif kind == "remove_bot":
-                room.remove_bot()
-            elif kind == "back_to_lobby":
-                room.back_to_lobby()
-            elif kind == "new_game":
-                room.new_game()
-            elif kind == "restart_game":
-                room.restart_game()
-            elif kind == "set_length":
-                room.set_length(msg.get("length"))
-            elif kind == "set_curses":
-                room.set_curses(msg.get("on"))
-            elif kind == "set_starter_relics":
-                room.set_starter_relics(msg.get("on"))
-            elif kind == "set_catchup_relics":
-                room.set_catchup_relics(msg.get("on"))
-            elif kind == "set_practice":
-                room.set_practice(msg.get("on"))
-            elif kind == "dev_grant_relics":
-                # Playtesting aid; the button only renders on /tv?dev=1.
-                room.dev_grant_all()
-            elif kind == "kick":
-                pid = msg.get("playerId")
-                if isinstance(pid, str):
-                    conn = room.player_conns.pop(pid, None)
-                    room.remove_player(pid)
-                    if conn is not None:
-                        try:
-                            await send_error(conn, "The host removed you from the s\u00e9ance.")
-                            await conn.close()
-                        except Exception:
-                            pass
-            else:
-                continue
-            room.touch()
-            await room.broadcast_state()
-            await room.send_private()
-    except (WebSocketDisconnect, ClientGone, asyncio.TimeoutError):
-        pass
-    finally:
-        if room is not None:
-            room.tv_conns.discard(ws)
-            room.touch()
-
-
-# ---- Phones ----------------------------------------------------------------
-
-
-@app.websocket("/ws/play")
-async def play_socket(ws: WebSocket) -> None:
-    if not origin_allowed(ws):
-        await ws.close(code=1008)
-        return
-    await ws.accept()
-    limiter = RateLimiter()
-    room = None
-    player = None
-    try:
-        msg = await asyncio.wait_for(recv_message(ws, limiter), JOIN_TIMEOUT_SECONDS)
-        if not msg or msg["type"] != "join":
-            await ws.close(code=1008)
-            return
-        room = manager.get(msg.get("code"))
-        if room is None:
-            await send_error(ws, "No s\u00e9ance with that code.")
-            await ws.close()
-            return
-        device = hunt_api.device_of(ws.cookies)
-        try:
-            player = room.add_player(msg.get("name"), device=device)
-        except JoinError as e:
-            await send_error(ws, str(e))
-            await ws.close()
-            return
-        stale = room.player_conns.get(player.id)
-        room.player_conns[player.id] = ws
-        if stale is not None and stale is not ws:
-            # Same phone, new tab or refresh: the old socket loses its seat.
-            # The error stops that tab from auto-rejoining and stealing it back.
-            try:
-                await send_error(stale, "You rejoined from another tab.")
-                await stale.close()
-            except Exception:
-                pass
-        if device is not None and not player.hunt_loaded:
-            try:
-                found = await hunt_api.store.get_device(device)
-                room.load_hunt_relics(player, device, found.relics)
-            except Exception:
-                log.exception("couldn't load hunt Relics")  # the game still works without them
-        await ws.send_json({"type": "joined", "playerId": player.id, "code": room.code})
-        if player.bet is not None and room.phase != "lobby":
-            # Rejoined mid-round: remind this phone (only) of its secret bet.
-            await ws.send_json(room.bet_msg(player))
-        if player.id == room.medium_id and room.medium_answer is not None:
-            await ws.send_json(room.answer_msg())
-        await ws.send_json(room.relics_msg(player))
-        player.relics_dirty = False
-        await room.broadcast_state()
-
-        while True:
-            msg = await recv_message(ws, limiter)
-            if msg is None:
-                continue
-            if msg["type"] == "pull":
-                room.set_pull(player.id, msg.get("dx"), msg.get("dy"))
-            elif msg["type"] == "bet":
-                if room.place_bet(player.id, msg.get("spotId")):
-                    await ws.send_json(room.bet_msg(player))
-                    await room.broadcast_state()
-                    await room.send_private()  # live Crystal Ball counts
-            elif msg["type"] == "answer":
-                if room.medium_answers(player.id, msg.get("spotId")):
-                    await ws.send_json(room.answer_msg())
-                    await room.broadcast_state()
-            elif msg["type"] == "relic":
-                err = room.use_relic(player.id, msg.get("key"), msg.get("target"), msg.get("text"))
-                if err:
-                    await ws.send_json({"type": "relic_error", "message": err})
-                else:
-                    await room.broadcast_state()
-                    await room.send_private()
-                    await spend_hunt_relics(player)
-    except (WebSocketDisconnect, ClientGone, asyncio.TimeoutError):
-        pass
-    finally:
-        if room is not None and player is not None:
-            if room.player_conns.get(player.id) is ws:
-                room.player_conns.pop(player.id, None)
-                room.mark_disconnected(player.id)
-                try:
-                    await room.broadcast_state()
-                except Exception:
-                    pass
-
-
-async def load_custom_questions(room) -> None:
-    """Gives the room the host's custom questions. On failure the built-in decks still work."""
-    try:
-        qs = await asyncio.wait_for(hunt_api.store.list_questions(), timeout=3.0)
-    except Exception:
-        log.warning("could not load custom questions; using the built-in decks")
-        return
-    room.set_custom_questions([(q.deck, q.to_question(), q.always) for q in qs])
-
-
-async def spend_hunt_relics(player) -> None:
-    """Removes hunt Relics spent in a game from the phone's saved collection."""
-    while player.hunt_spent and player.device:
-        key = player.hunt_spent.pop()
-        try:
-            if not await hunt_api.store.consume(player.device, key):
-                log.warning("spent hunt Relic wasn't in the store")
-        except Exception:
-            log.exception("couldn't record a spent hunt Relic")
 
 
 # ---- Static frontend (production) -------------------------------------------
 
+_index = STATIC_DIR / "index.html"
+
+
+@app.api_route("/", methods=["GET", "HEAD"])
+@app.api_route("/spiritboard", methods=["GET", "HEAD"])
+@app.api_route("/spiritboard/play", methods=["GET", "HEAD"])
+@app.api_route("/spiritboard/relics", methods=["GET", "HEAD"])
+@app.api_route("/spiritboard/admin", methods=["GET", "HEAD"])
+@app.api_route("/spiritboard/admin/print", methods=["GET", "HEAD"])
+@app.api_route("/spiritboard/claim/{token}", methods=["GET", "HEAD"])
+@app.api_route("/psychological", methods=["GET", "HEAD"])
+@app.api_route("/psychological/play", methods=["GET", "HEAD"])
+async def spa_routes(request: Request) -> Response:
+    if _index.is_file():
+        response: Response = FileResponse(_index, headers={"Cache-Control": "no-store"})
+    else:
+        response = HTMLResponse("<!doctype html><div id='root'></div>", headers={"Cache-Control": "no-store"})
+    ensure_client_cookies(request, response)
+    return response
+
+
 if STATIC_DIR.is_dir():
-    _index = STATIC_DIR / "index.html"
-
-    @app.api_route("/", methods=["GET", "HEAD"])
-    @app.api_route("/tv", methods=["GET", "HEAD"])
-    @app.api_route("/play", methods=["GET", "HEAD"])
-    @app.api_route("/relics", methods=["GET", "HEAD"])
-    @app.api_route("/admin", methods=["GET", "HEAD"])
-    @app.api_route("/admin/print", methods=["GET", "HEAD"])
-    @app.api_route("/claim/{token}", methods=["GET", "HEAD"])
-    @app.api_route("/psychological", methods=["GET", "HEAD"])
-    @app.api_route("/psychological/play", methods=["GET", "HEAD"])
-    async def spa_routes(request: Request) -> FileResponse:
-        response = FileResponse(_index, headers={"Cache-Control": "no-store"})
-        hunt_api.ensure_client_cookies(request, response)
-        return response
-
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

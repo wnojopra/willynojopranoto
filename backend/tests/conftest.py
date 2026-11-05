@@ -1,6 +1,6 @@
 import pytest
 
-from app import rooms
+from app.spiritboard import rooms
 
 
 @pytest.fixture(autouse=True)

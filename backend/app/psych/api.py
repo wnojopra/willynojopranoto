@@ -7,22 +7,41 @@ import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.hunt_api import device_of
-from app.origins import origin_ok
 from app.psych.rooms import JoinError, PsychRoomManager, RoomLimitError
-from app.psych.ws_util import ClientGone, RateLimiter, recv_message, send_error
+from app.shared.cookies import device_of
+from app.shared.origins import ws_origin_allowed as _origin_allowed
+from app.shared.ws import ClientGone, RateLimiter, recv_message as _shared_recv, send_error
 
 log = logging.getLogger("psychological")
 
 JOIN_TIMEOUT_SECONDS = 30
+# Turn-based: phones send a handful of messages per turn.
+MAX_MESSAGE_BYTES = 256
+# Only "selfie" messages may be bigger (a ~128px JPEG as a data URL).
+MAX_SELFIE_MESSAGE_BYTES = 26_000
+RATE_PER_SEC = 10.0
+RATE_BURST = 20.0
+MAX_DROPPED_BEFORE_CLOSE = 200
 
 router = APIRouter()
 manager = PsychRoomManager()
 
 
-def _origin_allowed(ws: WebSocket) -> bool:
-    """Blocks cross-site WebSocket hijacking: browsers always send Origin."""
-    return origin_ok(ws.headers.get("origin"), ws.headers.get("host"))
+def _new_limiter() -> RateLimiter:
+    return RateLimiter(
+        rate_per_sec=RATE_PER_SEC,
+        burst=RATE_BURST,
+        max_dropped=MAX_DROPPED_BEFORE_CLOSE,
+    )
+
+
+async def recv_message(ws: WebSocket, limiter: RateLimiter) -> dict | None:
+    return await _shared_recv(
+        ws,
+        limiter,
+        max_bytes=MAX_MESSAGE_BYTES,
+        large_types={"selfie": MAX_SELFIE_MESSAGE_BYTES},
+    )
 
 
 @router.websocket("/ws/psych/tv")
@@ -31,7 +50,7 @@ async def tv_socket(ws: WebSocket) -> None:
         await ws.close(code=1008)
         return
     await ws.accept()
-    limiter = RateLimiter()
+    limiter = _new_limiter()
     room = None
     try:
         msg = await asyncio.wait_for(recv_message(ws, limiter), JOIN_TIMEOUT_SECONDS)
@@ -121,7 +140,7 @@ async def play_socket(ws: WebSocket) -> None:
         await ws.close(code=1008)
         return
     await ws.accept()
-    limiter = RateLimiter()
+    limiter = _new_limiter()
     room = None
     player = None
     try:

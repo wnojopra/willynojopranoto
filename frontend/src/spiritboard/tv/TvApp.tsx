@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
+import { QrCode } from '../../shared/QrCode';
+import { loadSpiritFonts, useGameSocket } from '../../shared/useGameSocket';
 import type { Curse, GameLength, PlanchetteState, Player, RelicEvent, ServerMsg, StateMsg } from '../protocol';
-import { useGameSocket } from '../useGameSocket';
+import '../spiritboard.css';
 import { sound } from './audio';
 import { Board, type Bettor } from './Board';
 import { Countdown } from './Countdown';
 import { betrayalLine, names } from './gossip';
-import { QrCode } from './QrCode';
 import { HOW_TO_CARDS, practiceStep } from './tutorial';
 import { useSeanceAudio, useSoundSettings } from './useSeanceAudio';
 
-/** /tv?dev=1 shows testing shortcuts (e.g. hand everyone every Relic). */
+/** /spiritboard?dev=1 shows testing shortcuts (e.g. hand everyone every Relic). */
 const DEV = new URLSearchParams(location.search).get('dev') === '1';
 /** Past this many players the roster and standings switch to more columns. */
 const BIG_ROOM = 10;
@@ -69,10 +70,15 @@ export function TvApp() {
     }
   }, []);
 
+  useEffect(() => {
+    document.title = 'Spirit Board';
+    loadSpiritFonts();
+  }, []);
+
   // Recomputed per attempt (not when the code arrives, which would reconnect).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const firstMessage = useMemo(() => JSON.stringify({ type: 'create', resume: savedRoom() }), [attempt]);
-  const { status, send } = useGameSocket('/ws/tv', firstMessage, onMessage, attempt);
+  const { status, send } = useGameSocket<ServerMsg>('/ws/spiritboard/tv', firstMessage, onMessage, attempt);
   useSeanceAudio(state, planchetteRef);
 
   // Dropped (Wi-Fi blip, server restart): quietly retry with backoff.
@@ -185,7 +191,7 @@ function SoundBar() {
 type Send = (msg: object) => void;
 
 function Lobby({ state, send }: { state: StateMsg; send: Send }) {
-  const joinUrl = `${location.host}/play`;
+  const joinUrl = `${location.host}/spiritboard/play`;
   const humans = state.players.filter((p) => !p.isBot).length;
   const bots = state.players.length - humans;
   const needed = Math.max(0, state.minPlayers - state.players.length);
@@ -205,7 +211,7 @@ function Lobby({ state, send }: { state: StateMsg; send: Send }) {
       <section className="lobby__join" aria-label="How to join">
         <div className="lobby__scan">
           <QrCode
-            value={`${location.origin}/play?code=${state.code}`}
+            value={`${location.origin}/spiritboard/play?code=${state.code}`}
             className="lobby__qr"
             label={`QR code to join room ${state.code}`}
           />
@@ -275,6 +281,9 @@ function Lobby({ state, send }: { state: StateMsg; send: Send }) {
           <button id="tv-howto" className="btn btn--ghost" onClick={() => setHowTo(0)}>
             📜 How to play
           </button>
+          <a id="tv-to-phone" className="btn btn--ghost" href="/spiritboard/play">
+            📱 Join on this device
+          </a>
           {needed > 0 && (
             <p className="lobby__hint">
               Need {needed} more {needed === 1 ? 'spirit' : 'spirits'} to begin.

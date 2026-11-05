@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { QrCode } from '../tv/QrCode';
+import { QrCode } from '../../shared/QrCode';
+import { loadSpiritFonts } from '../../shared/useGameSocket';
+import '../spiritboard.css';
 import {
   ApiError,
   getCatalog,
@@ -27,14 +29,18 @@ function prizeText(c: AdminCode, catalog: Catalog | null) {
   return `${TIER_EMOJI[t]} random ${t === 'any' ? '' : t}`.replace(/\s+$/, '');
 }
 
-/** Shared by /admin and /admin/print: session check + login form. */
+/** Shared by /spiritboard/admin and /spiritboard/admin/print: session check + login form. */
 function useAdmin() {
   const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState<string | null>(null);
   const refresh = useCallback(() => {
     getJson<Session>('/api/admin/session').then(setSession, (e) => setError(errMsg(e)));
   }, []);
-  useEffect(refresh, [refresh]);
+  useEffect(() => {
+    document.title = 'Spirit Board · Admin';
+    loadSpiritFonts();
+    refresh();
+  }, [refresh]);
   return { session, setSession, error, setError, refresh };
 }
 
@@ -172,7 +178,7 @@ function AdminConsole({ logout }: { logout: () => void }) {
   return (
     <>
       <div className="admin__bar">
-        <a id="admin-print" className="btn btn--primary" href="/admin/print">
+        <a id="admin-print" className="btn btn--primary" href="/spiritboard/admin/print">
           🖨️ Print stickers
         </a>
         <button id="admin-logout" className="btn btn--ghost" onClick={logout}>
@@ -516,7 +522,7 @@ function Stickers() {
   return (
     <>
       <div className="admin__bar print__controls">
-        <a className="btn btn--ghost" href="/admin">
+        <a className="btn btn--ghost" href="/spiritboard/admin">
           ← Back
         </a>
         <span className="phone__sub">{codes.length} unclaimed stickers</span>
@@ -539,7 +545,7 @@ function Stickers() {
                 </span>{' '}
                 {name}
               </span>
-              <QrCode className="sticker__qr" value={`${location.origin}/claim/${c.token}`} label={`Scan for ${name}`} />
+              <QrCode className="sticker__qr" value={`${location.origin}/spiritboard/claim/${c.token}`} label={`Scan for ${name}`} />
               <span className="sticker__warn">Do not scan until the séance starts</span>
               {c.label && <span className="sticker__label">{c.label}</span>}
             </li>

@@ -2,8 +2,8 @@ import random
 
 import pytest
 
-from app import game, rooms
-from app.rooms import JoinError, Room
+from app.spiritboard import game, rooms
+from app.spiritboard.rooms import JoinError, Room
 
 
 class FakeClock:
@@ -57,7 +57,7 @@ def test_a_full_room_of_sixteen_works():
     room.practice_on = False
     assert room.new_game()
     # A "who" board with every name on it still fits the ring.
-    from app.questions import Question
+    from app.spiritboard.questions import Question
 
     room.spots = rooms.physics.layout_spots(room._labels_for(Question("who", "Who?")))
     assert len(room.spots) == rooms.MAX_PLAYERS
@@ -417,7 +417,7 @@ def test_abandoned_round_is_replayed():
 
 # ---- Curses -----------------------------------------------------------------
 
-from app import curses, physics  # noqa: E402
+from app.spiritboard import curses, physics  # noqa: E402
 
 
 def land_on(room, clock, player):
@@ -514,7 +514,7 @@ def test_final_curse_skips_bots():
 
 # ---- Relics -----------------------------------------------------------------
 
-from app import relics  # noqa: E402
+from app.spiritboard import relics  # noqa: E402
 
 
 def relic_room(n_humans=3, kind_plan=None):

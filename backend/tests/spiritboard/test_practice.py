@@ -2,8 +2,8 @@
 
 import random
 
-from app import rooms
-from app.rooms import Room
+from app.spiritboard import rooms
+from app.spiritboard.rooms import Room
 
 
 class Clock:

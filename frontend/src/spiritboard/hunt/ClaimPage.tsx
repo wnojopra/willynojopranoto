@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { loadSpiritFonts } from '../../shared/useGameSocket';
 import type { RelicInfo, RelicKey } from '../protocol';
+import '../spiritboard.css';
 import { ApiError, getCatalog, getJson, getMe, postJson, type Catalog, type ClaimResult } from './api';
 
 function RelicCard({ info, fresh }: { info: RelicInfo | undefined; fresh: boolean }) {
@@ -29,6 +31,8 @@ export function ClaimPage({ token }: { token: string }) {
   const path = `/api/claim/${encodeURIComponent(token)}`;
 
   useEffect(() => {
+    document.title = 'Spirit Board · Claim Relic';
+    loadSpiritFonts();
     getCatalog().then(setCatalog, () => {});
     getMe()
       .then(() => getJson<ClaimResult>(path))
@@ -66,7 +70,7 @@ export function ClaimPage({ token }: { token: string }) {
       <>
         <p className="hunt__kicker">{result.status === 'claimed' ? 'You found…' : 'You already found this one:'}</p>
         <RelicCard info={info(result.relic)} fresh={fresh} />
-        <a id="claim-to-relics" className="btn btn--primary btn--big" href="/relics">
+        <a id="claim-to-relics" className="btn btn--primary btn--big" href="/spiritboard/relics">
           See my Relics
         </a>
         <p className="phone__sub">Keep hunting. Bring this phone to the séance and your Relics come with you.</p>
@@ -110,7 +114,7 @@ export function ClaimPage({ token }: { token: string }) {
       <>
         <p className="phone__big">Someone got here first 👻</p>
         <p className="phone__sub">The Relic that was here has already been taken. Keep looking.</p>
-        <a className="btn" href="/relics">
+        <a className="btn" href="/spiritboard/relics">
           My Relics
         </a>
       </>
@@ -148,6 +152,8 @@ export function RelicsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    document.title = 'Spirit Board · My Relics';
+    loadSpiritFonts();
     getCatalog().then(setCatalog, () => {});
     getMe().then(setMe, () => setError('Could not reach the spirits.'));
   }, []);
@@ -176,7 +182,7 @@ export function RelicsPage() {
               ))}
             </ul>
           )}
-          <a id="relics-play" className="btn btn--primary btn--big" href="/play">
+          <a id="relics-play" className="btn btn--primary btn--big" href="/spiritboard/play">
             Bring this phone to the séance
           </a>
           <p className="phone__sub">Each Relic works once. Join a game from this phone and they come with you.</p>
