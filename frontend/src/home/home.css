@@ -184,6 +184,13 @@
       linear-gradient(165deg, #172138, #111625);
   }
 
+  .wn-card--battle {
+    border-color: rgb(252 129 129 / 0.28);
+    background:
+      radial-gradient(90% 80% at 100% 0%, rgb(245 101 101 / 0.15), transparent 65%),
+      linear-gradient(165deg, #27151b, #140f14);
+  }
+
   .wn-card__top {
     display: flex;
     align-items: flex-start;
@@ -267,6 +274,17 @@
   .wn-btn--psych {
     border-color: transparent;
     background: linear-gradient(135deg, #4299e1, #805ad5);
+    color: #ffffff;
+    font-weight: 750;
+
+    &:hover {
+      filter: brightness(1.1);
+    }
+  }
+
+  .wn-btn--battle {
+    border-color: transparent;
+    background: linear-gradient(135deg, #f56565, #c53030);
     color: #ffffff;
     font-weight: 750;
 
