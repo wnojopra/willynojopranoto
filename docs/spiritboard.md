@@ -147,27 +147,25 @@ flowchart LR
 | **🎃 Pick One** | 4–6 silly options | *"What's actually haunting this house?"* |
 | **🔢 Numbers** | 0–9 | *"How many minutes would {player} last in a haunted asylum?"* |
 
-### 5.2 Spirit Bets questions (🌶️ starter deck)
+### 5.2 Spirit Bets questions (starter deck)
 **Who In This Room…**
 - …would be the first to die in a horror movie?
-- …would hook up with the ghost instead of running?
+- …would try to analyze or medically diagnose the ghost instead of running?
 - …would sell out the whole group to the demon for \$50?
 - …has the most haunted search history?
 - …would get possessed and nobody would notice?
 - …would read the cursed book out loud "just to see"?
-- …would try to start an OnlyFans with the ghost?
 - …would charge the demon rent?
-- …is most likely to have a body in their basement?
 - …would survive the horror movie by sacrificing everyone else?
 
 **Yes / No / Maybe**
 - Is {player} the real reason the lights keep flickering?
-- Has {player} ever ghosted someone worse than an actual ghost?
+- Would {player} survive a horror movie past the opening credits?
 - Would {player} survive a zombie apocalypse past day 2?
 
 **Pick One**
-- *What is {player}'s ghost form?* → A sad Victorian child · A slutty poltergeist · An HOA ghost · A ghost who only haunts Costco
-- *What's in {player}'s cursed basement?* → Their browser history · 400 Crocs · Another basement · Their ex
+- *What is {player}'s ghost form?* → A sad Victorian child · An orb of memes · An HOA ghost · A ghost who only haunts Costco
+- *What's in {player}'s cursed basement?* → Their browser history · 400 Crocs · Another basement · Board games
 
 ### 5.3 Host custom questions ⭐
 On the admin page you can add inside-joke questions (marked as Spirit Bets, Medium or Final Séance), and flag them "always include."
