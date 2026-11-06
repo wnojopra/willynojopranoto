@@ -18,18 +18,18 @@ interface GameImage {
 
 interface GameItem {
   id: string;
+  index: string;
   title: string;
   badge: string;
   description: string;
   image: GameImage;
-  themeClass: string;
-  btnClass: string;
   actions: GameAction[];
 }
 
 const GAMES: GameItem[] = [
   {
     id: 'spiritboard',
+    index: '01',
     title: 'Spirit Board',
     badge: '2–16 players',
     description:
@@ -40,8 +40,6 @@ const GAMES: GameItem[] = [
       width: 1024,
       height: 583,
     },
-    themeClass: 'wn-card--spirit',
-    btnClass: 'wn-btn--spirit',
     actions: [
       { id: 'home-spiritboard-tv', label: 'Host on TV', href: '/spiritboard', primary: true },
       { id: 'home-spiritboard-play', label: 'Join on Phone', href: '/spiritboard/play' },
@@ -49,6 +47,7 @@ const GAMES: GameItem[] = [
   },
   {
     id: 'psychological',
+    index: '02',
     title: 'Psychological',
     badge: '2–12 players',
     description:
@@ -59,8 +58,6 @@ const GAMES: GameItem[] = [
       width: 1024,
       height: 567,
     },
-    themeClass: 'wn-card--psych',
-    btnClass: 'wn-btn--psych',
     actions: [
       { id: 'home-psychological-tv', label: 'Host on TV', href: '/psychological', primary: true },
       { id: 'home-psychological-play', label: 'Join on Phone', href: '/psychological/play' },
@@ -68,6 +65,7 @@ const GAMES: GameItem[] = [
   },
   {
     id: 'battleweb',
+    index: '03',
     title: 'BattleWeb',
     badge: 'WIP',
     description: 'Top-down arena brawler in the browser, inspired by Battlerite. Still a work in progress.',
@@ -77,8 +75,6 @@ const GAMES: GameItem[] = [
       width: 1024,
       height: 521,
     },
-    themeClass: 'wn-card--battle',
-    btnClass: 'wn-btn--battle',
     actions: [
       {
         id: 'home-battleweb-play',
@@ -93,30 +89,53 @@ const GAMES: GameItem[] = [
 
 interface ProjectItem {
   title: string;
+  domain: string;
   description: string;
   href: string;
+  tone: 'mauve' | 'plum';
+  image?: GameImage;
 }
 
 const PROJECTS: ProjectItem[] = [
   {
-    title: 'Wedding Site (ncwn2027.web.app)',
+    title: 'Wedding Site',
+    domain: 'ncwn2027.web.app',
     description: 'My wedding website.',
     href: 'https://ncwn2027.web.app/',
+    tone: 'mauve',
+    image: {
+      src: '/images/wedding.jpg',
+      alt: 'Natalie & Willy wedding website hero banner with floral illustration',
+      width: 1024,
+      height: 295,
+    },
   },
   {
-    title: 'Splitw (splitw.duckdns.org)',
+    title: 'Splitw',
+    domain: 'splitw.duckdns.org',
     description: 'Web app for expense sharing with friends and groups.',
     href: 'https://splitw.duckdns.org/',
+    tone: 'plum',
+    image: {
+      src: '/images/splitw.png',
+      alt: 'Splitw expense-sharing dashboard showing groups and shared expenses',
+      width: 1024,
+      height: 507,
+    },
   },
   {
-    title: 'GitHub (@wnojopra)',
+    title: 'GitHub',
+    domain: '@wnojopra',
     description: 'Open-source contributions, cloud tooling, and web game experiments.',
     href: 'https://github.com/wnojopra',
+    tone: 'plum',
   },
   {
     title: 'willynojopranoto',
+    domain: 'Source repo',
     description: 'Source code for this site and the real-time FastAPI + React multiplayer game engine.',
     href: 'https://github.com/wnojopra/willynojopranoto',
+    tone: 'mauve',
   },
 ];
 
@@ -129,97 +148,136 @@ export function HomePage() {
     <div className="wn-root">
       <div className="wn-shell">
         <header className="wn-header">
-          <a className="wn-brand" href="/">
-            Willy Nojopranoto
-          </a>
-          <nav className="wn-nav" aria-label="Primary navigation">
-            <a className="wn-nav__link" href="#games">
-              Games
+          <nav className="wn-pillnav" aria-label="Primary navigation">
+            <a className="wn-brand" href="/">
+              Willy Nojopranoto
             </a>
-            <a className="wn-nav__link" href="#projects">
-              Projects
-            </a>
-            <a className="wn-nav__link" href="https://github.com/wnojopra" target="_blank" rel="noreferrer">
-              GitHub ↗
-            </a>
-            <a className="wn-nav__link" href="https://www.linkedin.com/in/willy-nojopranoto-bbb07a51/" target="_blank" rel="noreferrer">
+            <div className="wn-nav__links">
+              <a className="wn-nav__link" href="#games">
+                Games
+              </a>
+              <a className="wn-nav__link" href="#projects">
+                Projects
+              </a>
+              <a className="wn-nav__link" href="https://github.com/wnojopra" target="_blank" rel="noreferrer">
+                GitHub ↗
+              </a>
+            </div>
+            <a
+              className="wn-nav__cta"
+              href="https://www.linkedin.com/in/willy-nojopranoto-bbb07a51/"
+              target="_blank"
+              rel="noreferrer"
+            >
               LinkedIn ↗
             </a>
           </nav>
         </header>
 
-        <main className="wn-section">
+        <main className="wn-main">
           <section className="wn-hero" aria-labelledby="about-heading">
-            <p className="wn-kicker">Software Engineer</p>
             <h1 id="about-heading" className="wn-title">
-              Hi, I’m Willy.
+              Hi, I’m Willy
+              <br />
+              <span className="wn-title__muted">Software Engineer</span>
             </h1>
             <p className="wn-bio">Here I list personal projects I’ve worked on.</p>
           </section>
+
+          <section id="games" className="wn-section" aria-labelledby="games-heading">
+            <div className="wn-section__head">
+              <p className="wn-eyebrow">Playable in the browser</p>
+              <h2 id="games-heading" className="wn-h2">
+                GAMES
+              </h2>
+            </div>
+
+            <div className="wn-games">
+              {GAMES.map((g) => (
+                <article key={g.id} className="wn-card">
+                  <div className="wn-card__banner">
+                    <span className="wn-card__index" aria-hidden="true">
+                      {g.index}
+                    </span>
+                    <div className="wn-card__heading">
+                      <h3 className="wn-card__title">{g.title}</h3>
+                      <span className="wn-badge">{g.badge}</span>
+                    </div>
+                  </div>
+
+                  <div className="wn-card__media">
+                    <img
+                      className="wn-card__img"
+                      src={g.image.src}
+                      alt={g.image.alt}
+                      width={g.image.width}
+                      height={g.image.height}
+                    />
+                  </div>
+
+                  <div className="wn-card__info">
+                    <p className="wn-card__desc">{g.description}</p>
+                    <div className="wn-card__actions">
+                      {g.actions.map((a) => (
+                        <a
+                          key={a.id}
+                          id={a.id}
+                          className={`wn-btn ${a.primary ? 'wn-btn--primary' : 'wn-btn--secondary'}`}
+                          href={a.href}
+                          target={a.external ? '_blank' : undefined}
+                          rel={a.external ? 'noreferrer' : undefined}
+                        >
+                          <span>{a.label}</span>
+                          {!a.external && <span aria-hidden="true">→</span>}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section id="projects" className="wn-section" aria-labelledby="projects-heading">
+            <div className="wn-section__head">
+              <p className="wn-eyebrow">More around the web</p>
+              <h2 id="projects-heading" className="wn-h2">
+                PROJECTS &amp; LINKS
+              </h2>
+            </div>
+
+            <div className="wn-projects">
+              {PROJECTS.map((p) => (
+                <a
+                  key={p.title}
+                  className={`wn-project wn-project--${p.tone}`}
+                  href={p.href}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {p.image && (
+                    <div className="wn-project__media">
+                      <img
+                        className="wn-project__img"
+                        src={p.image.src}
+                        alt={p.image.alt}
+                        width={p.image.width}
+                        height={p.image.height}
+                      />
+                    </div>
+                  )}
+                  <div className="wn-project__row">
+                    <div className="wn-project__left">
+                      <h3 className="wn-project__title">{p.title}</h3>
+                      <span className="wn-project__pill">{p.domain} ↗</span>
+                    </div>
+                    <p className="wn-project__desc">{p.description}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </section>
         </main>
-
-        <section id="games" className="wn-section" aria-labelledby="games-heading">
-          <div className="wn-section__head">
-            <h2 id="games-heading" className="wn-h2">
-              Games
-            </h2>
-          </div>
-
-          <div className="wn-games">
-            {GAMES.map((g) => (
-              <article key={g.id} className={`wn-card ${g.themeClass}`}>
-                <div className="wn-card__media">
-                  <img
-                    className="wn-card__img"
-                    src={g.image.src}
-                    alt={g.image.alt}
-                    width={g.image.width}
-                    height={g.image.height}
-                  />
-                </div>
-                <div className="wn-card__top">
-                  <h3 className="wn-card__title">{g.title}</h3>
-                  <span className="wn-badge">{g.badge}</span>
-                </div>
-                <p className="wn-card__desc">{g.description}</p>
-                <div className="wn-card__actions">
-                  {g.actions.map((a) => (
-                    <a
-                      key={a.id}
-                      id={a.id}
-                      className={`wn-btn ${a.primary ? g.btnClass : ''}`.trim()}
-                      href={a.href}
-                      target={a.external ? '_blank' : undefined}
-                      rel={a.external ? 'noreferrer' : undefined}
-                    >
-                      {a.label}
-                    </a>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section id="projects" className="wn-section" aria-labelledby="projects-heading">
-          <div className="wn-section__head">
-            <h2 id="projects-heading" className="wn-h2">
-              Projects &amp; Links
-            </h2>
-          </div>
-
-          <div className="wn-projects">
-            {PROJECTS.map((p) => (
-              <a key={p.title} className="wn-project" href={p.href} target="_blank" rel="noreferrer">
-                <h3 className="wn-project__title">
-                  <span>{p.title}</span>
-                  <span aria-hidden="true">↗</span>
-                </h3>
-                <p className="wn-project__desc">{p.description}</p>
-              </a>
-            ))}
-          </div>
-        </section>
 
         <footer className="wn-footer">
           <span>© {new Date().getFullYear()} Willy Nojopranoto</span>
