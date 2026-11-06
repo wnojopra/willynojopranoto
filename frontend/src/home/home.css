@@ -152,12 +152,12 @@
   }
 
   .wn-card {
-    grid-row: span 3;
+    grid-row: span 4;
     display: grid;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto auto 1fr auto;
     grid-template-rows: subgrid;
     gap: 1rem;
-    padding: 1.5rem;
+    padding: 1.35rem;
     border-radius: var(--wn-radius);
     border: 1px solid var(--wn-border);
     background: linear-gradient(165deg, var(--wn-bg-card), var(--wn-bg-elevated));
@@ -167,6 +167,29 @@
     &:hover {
       border-color: var(--wn-border-strong);
       transform: translateY(-2px);
+    }
+  }
+
+  .wn-card__media {
+    display: block;
+    overflow: hidden;
+    border-radius: calc(var(--wn-radius) - 6px);
+    border: 1px solid var(--wn-border);
+    background: #080a10;
+    aspect-ratio: 16 / 9;
+  }
+
+  .wn-card__img {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    object-position: top center;
+    transition: transform 220ms ease;
+
+    .wn-card:hover & {
+      transform: scale(1.02);
     }
   }
 
@@ -230,6 +253,8 @@
   .wn-card__actions {
     display: flex;
     flex-wrap: wrap;
+    align-items: flex-start;
+    align-content: flex-start;
     gap: 0.65rem;
     padding-block-start: 0.25rem;
   }

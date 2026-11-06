@@ -9,12 +9,19 @@ interface GameAction {
   external?: boolean;
 }
 
+interface GameImage {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
 interface GameItem {
   id: string;
-  emoji: string;
   title: string;
   badge: string;
   description: string;
+  image: GameImage;
   themeClass: string;
   btnClass: string;
   actions: GameAction[];
@@ -23,44 +30,59 @@ interface GameItem {
 const GAMES: GameItem[] = [
   {
     id: 'spiritboard',
-    emoji: '👻',
     title: 'Spirit Board',
     badge: '2–16 players',
     description:
       'A Jackbox-style séance party game. The TV shows a Ouija board, everyone secretly bets on the answer, and every phone pulls the planchette together at the same time.',
+    image: {
+      src: '/images/spiritboard.jpg',
+      alt: 'Spirit Board gameplay showing the Ouija board, planchette, question, and countdown timer',
+      width: 1024,
+      height: 583,
+    },
     themeClass: 'wn-card--spirit',
     btnClass: 'wn-btn--spirit',
     actions: [
-      { id: 'home-spiritboard-tv', label: '📺 Host on TV', href: '/spiritboard', primary: true },
-      { id: 'home-spiritboard-play', label: '📱 Join on Phone', href: '/spiritboard/play' },
+      { id: 'home-spiritboard-tv', label: 'Host on TV', href: '/spiritboard', primary: true },
+      { id: 'home-spiritboard-play', label: 'Join on Phone', href: '/spiritboard/play' },
     ],
   },
   {
     id: 'psychological',
-    emoji: '🧠',
     title: 'Psychological',
     badge: '2–12 players',
     description:
       'How well do your friends really know you? Each turn pairs two personality traits on a 10×10 grid—one player secretly marks where they see themself while everyone else tries to read their mind.',
+    image: {
+      src: '/images/psychological.jpg',
+      alt: 'Psychological gameplay showing the 10x10 personality trait grid, player pawns, and scoreboard',
+      width: 1024,
+      height: 567,
+    },
     themeClass: 'wn-card--psych',
     btnClass: 'wn-btn--psych',
     actions: [
-      { id: 'home-psychological-tv', label: '📺 Host on TV', href: '/psychological', primary: true },
-      { id: 'home-psychological-play', label: '📱 Join on Phone', href: '/psychological/play' },
+      { id: 'home-psychological-tv', label: 'Host on TV', href: '/psychological', primary: true },
+      { id: 'home-psychological-play', label: 'Join on Phone', href: '/psychological/play' },
     ],
   },
   {
     id: 'battleweb',
-    emoji: '⚔️',
     title: 'BattleWeb',
     badge: 'WIP',
     description: 'Top-down arena brawler in the browser, inspired by Battlerite. Still a work in progress.',
+    image: {
+      src: '/images/battleweb.jpg',
+      alt: 'BattleWeb gameplay showing top-down arena combat, health bars, and ability cooldowns',
+      width: 1024,
+      height: 521,
+    },
     themeClass: 'wn-card--battle',
     btnClass: 'wn-btn--battle',
     actions: [
       {
         id: 'home-battleweb-play',
-        label: '⚔️ Play BattleWeb ↗',
+        label: 'Play BattleWeb ↗',
         href: 'https://battleweb-270279587994.us-central1.run.app/',
         primary: true,
         external: true,
@@ -112,10 +134,10 @@ export function HomePage() {
           </a>
           <nav className="wn-nav" aria-label="Primary navigation">
             <a className="wn-nav__link" href="#games">
-              🎮 Games
+              Games
             </a>
             <a className="wn-nav__link" href="#projects">
-              🛠️ Projects
+              Projects
             </a>
             <a className="wn-nav__link" href="https://github.com/wnojopra" target="_blank" rel="noreferrer">
               GitHub ↗
@@ -146,10 +168,17 @@ export function HomePage() {
           <div className="wn-games">
             {GAMES.map((g) => (
               <article key={g.id} className={`wn-card ${g.themeClass}`}>
+                <div className="wn-card__media">
+                  <img
+                    className="wn-card__img"
+                    src={g.image.src}
+                    alt={g.image.alt}
+                    width={g.image.width}
+                    height={g.image.height}
+                  />
+                </div>
                 <div className="wn-card__top">
-                  <h3 className="wn-card__title">
-                    <span aria-hidden="true">{g.emoji}</span> {g.title}
-                  </h3>
+                  <h3 className="wn-card__title">{g.title}</h3>
                   <span className="wn-badge">{g.badge}</span>
                 </div>
                 <p className="wn-card__desc">{g.description}</p>
