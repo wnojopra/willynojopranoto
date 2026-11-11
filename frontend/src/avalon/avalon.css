@@ -617,10 +617,18 @@
     width: 124px;
     height: 124px;
     background: #f8f3e6;
-    padding: 6px;
+    padding: 4px;
     border-radius: 8px;
     border: 2px solid var(--ava-brass);
     flex-shrink: 0;
+  }
+
+  .ava-qr .qr__bg {
+    fill: #f8f3e6;
+  }
+
+  .ava-qr .qr__ink {
+    fill: #18120c;
   }
 
   .ava-lobby__config {
