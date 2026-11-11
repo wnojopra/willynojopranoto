@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { QrCode } from '../shared/QrCode';
 import { ensureSession, loadAvalonFonts, useGameSocket } from '../shared/useGameSocket';
-import { AvalonCrest, KnightPawn, LeaderCrown, RoleEmblem, Token } from './Art';
+import {
+  AvalonCrest,
+  KnightPawn,
+  LeaderCrown,
+  QuestChaliceCard,
+  RoleEmblem,
+  TableauBoard,
+  Token,
+  VoteTokenBadge,
+} from './Art';
 import {
   avalonSound,
   installAvalonWakeOnGesture,
@@ -39,7 +48,6 @@ function saveRoom(code: string | null) {
   }
 }
 
-/** Two-step confirmation button so no native confirm() blocks the UI. */
 function ConfirmButton({
   id,
   label,
@@ -182,7 +190,7 @@ export function AvalonTv() {
                 location.reload();
               }}
             >
-              Start a new room
+              Start a New Room
             </button>
           </div>
         </div>
@@ -191,7 +199,7 @@ export function AvalonTv() {
   } else if (!state) {
     content = (
       <main className="ava-center">
-        <p className="ava-sub">Summoning the Round Table…</p>
+        <p className="ava-sub">Unrolling the Quest Tableau…</p>
       </main>
     );
   } else if (state.phase === 'lobby') {
@@ -225,7 +233,7 @@ function AudioToolbar() {
           avalonSound.setSound(!avalonSound.soundOn);
         }}
       >
-        {avalonSound.soundOn ? '🔊 Sound On' : '🔇 Sound Muted'}
+        {avalonSound.soundOn ? 'Sound: On' : 'Sound: Off'}
       </button>
       <button
         id="ava-toggle-voice"
@@ -236,7 +244,7 @@ function AudioToolbar() {
           avalonSound.setNarrate(!avalonSound.narrateOn);
         }}
       >
-        {avalonSound.narrateOn ? '🗣️ Narrator On' : '🗣️ Narrator Off'}
+        {avalonSound.narrateOn ? 'Narrator: On' : 'Narrator: Off'}
       </button>
     </div>
   );
@@ -264,52 +272,52 @@ function LobbyScreen({
 
   return (
     <main className="ava-lobby">
-      <section className="ava-lobby__hero">
-        <AvalonCrest className="ava-lobby__crest" />
-        <p className="ava-kicker">Don Eskridge’s The Resistance</p>
+      {/* Left Column: Box-Cover Stone Frame */}
+      <section className="ava-boxframe">
+        <p className="ava-boxframe__eyebrow">don eskridge’s THE RESISTANCE</p>
         <h1 className="ava-logo">AVALON</h1>
-        <p className="ava-sub">
-          Hidden loyalty, deduction, and deception for <strong>5–10 players</strong>.
-        </p>
-
-        <div className="ava-panel ava-joinbox">
-          <div className="ava-joinbox__info">
-            <span className="ava-kicker">Join on your phone</span>
-            <p className="ava-joinbox__url">
-              {location.host}
-              <wbr />
-              /avalon/play
-            </p>
-            <span className="ava-kicker">Room Code</span>
-            <p className="ava-code" id="ava-code">
-              {state.code}
-            </p>
+        <div className="ava-boxframe__window">
+          <AvalonCrest className="ava-boxframe__crest" />
+          <div className="ava-joinbox">
+            <div className="ava-joinbox__info">
+              <span className="ava-kicker">Join on Your Phone</span>
+              <p className="ava-joinbox__url">
+                {location.host}
+                <wbr />
+                /avalon/play
+              </p>
+              <span className="ava-kicker">Room Code</span>
+              <p className="ava-code" id="ava-code">
+                {state.code}
+              </p>
+            </div>
+            <QrCode value={joinUrl} className="ava-qr" label={`Scan to join room ${state.code}`} />
           </div>
-          <QrCode value={joinUrl} className="ava-qr" label={`Scan to join room ${state.code}`} />
         </div>
-
-        <div className="ava-row">
+        <p className="ava-boxframe__tagline">Secret Identities • Deduction • Deception</p>
+        <div className="ava-row ava-row--center">
           <button id="ava-howto" type="button" className="ava-btn ava-btn--ghost" onClick={onHowTo}>
-            📖 Rules &amp; Roles
+            Rulebook
           </button>
           <a id="ava-to-phone" className="ava-btn ava-btn--ghost" href={`/avalon/play?code=${state.code}`}>
-            📱 Open Phone View
+            Join on This Device
           </a>
         </div>
         <AudioToolbar />
       </section>
 
+      {/* Right Column: Dark Parchment Setup Scroll */}
       <section className="ava-panel ava-lobby__config">
         <div className="ava-panel__head">
           <div>
             <h2 className="ava-h2">
-              Knights at the Table{' '}
+              Council of Camelot{' '}
               <span className="ava-muted">
-                ({n} / {state.maxPlayers})
+                ({n} / {state.maxPlayers} Knights)
               </span>
             </h2>
             <p className="ava-muted ava-tiny">
-              Order seats to match clockwise seating around the room.
+              Arrange seats in clockwise order around the table.
             </p>
           </div>
           <div className="ava-row">
@@ -320,7 +328,7 @@ function LobbyScreen({
               disabled={n >= state.maxPlayers}
               onClick={() => send({ type: 'add_bot' })}
             >
-              + Bot
+              + Add Bot
             </button>
             {hasBots && (
               <button
@@ -329,14 +337,14 @@ function LobbyScreen({
                 className="ava-btn ava-btn--ghost ava-btn--small"
                 onClick={() => send({ type: 'remove_bot' })}
               >
-                − Bot
+                − Remove Bot
               </button>
             )}
           </div>
         </div>
 
         {n === 0 ? (
-          <p className="ava-empty">Scan the QR code on your phone to take a seat…</p>
+          <p className="ava-empty">Scan the QR code on your phone to take your seat at the Round Table…</p>
         ) : (
           <ol className="ava-roster">
             {state.players.map((p, i) => (
@@ -385,15 +393,15 @@ function LobbyScreen({
 
         <div className="ava-splitbar">
           <span className="ava-badge ava-badge--good">
-            🛡️ {state.alignmentCount.good} Good (includes Merlin)
+            {state.alignmentCount.good} Loyal Servants of Arthur (includes Merlin)
           </span>
           <span className="ava-badge ava-badge--evil">
-            🗡️ {state.alignmentCount.evil} Evil (includes Assassin)
+            {state.alignmentCount.evil} Minions of Mordred (includes Assassin)
           </span>
         </div>
 
         <div className="ava-roles-picker">
-          <h3 className="ava-h3">Optional Characters</h3>
+          <h3 className="ava-h3">Optional Character Cards</h3>
           <div className="ava-roles-grid">
             {OPTIONAL_ROLE_CATALOG.map((item) => {
               const checked = state.optionalRoles.includes(item.id);
@@ -421,7 +429,7 @@ function LobbyScreen({
                     <p className="ava-rolecard__desc">{item.summary}</p>
                     {checked && !active && (
                       <p className="ava-rolecard__warn">
-                        Requires more Evil slots (7+ players) when other Evil roles are active.
+                        Requires 7+ players when other Evil roles are active.
                       </p>
                     )}
                   </div>
@@ -431,8 +439,7 @@ function LobbyScreen({
           </div>
           {n === 5 && percivalAloneIn5 && (
             <p className="ava-tip">
-              💡 <strong>Rulebook Note:</strong> For games of 5, consider adding either{' '}
-              <strong>Mordred</strong> or <strong>Morgana</strong> when playing with Percival so Good isn’t too powerful.
+              <em>Note: For games of 5, be sure to add either Mordred or Morgana when playing with Percival.</em>
             </p>
           )}
         </div>
@@ -448,8 +455,8 @@ function LobbyScreen({
           }}
         >
           {state.canStart
-            ? `Begin Role Reveal (${n} Players)`
-            : `Need ${state.minPlayers}–${state.maxPlayers} Players (${n} joined)`}
+            ? `Deal Character Cards (${n} Players)`
+            : `Requires ${state.minPlayers}–${state.maxPlayers} Players (${n} Seated)`}
         </button>
       </section>
     </main>
@@ -474,15 +481,15 @@ function NightScreen({
     <main className="ava-night">
       <div className="ava-panel ava-night__card">
         <div className="ava-row ava-row--spread">
-          <span className="ava-kicker">Night Phase · Role Review &amp; Ceremony</span>
+          <span className="ava-kicker">Evil Reveals Itself, and Merlin Looks Into the Future</span>
           <AudioToolbar />
         </div>
 
         <h1 className="ava-h1">
-          {done ? 'The Ceremony is Complete' : 'Close Your Eyes & Listen'}
+          {done ? 'Everyone Open Your Eyes' : 'Close Your Eyes & Extend Your Fist'}
         </h1>
         <p className="ava-sub">
-          First, secretly check your role on your phone (hold the reveal button). Then close your eyes and follow the narrator’s voice.
+          Secretly inspect your Character Card on your phone, then close your eyes and obey the herald’s script:
         </p>
 
         <div className="ava-scriptbox" aria-live="polite">
@@ -509,7 +516,7 @@ function NightScreen({
 
         <div className="ava-night__ready">
           <h2 className="ava-h3">
-            Players Ready ({state.nightReadyIds.length} / {state.players.length})
+            Knights Ready ({state.nightReadyIds.length} / {state.players.length})
           </h2>
           <ul className="ava-ready-grid">
             {state.players.map((p) => {
@@ -521,7 +528,7 @@ function NightScreen({
                 >
                   <Token color={p.color} photo={photos[p.id]} />
                   <span>{p.name}</span>
-                  <strong>{isReady ? '✓ Ready' : 'Reviewing…'}</strong>
+                  <strong>{isReady ? 'Ready' : 'Reviewing…'}</strong>
                 </li>
               );
             })}
@@ -538,7 +545,7 @@ function NightScreen({
               setRunKey((k) => k + 1);
             }}
           >
-            🔁 Replay Audio Script
+            Replay Night Script
           </button>
           <button
             id="ava-finish-night"
@@ -546,7 +553,7 @@ function NightScreen({
             className="ava-btn ava-btn--primary ava-btn--big"
             onClick={() => send({ type: 'advance' })}
           >
-            Begin Quest 1 →
+            Begin 1st Quest →
           </button>
         </div>
       </div>
@@ -576,7 +583,7 @@ function BoardScreen({
   return (
     <main className="ava-board">
       <section className="ava-board__main">
-        {/* Top bar */}
+        {/* Top Header */}
         <header className="ava-topbar">
           <div className="ava-topbar__brand">
             <strong className="ava-topbar__title">AVALON</strong>
@@ -588,7 +595,7 @@ function BoardScreen({
             </span>
             {state.activeOptionalRoles.map((r) => (
               <span key={r} className="ava-pill">
-                +{r.charAt(0).toUpperCase() + r.slice(1)}
+                {r.charAt(0).toUpperCase() + r.slice(1)}
               </span>
             ))}
           </div>
@@ -600,84 +607,27 @@ function BoardScreen({
           </div>
         </header>
 
-        {/* 5 Quest Tableau */}
-        <section className="ava-panel ava-tableau" aria-label="Quest Tableau">
-          <div className="ava-tableau__head">
-            <span className="ava-kicker">Quest Tableau · 3 Successes for Good, 3 Failures for Evil</span>
-            <span className="ava-kicker">Round {state.round} of 5</span>
-          </div>
-          <div className="ava-quests">
-            {state.questSpecs.map((spec, idx) => {
-              const res = state.questResults[idx];
-              const isCurrent = state.round === spec.quest && state.phase !== 'assassinate';
-              return (
-                <div
-                  key={spec.quest}
-                  className={`ava-quest-slot ${isCurrent ? 'ava-quest-slot--current' : ''} ${
-                    res ? (res.succeeded ? 'ava-quest-slot--good' : 'ava-quest-slot--evil') : ''
-                  }`}
-                >
-                  <div className="ava-quest-slot__top">
-                    <span className="ava-quest-slot__label">Quest {spec.quest}</span>
-                    {spec.failsRequired > 1 && (
-                      <span className="ava-quest-slot__twofail">2 Fails req.</span>
-                    )}
-                  </div>
-                  <div className="ava-quest-slot__circle">
-                    {res ? (
-                      <div className="ava-quest-slot__result">
-                        <strong>{res.succeeded ? 'SUCCESS' : 'FAILED'}</strong>
-                        <span>
-                          {res.failCount > 0
-                            ? `${res.failCount} Fail${res.failCount > 1 ? 's' : ''}`
-                            : 'All Success'}
-                        </span>
-                      </div>
-                    ) : (
-                      <strong className="ava-quest-slot__num">{spec.teamSize}</strong>
-                    )}
-                  </div>
-                  <span className="ava-quest-slot__sub">
-                    {spec.teamSize} Knights
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+        {/* Physical Painted Score Tableau Board */}
+        <div className="ava-tableau-wrap">
+          <TableauBoard
+            numPlayers={state.players.length}
+            evilCount={state.alignmentCount.evil}
+            round={state.round}
+            rejectedCount={state.rejectedCount}
+            questSpecs={state.questSpecs}
+            questResults={state.questResults}
+          />
+        </div>
 
-          {/* Vote Track (1..5) */}
-          <div className="ava-votetrack">
-            <span className="ava-kicker">
-              Rejected Proposals Track <span className="ava-muted">(5 Rejections in a round = Evil Wins)</span>
-            </span>
-            <div className="ava-votetrack__steps">
-              {[1, 2, 3, 4, 5].map((n) => {
-                const reached = state.rejectedCount >= n;
-                const current = state.proposal === n && state.phase !== 'quest' && state.phase !== 'quest_reveal';
-                return (
-                  <span
-                    key={n}
-                    className={`ava-votetrack__pip ${reached ? 'ava-votetrack__pip--rejected' : ''} ${
-                      current ? 'ava-votetrack__pip--current' : ''
-                    } ${n === 5 ? 'ava-votetrack__pip--fifth' : ''}`}
-                  >
-                    {n === 5 ? '5 ·💀' : n}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* Active Phase Stage */}
+        {/* Active Phase Banner */}
         <PhaseStage state={state} byId={byId} leader={leader} photos={photos} send={send} />
 
-        {/* Seating Ring / Knights Bar */}
+        {/* Knights Around the Table */}
         <section className="ava-panel ava-ring-panel">
           <div className="ava-panel__head">
-            <h2 className="ava-h3">Round Table Seating (Clockwise)</h2>
+            <h2 className="ava-h3">Knights of the Round Table (Clockwise)</h2>
             <span className="ava-muted ava-tiny">
-              👑 Leader proposes · 🛡️ On Quest Team
+              Leader Token passes clockwise after every vote or quest
             </span>
           </div>
           <ul className="ava-seats">
@@ -704,30 +654,24 @@ function BoardScreen({
                         <LeaderCrown /> Leader
                       </span>
                     )}
-                    {onTeam && <span className="ava-seat__shield">🛡️ Team</span>}
+                    {onTeam && <span className="ava-seat__shield">Team Token</span>}
                   </div>
                   <KnightPawn color={p.color} photo={photos[p.id]} className="ava-seat__pawn" />
                   <strong className="ava-seat__name">{p.name}</strong>
 
                   {state.phase === 'team_vote' && (
                     <span className={`ava-seat__status ${hasVoted ? 'ava-seat__status--done' : ''}`}>
-                      {hasVoted ? '✓ Vote Ready' : 'Voting…'}
+                      {hasVoted ? 'Vote Ready' : 'Choosing…'}
                     </span>
                   )}
                   {state.phase === 'team_reveal' && voteVal !== undefined && (
-                    <span
-                      className={`ava-votetoken ${
-                        voteVal ? 'ava-votetoken--approve' : 'ava-votetoken--reject'
-                      }`}
-                    >
-                      {voteVal ? 'APPROVE' : 'REJECT'}
-                    </span>
+                    <VoteTokenBadge approve={voteVal} size="sm" />
                   )}
                   {state.phase === 'quest' && onTeam && (
                     <span
                       className={`ava-seat__status ${hasPlayedQuest ? 'ava-seat__status--done' : ''}`}
                     >
-                      {hasPlayedQuest ? '✓ Card Played' : 'On Quest…'}
+                      {hasPlayedQuest ? 'Card Facedown' : 'On Quest…'}
                     </span>
                   )}
                 </li>
@@ -737,12 +681,14 @@ function BoardScreen({
         </section>
       </section>
 
-      {/* Sidebar: Chronicle / Vote History + Host Controls */}
+      {/* Right Sidebar: Chronicle Scroll + Host Controls */}
       <aside className="ava-side">
         <div className="ava-panel ava-history">
-          <h2 className="ava-h3">Chronicle of Camelot</h2>
+          <h2 className="ava-h3">Chronicle of Votes &amp; Quests</h2>
           {state.history.length === 0 ? (
-            <p className="ava-muted ava-tiny">Votes and Quest outcomes will be recorded here…</p>
+            <p className="ava-muted ava-tiny">
+              Every Team Proposal, Vote Token, and Quest outcome will be inscribed here…
+            </p>
           ) : (
             <ol className="ava-history__list">
               {[...state.history].reverse().map((item, idx) => {
@@ -759,7 +705,7 @@ function BoardScreen({
                     <li key={`v-${idx}`} className="ava-history__item">
                       <div className="ava-history__row">
                         <strong>
-                          Q{item.round}.{item.proposal} · {lName}’s Team
+                          Quest {item.round} · Vote {item.proposal} ({lName})
                         </strong>
                         <span
                           className={`ava-pill ${
@@ -773,7 +719,7 @@ function BoardScreen({
                         <strong>Team:</strong> {tNames}
                       </p>
                       <p className="ava-tiny ava-muted">
-                        👍 {approvers.length ? approvers.join(', ') : 'None'} · 👎{' '}
+                        Approve: {approvers.length ? approvers.join(', ') : 'None'} · Reject:{' '}
                         {rejecters.length ? rejecters.join(', ') : 'None'}
                       </p>
                     </li>
@@ -788,7 +734,7 @@ function BoardScreen({
                     }`}
                   >
                     <div className="ava-history__row">
-                      <strong>⚔️ Quest {item.quest} Outcome</strong>
+                      <strong>Quest {item.quest} Resolved</strong>
                       <span
                         className={`ava-pill ${
                           item.succeeded ? 'ava-pill--good' : 'ava-pill--evil'
@@ -809,7 +755,7 @@ function BoardScreen({
         </div>
 
         <div className="ava-panel ava-hostbox">
-          <h3 className="ava-h3">Host Controls</h3>
+          <h3 className="ava-h3">Table Controls</h3>
           <div className="ava-row">
             <button
               id="ava-skip"
@@ -817,7 +763,7 @@ function BoardScreen({
               className="ava-btn ava-btn--ghost ava-btn--small"
               onClick={() => send({ type: 'skip' })}
             >
-              ⏭️ Skip / Force Step
+              Skip / Force Step
             </button>
             <button
               id="ava-howto-ingame"
@@ -825,7 +771,7 @@ function BoardScreen({
               className="ava-btn ava-btn--ghost ava-btn--small"
               onClick={onHowTo}
             >
-              📖 Rules
+              Rulebook
             </button>
             <ConfirmButton
               id="ava-end"
@@ -859,23 +805,24 @@ function PhaseStage({
     return (
       <section className="ava-panel ava-stage">
         <span className="ava-kicker">
-          Quest {state.round} · Proposal {state.proposal} of 5
+          Team Building Phase · Quest {state.round} (Vote Track {state.proposal} of 5)
         </span>
         <h2 className="ava-h2">
-          <PlayerInline p={leader} photos={photos} /> is Building the Quest Team
+          <PlayerInline p={leader} photos={photos} /> Holds the Leader Token
         </h2>
         <p className="ava-sub">
-          Discuss! The Leader must choose <strong>{state.questSize} Knights</strong> on their phone and call for a Team Vote.
+          <em>“Discuss, Discuss, Discuss.”</em> The Leader must assign{' '}
+          <strong>{state.questSize} Team Tokens</strong> on their phone and call for a Vote.
         </p>
         <div className="ava-stage__pills">
           {names.length > 0 ? (
             names.map((n) => (
               <span key={n} className="ava-pill ava-pill--gold">
-                🛡️ {n}
+                <LeaderCrown /> {n}
               </span>
             ))
           ) : (
-            <span className="ava-muted">Selecting knights on phone…</span>
+            <span className="ava-muted">Awaiting Team Token assignment…</span>
           )}
         </div>
       </section>
@@ -887,9 +834,9 @@ function PhaseStage({
     return (
       <section className="ava-panel ava-stage">
         <span className="ava-kicker">
-          Quest {state.round} · Team Vote ({state.votedIds.length} / {state.players.length} Voted)
+          Team Vote · {state.votedIds.length} of {state.players.length} Vote Tokens Ready
         </span>
-        <h2 className="ava-h2">Vote Now on Your Phones!</h2>
+        <h2 className="ava-h2">Select Your Vote Token on Your Phone</h2>
         <p className="ava-sub">
           <PlayerInline p={leader} photos={photos} /> proposed this Quest Team of {state.questSize}:
         </p>
@@ -908,18 +855,18 @@ function PhaseStage({
     const rev = state.lastVoteReveal;
     return (
       <section className="ava-panel ava-stage">
-        <span className="ava-kicker">Team Vote Revealed</span>
+        <span className="ava-kicker">Vote Tokens Revealed</span>
         <h2 className="ava-h2">
           {rev.approved
-            ? `Team Approved (${rev.approves} to ${rev.rejects})!`
-            : `Team Rejected (${rev.approves} to ${rev.rejects})!`}
+            ? `Vote Approved (${rev.approves} Approve, ${rev.rejects} Reject)`
+            : `Vote Rejected (${rev.approves} Approve, ${rev.rejects} Reject)`}
         </h2>
         <p className="ava-sub">
           {rev.approved
-            ? 'The selected Knights now embark on the Quest!'
-            : `Leadership passes clockwise (${5 - state.rejectedCount} proposal${
+            ? 'The Quest Team is approved! Play continues in the Quest Phase.'
+            : `The Team is rejected. The Leader Token passes clockwise (${5 - state.rejectedCount} rejection${
                 5 - state.rejectedCount === 1 ? '' : 's'
-              } left before Evil wins).`}
+              } remaining before Evil wins).`}
         </p>
         <button
           id="ava-tv-advance-vote"
@@ -927,7 +874,7 @@ function PhaseStage({
           className="ava-btn ava-btn--primary"
           onClick={() => send({ type: 'advance' })}
         >
-          {rev.approved ? 'Embark on Quest →' : 'Next Leader’s Proposal →'}
+          {rev.approved ? 'Proceed to Quest Phase →' : 'Pass Leader Token Clockwise →'}
         </button>
       </section>
     );
@@ -938,12 +885,11 @@ function PhaseStage({
     return (
       <section className="ava-panel ava-stage">
         <span className="ava-kicker">
-          Quest {state.round} in Progress ({state.questSubmittedIds.length} /{' '}
-          {state.proposedTeam.length} Cards Played)
+          Quest Phase · {state.questSubmittedIds.length} of {state.proposedTeam.length} Quest Cards Played
         </span>
         <h2 className="ava-h2">The Quest is Underway</h2>
         <p className="ava-sub">
-          Team members: secretly select your Quest Card on your phone.
+          Each player on the Quest selects a Quest Card on their phone (Good must select Success; Evil may select Success or Fail).
         </p>
         <div className="ava-stage__pills">
           {teamPlayers.map((p) => (
@@ -960,18 +906,13 @@ function PhaseStage({
     const q = state.lastQuestReveal;
     return (
       <section className="ava-panel ava-stage">
-        <span className="ava-kicker">Quest {q.quest} Resolved</span>
+        <span className="ava-kicker">Shuffled Quest Cards Revealed</span>
         <h2 className={`ava-h2 ${q.succeeded ? 'ava-text--good' : 'ava-text--evil'}`}>
-          {q.succeeded ? '⚜️ The Quest Succeeded!' : '🔥 The Quest Failed!'}
+          {q.succeeded ? `Quest ${q.quest} Succeeded!` : `Quest ${q.quest} Failed!`}
         </h2>
         <div className="ava-questcards">
           {q.cards.map((c, idx) => (
-            <div
-              key={idx}
-              className={`ava-qcard ${c === 'success' ? 'ava-qcard--success' : 'ava-qcard--fail'}`}
-            >
-              <strong>{c === 'success' ? '⚜️ SUCCESS' : '💀 FAIL'}</strong>
-            </div>
+            <QuestChaliceCard key={idx} kind={c} />
           ))}
         </div>
         <button
@@ -980,7 +921,7 @@ function PhaseStage({
           className="ava-btn ava-btn--primary"
           onClick={() => send({ type: 'advance' })}
         >
-          Continue to Next Round →
+          Advance Round Marker →
         </button>
       </section>
     );
@@ -991,17 +932,17 @@ function PhaseStage({
     const evilTeam = state.evilDiscussIds.map((id) => byId.get(id)).filter(Boolean) as AvaPlayer[];
     return (
       <section className="ava-panel ava-stage ava-stage--assassinate">
-        <span className="ava-kicker">Three Quests Completed · Evil’s Last Chance</span>
-        <h2 className="ava-h2 ava-text--evil">🗡️ Assassinate Merlin!</h2>
+        <span className="ava-kicker">Assassinate Merlin — Evil’s Last Chance</span>
+        <h2 className="ava-h2 ava-text--evil">Name Merlin!</h2>
         <p className="ava-sub">
-          Without revealing Character Cards, the Minions of Mordred may discuss who they believe is{' '}
-          <strong>Merlin</strong>. <PlayerInline p={assassin} photos={photos} /> holds the Assassin’s blade!
+          Three Quests have been completed! Without revealing any Character Cards, the Evil players discuss and{' '}
+          <PlayerInline p={assassin} photos={photos} /> (the Assassin) names one Good player as Merlin.
         </p>
         <div className="ava-stage__pills">
           {evilTeam.map((p) => (
             <span key={p.id} className="ava-pill ava-pill--evil">
               <Token color={p.color} photo={photos[p.id]} /> {p.name}
-              {p.id === state.assassinId ? ' (Assassin)' : ''}
+              {p.id === state.assassinId ? ' (The Assassin)' : ''}
             </span>
           ))}
         </div>
@@ -1026,14 +967,14 @@ function GameOverScreen({
     <main className="ava-gameover">
       <div className="ava-panel ava-gameover__card">
         <span className={`ava-pill ${goodWon ? 'ava-pill--good' : 'ava-pill--evil'}`}>
-          {goodWon ? '🛡️ Victory for Camelot' : '🗡️ Victory for Mordred'}
+          {goodWon ? 'Arthur & Goodness Prevail' : 'Mordred’s Dark Forces Triumph'}
         </span>
         <h1 className={`ava-h1 ${goodWon ? 'ava-text--good' : 'ava-text--evil'}`}>
-          {goodWon ? 'Loyal Servants of Arthur Win!' : 'The Forces of Evil Triumph!'}
+          {goodWon ? 'Loyal Servants of Arthur Win!' : 'Minions of Mordred Win!'}
         </h1>
         <p className="ava-sub">{state.winReason}</p>
 
-        <h2 className="ava-h3">True Identities Revealed</h2>
+        <h2 className="ava-h3">Character Cards Revealed</h2>
         <ul className="ava-reveal-grid">
           {state.players.map((p) => {
             const r = state.revealedRoles?.[p.id];
@@ -1053,7 +994,7 @@ function GameOverScreen({
                   {r?.name ?? 'Knight'}
                 </span>
                 {wasTarget && (
-                  <span className="ava-pill ava-pill--evil">🎯 Assassinated</span>
+                  <span className="ava-pill ava-pill--evil">Assassinated</span>
                 )}
               </li>
             );
@@ -1067,7 +1008,7 @@ function GameOverScreen({
             className="ava-btn ava-btn--primary ava-btn--big"
             onClick={() => send({ type: 'play_again' })}
           >
-            Play Again
+            Return to Setup
           </button>
         </div>
       </div>

@@ -1,28 +1,49 @@
 @layer avalon {
   .ava-root {
-    --ava-bg: #080d1a;
-    --ava-bg-2: #0f172a;
-    --ava-panel: rgba(17, 25, 42, 0.88);
-    --ava-panel-border: rgba(212, 175, 55, 0.28);
-    --ava-gold: #eab308;
-    --ava-gold-soft: #fde047;
+    --ava-stone-dark: #181410;
+    --ava-stone-mid: #28211a;
+    --ava-parchment-dark: #211a13;
+    --ava-parchment-inner: #17120d;
+    --ava-silver-frame: #b8b2a6;
+    --ava-brass: #d4a64a;
+    --ava-brass-bright: #f7df8b;
+    --ava-brass-deep: #785312;
+    --ava-ivory: #f4ecda;
+    --ava-ivory-dim: #c7baa0;
     --ava-good: #3b82f6;
-    --ava-good-bg: rgba(37, 99, 235, 0.2);
-    --ava-evil: #ef4444;
-    --ava-evil-bg: rgba(220, 38, 38, 0.22);
-    --ava-text: #f8fafc;
-    --ava-muted: #94a3b8;
-    --ava-font-display: 'Cinzel', 'Cinzel Decorative', Georgia, serif;
-    --ava-font-sans: 'Nunito', system-ui, -apple-system, sans-serif;
+    --ava-good-deep: #172554;
+    --ava-evil: #dc2626;
+    --ava-evil-deep: #450a0a;
+    --ava-font-display: 'Cinzel Decorative', 'Cinzel', Georgia, serif;
+    --ava-font-caps: 'Cinzel', Georgia, serif;
+    --ava-font-serif: 'Crimson Pro', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
 
     min-height: 100dvh;
-    background:
-      radial-gradient(circle at 18% 12%, rgba(37, 99, 235, 0.18), transparent 45%),
-      radial-gradient(circle at 82% 15%, rgba(220, 38, 38, 0.16), transparent 45%),
-      linear-gradient(180deg, #070b14 0%, #0d1424 55%, #070a12 100%);
-    color: var(--ava-text);
-    font-family: var(--ava-font-sans);
+    color: var(--ava-ivory);
+    font-family: var(--ava-font-serif);
+    font-size: 1.05rem;
+    line-height: 1.45;
     box-sizing: border-box;
+    /* Weathered medieval castle stone masonry backdrop matching the box cover & back */
+    background-color: var(--ava-stone-dark);
+    background-image:
+      radial-gradient(ellipse at 50% 0%, rgba(212, 166, 74, 0.14) 0%, transparent 65%),
+      radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, 0.72) 0%, transparent 70%),
+      repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.28) 0px,
+        rgba(0, 0, 0, 0.28) 2px,
+        transparent 2px,
+        transparent 44px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        rgba(255, 245, 225, 0.03) 0px,
+        rgba(255, 245, 225, 0.03) 2px,
+        transparent 2px,
+        transparent 88px
+      ),
+      linear-gradient(180deg, #2b241d 0%, #1d1813 50%, #14100d 100%);
   }
 
   .ava-root *,
@@ -32,75 +53,102 @@
   }
 
   .ava-root a {
-    color: var(--ava-gold-soft);
+    color: var(--ava-brass-bright);
     text-decoration: underline;
   }
 
-  /* Typography */
+  /* Chiseled Metallic Gold AVALON Logo matching the physical box cover */
   .ava-logo {
     font-family: var(--ava-font-display);
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    font-size: clamp(2.4rem, 4.5vw, 4rem);
-    margin: 0.15rem 0 0.4rem;
-    background: linear-gradient(180deg, #fef08a 0%, #eab308 55%, #a16207 100%);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    font-size: clamp(2.8rem, 5.2vw, 4.6rem);
+    line-height: 1;
+    margin: 0.1rem 0 0.45rem;
+    background: linear-gradient(180deg, #fff5bf 0%, #e5b84b 45%, #b57e1a 80%, #f3d27a 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: 0 4px 24px rgba(234, 179, 8, 0.22);
+    filter: drop-shadow(0 3px 0 #261704) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.85));
   }
 
   .ava-logo--phone {
-    font-size: 2.2rem;
+    font-size: 2.5rem;
+  }
+
+  .ava-boxframe__eyebrow {
+    font-family: var(--ava-font-caps);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: #e8e0cf;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+    margin: 0;
+  }
+
+  .ava-boxframe__tagline {
+    font-family: var(--ava-font-serif);
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.04em;
+    color: #f5efe0;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95);
+    margin: 0.25rem 0;
   }
 
   .ava-h1 {
-    font-family: var(--ava-font-display);
-    font-size: clamp(1.6rem, 2.8vw, 2.35rem);
-    margin: 0.25rem 0;
-    letter-spacing: 0.04em;
+    font-family: var(--ava-font-caps);
+    font-weight: 800;
+    font-size: clamp(1.65rem, 2.8vw, 2.35rem);
+    color: var(--ava-brass-bright);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    margin: 0.2rem 0;
   }
 
   .ava-h2 {
-    font-family: var(--ava-font-display);
-    font-size: clamp(1.18rem, 1.9vw, 1.55rem);
-    margin: 0.2rem 0;
+    font-family: var(--ava-font-caps);
+    font-weight: 700;
+    font-size: clamp(1.22rem, 1.9vw, 1.6rem);
+    color: var(--ava-ivory);
+    margin: 0.15rem 0;
     letter-spacing: 0.03em;
   }
 
   .ava-h3 {
-    font-family: var(--ava-font-display);
-    font-size: 0.98rem;
-    letter-spacing: 0.06em;
+    font-family: var(--ava-font-caps);
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #e2e8f0;
+    color: var(--ava-brass);
     margin: 0 0 0.5rem;
   }
 
   .ava-kicker {
     display: inline-block;
-    font-size: 0.76rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
+    font-family: var(--ava-font-caps);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.13em;
     text-transform: uppercase;
-    color: var(--ava-gold);
+    color: var(--ava-brass);
     margin: 0;
   }
 
   .ava-sub {
-    color: #cbd5e1;
-    font-size: 0.98rem;
-    line-height: 1.48;
-    margin: 0.25rem 0 0.75rem;
+    color: var(--ava-ivory);
+    font-size: 1.08rem;
+    line-height: 1.45;
+    margin: 0.2rem 0 0.65rem;
   }
 
   .ava-muted {
-    color: var(--ava-muted);
+    color: var(--ava-ivory-dim);
   }
 
   .ava-tiny {
-    font-size: 0.82rem;
-    line-height: 1.4;
-    margin: 0.15rem 0;
+    font-size: 0.9rem;
+    line-height: 1.38;
+    margin: 0.12rem 0;
   }
 
   .ava-text-center {
@@ -108,21 +156,25 @@
   }
 
   .ava-text--good {
-    color: #60a5fa;
+    color: #93c5fd;
   }
 
   .ava-text--evil {
-    color: #f87171;
+    color: #fca5a5;
   }
 
-  /* Panels & Containers */
+  /* Physical Back-of-Box Framed Dark Espresso Panel with Double Bevel & Inner Gold Filigree */
   .ava-panel {
-    background: var(--ava-panel);
-    border: 1px solid var(--ava-panel-border);
+    background:
+      radial-gradient(ellipse at 50% 15%, rgba(74, 55, 33, 0.35), transparent 70%),
+      linear-gradient(180deg, #241c14 0%, #18120c 100%);
+    border: 2px solid #8c7651;
     border-radius: 16px;
-    padding: 1.1rem 1.25rem;
-    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(10px);
+    padding: 1.1rem 1.3rem;
+    box-shadow:
+      inset 0 0 0 3px #120d09,
+      inset 0 0 0 4px rgba(212, 166, 74, 0.32),
+      0 16px 38px rgba(0, 0, 0, 0.72);
   }
 
   .ava-panel__head {
@@ -131,6 +183,8 @@
     justify-content: space-between;
     gap: 0.75rem;
     margin-bottom: 0.65rem;
+    padding-bottom: 0.45rem;
+    border-bottom: 1px solid rgba(212, 166, 74, 0.22);
   }
 
   .ava-row {
@@ -163,19 +217,24 @@
     text-align: center;
   }
 
-  /* Buttons & Pills */
+  /* Tactile Embossed Brass & Wood Buttons */
   .ava-btn {
     appearance: none;
-    border: 1px solid rgba(212, 175, 55, 0.35);
-    background: rgba(30, 41, 59, 0.9);
-    color: var(--ava-text);
-    font-family: var(--ava-font-sans);
-    font-weight: 800;
-    font-size: 0.95rem;
-    padding: 0.62rem 1.1rem;
-    border-radius: 11px;
+    border: 1.5px solid #9c7b38;
+    background: linear-gradient(180deg, #382c1e 0%, #211911 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 240, 190, 0.22),
+      0 4px 10px rgba(0, 0, 0, 0.6);
+    color: var(--ava-ivory);
+    font-family: var(--ava-font-caps);
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.62rem 1.15rem;
+    border-radius: 8px;
     cursor: pointer;
-    transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+    transition: transform 0.1s ease, filter 0.15s ease, border-color 0.15s ease;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -184,122 +243,135 @@
   }
 
   .ava-btn:hover:not(:disabled) {
-    transform: translateY(-1px);
-    border-color: var(--ava-gold);
+    filter: brightness(1.12);
+    border-color: var(--ava-brass-bright);
+  }
+
+  .ava-btn:active:not(:disabled) {
+    transform: translateY(1px);
   }
 
   .ava-btn:disabled {
-    opacity: 0.48;
+    opacity: 0.42;
     cursor: not-allowed;
   }
 
   .ava-btn--primary {
-    background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
-    color: #090d16;
-    border-color: #fde047;
+    background: linear-gradient(180deg, #e5b94e 0%, #b5801c 55%, #8c5d0b 100%);
+    color: #1c1104;
+    border-color: #fde68a;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.55),
+      0 6px 16px rgba(0, 0, 0, 0.7);
   }
 
   .ava-btn--danger {
-    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
-    color: #fff;
+    background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%);
+    color: #fef2f2;
     border-color: #f87171;
   }
 
   .ava-btn--ghost {
-    background: rgba(15, 23, 42, 0.72);
-    color: #e2e8f0;
+    background: linear-gradient(180deg, #2b2218 0%, #1b150e 100%);
+    border-color: rgba(184, 154, 98, 0.45);
   }
 
   .ava-btn--big {
     width: 100%;
-    padding: 0.88rem 1.25rem;
-    font-size: 1.05rem;
+    padding: 0.85rem 1.3rem;
+    font-size: 1rem;
   }
 
   .ava-btn--small {
-    padding: 0.38rem 0.75rem;
-    font-size: 0.82rem;
+    padding: 0.36rem 0.72rem;
+    font-size: 0.76rem;
   }
 
   .ava-icon {
     appearance: none;
-    border: 1px solid rgba(148, 163, 184, 0.28);
-    background: rgba(15, 23, 42, 0.8);
-    color: #e2e8f0;
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
+    border: 1px solid rgba(184, 154, 98, 0.4);
+    background: #1a140e;
+    color: var(--ava-ivory);
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 0.76rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
   }
 
   .ava-icon:disabled {
-    opacity: 0.35;
+    opacity: 0.3;
     cursor: not-allowed;
   }
 
   .ava-icon--danger:hover {
-    border-color: #f87171;
-    color: #f87171;
+    border-color: #ef4444;
+    color: #fca5a5;
   }
 
+  /* Heraldic Ribbons & Seals */
   .ava-pill {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    padding: 0.22rem 0.65rem;
-    border-radius: 999px;
-    font-size: 0.76rem;
-    font-weight: 800;
-    background: rgba(51, 65, 85, 0.75);
-    color: #f1f5f9;
-    border: 1px solid rgba(148, 163, 184, 0.3);
+    padding: 0.2rem 0.65rem;
+    border-radius: 6px;
+    font-family: var(--ava-font-caps);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    background: #2b2218;
+    color: var(--ava-ivory);
+    border: 1px solid rgba(212, 166, 74, 0.45);
   }
 
   .ava-pill--good {
-    background: var(--ava-good-bg);
-    color: #93c5fd;
-    border-color: rgba(59, 130, 246, 0.5);
+    background: linear-gradient(180deg, #1e3a8a, #172554);
+    color: #dbeafe;
+    border-color: #60a5fa;
   }
 
   .ava-pill--evil {
-    background: var(--ava-evil-bg);
-    color: #fca5a5;
-    border-color: rgba(239, 68, 68, 0.5);
+    background: linear-gradient(180deg, #7f1d1d, #450a0a);
+    color: #fee2e2;
+    border-color: #f87171;
   }
 
   .ava-pill--gold {
-    background: rgba(234, 179, 8, 0.18);
-    color: #fde047;
-    border-color: rgba(234, 179, 8, 0.5);
+    background: linear-gradient(180deg, #423012, #291d09);
+    color: var(--ava-brass-bright);
+    border-color: var(--ava-brass);
   }
 
   .ava-badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.3rem 0.75rem;
-    border-radius: 9px;
-    font-size: 0.82rem;
-    font-weight: 800;
+    gap: 0.4rem;
+    padding: 0.28rem 0.78rem;
+    border-radius: 7px;
+    font-family: var(--ava-font-caps);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
   }
 
   .ava-badge--good {
-    background: var(--ava-good-bg);
-    color: #93c5fd;
-    border: 1px solid rgba(59, 130, 246, 0.45);
+    background: linear-gradient(180deg, rgba(30, 58, 138, 0.7), rgba(23, 37, 84, 0.85));
+    color: #bfdbfe;
+    border: 1px solid #3b82f6;
   }
 
   .ava-badge--evil {
-    background: var(--ava-evil-bg);
-    color: #fca5a5;
-    border: 1px solid rgba(239, 68, 68, 0.45);
+    background: linear-gradient(180deg, rgba(127, 29, 29, 0.7), rgba(69, 10, 10, 0.85));
+    color: #fecaca;
+    border: 1px solid #ef4444;
   }
 
-  /* Audio toolbar */
+  /* Audio switches */
   .ava-audiobar {
     display: flex;
     gap: 0.45rem;
@@ -308,19 +380,21 @@
 
   .ava-chip {
     appearance: none;
-    border: 1px solid rgba(148, 163, 184, 0.3);
-    background: rgba(15, 23, 42, 0.75);
-    color: #cbd5e1;
-    border-radius: 999px;
-    padding: 0.28rem 0.7rem;
-    font-size: 0.78rem;
+    border: 1px solid rgba(184, 154, 98, 0.4);
+    background: #1c1610;
+    color: var(--ava-ivory-dim);
+    border-radius: 6px;
+    padding: 0.26rem 0.65rem;
+    font-family: var(--ava-font-caps);
+    font-size: 0.72rem;
     font-weight: 700;
     cursor: pointer;
   }
 
   .ava-chip--on {
-    border-color: rgba(234, 179, 8, 0.55);
-    color: #fde047;
+    border-color: var(--ava-brass);
+    color: var(--ava-brass-bright);
+    background: #2b2013;
   }
 
   /* Pawns & Tokens */
@@ -328,14 +402,16 @@
     width: 40px;
     height: 44px;
     flex-shrink: 0;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.65));
   }
 
   .ava-token {
     display: inline-block;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.75);
+    border: 2px solid #e7d8b9;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
     vertical-align: middle;
     flex-shrink: 0;
   }
@@ -346,7 +422,7 @@
 
   .ava-crown {
     width: 18px;
-    height: 14px;
+    height: 20px;
     vertical-align: middle;
   }
 
@@ -354,17 +430,117 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    color: #fef08a;
+    color: var(--ava-brass-bright);
   }
 
-  /* TV Lobby */
+  /* Physical Cardboard Vote Tokens (Approve Ivory vs Reject Charcoal) */
+  .ava-votetoken {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-family: var(--ava-font-caps);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    box-shadow:
+      inset 0 1px 2px rgba(255, 255, 255, 0.35),
+      0 4px 10px rgba(0, 0, 0, 0.7);
+  }
+
+  .ava-votetoken--sm {
+    width: 64px;
+    height: 64px;
+    font-size: 0.62rem;
+    padding: 4px;
+  }
+
+  .ava-votetoken--md {
+    width: 78px;
+    height: 78px;
+    font-size: 0.72rem;
+    padding: 5px;
+  }
+
+  .ava-votetoken--lg {
+    width: 96px;
+    height: 96px;
+    font-size: 0.84rem;
+    padding: 6px;
+  }
+
+  .ava-votetoken__rim {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px dashed;
+  }
+
+  .ava-votetoken--approve {
+    background: radial-gradient(circle at 35% 30%, #fbf7ec 0%, #dfd3b8 65%, #b09f7d 100%);
+    color: #291f12;
+    border: 2.5px solid #e6dec8;
+  }
+
+  .ava-votetoken--approve .ava-votetoken__rim {
+    border-color: #786646;
+  }
+
+  .ava-votetoken--reject {
+    background: radial-gradient(circle at 35% 30%, #4a3f37 0%, #26201b 65%, #120e0b 100%);
+    color: #f5ebd6;
+    border: 2.5px solid #6e5d4f;
+  }
+
+  .ava-votetoken--reject .ava-votetoken__rim {
+    border-color: #a38f7d;
+  }
+
+  /* Physical Quest Chalice Cards */
+  .ava-chalice-card,
+  .ava-chalice-btn {
+    width: 138px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.75));
+  }
+
+  .ava-chalice-btn {
+    cursor: pointer;
+    width: 100%;
+    max-width: 165px;
+    margin: 0 auto;
+    transition: transform 0.14s ease, filter 0.14s ease;
+  }
+
+  .ava-chalice-btn:hover:not(:disabled) {
+    transform: translateY(-4px);
+    filter: brightness(1.1) drop-shadow(0 12px 20px rgba(0, 0, 0, 0.85));
+  }
+
+  .ava-chalice-btn:disabled {
+    opacity: 0.32;
+    cursor: not-allowed;
+    filter: grayscale(0.6);
+  }
+
+  .ava-chalice-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* TV Lobby — Box Cover Stone Frame & Dark Parchment Scroll */
   .ava-lobby {
-    max-width: 1360px;
+    max-width: 1380px;
     margin: 0 auto;
     padding: 1.5rem 2rem;
     display: grid;
-    grid-template-columns: 390px 1fr;
-    gap: 1.5rem;
+    grid-template-columns: 420px 1fr;
+    gap: 1.75rem;
     align-items: start;
   }
 
@@ -375,17 +551,36 @@
     }
   }
 
-  .ava-lobby__hero {
+  .ava-boxframe {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 0.7rem;
+    gap: 0.55rem;
   }
 
-  .ava-lobby__crest {
-    width: 112px;
-    height: 120px;
+  /* Recessed Silver/Stone Window from the front of the Avalon box */
+  .ava-boxframe__window {
+    width: 100%;
+    background:
+      radial-gradient(circle at 50% 22%, rgba(235, 195, 115, 0.25), transparent 65%),
+      linear-gradient(180deg, #33271a 0%, #1c150e 100%);
+    border: 4px solid #8c857b;
+    border-radius: 18px;
+    padding: 1.15rem;
+    box-shadow:
+      inset 0 0 24px rgba(0, 0, 0, 0.85),
+      0 14px 32px rgba(0, 0, 0, 0.75);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.9rem;
+  }
+
+  .ava-boxframe__crest {
+    width: 120px;
+    height: 128px;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.75));
   }
 
   .ava-joinbox {
@@ -395,30 +590,36 @@
     justify-content: space-between;
     gap: 1rem;
     text-align: left;
+    background: rgba(15, 11, 7, 0.78);
+    border: 1.5px solid rgba(212, 166, 74, 0.42);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
   }
 
   .ava-joinbox__url {
-    font-weight: 800;
-    font-size: 0.98rem;
-    color: #e2e8f0;
-    margin: 0.15rem 0 0.55rem;
+    font-family: var(--ava-font-serif);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--ava-ivory);
+    margin: 0.1rem 0 0.45rem;
   }
 
   .ava-code {
     font-family: var(--ava-font-display);
-    font-size: 2.3rem;
-    font-weight: 800;
-    letter-spacing: 0.16em;
-    color: var(--ava-gold-soft);
+    font-size: 2.35rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    color: var(--ava-brass-bright);
     margin: 0;
   }
 
   .ava-qr {
-    width: 128px;
-    height: 128px;
-    background: #fff;
+    width: 124px;
+    height: 124px;
+    background: #f8f3e6;
     padding: 6px;
-    border-radius: 10px;
+    border-radius: 8px;
+    border: 2px solid var(--ava-brass);
     flex-shrink: 0;
   }
 
@@ -429,11 +630,12 @@
   }
 
   .ava-empty {
-    padding: 1.3rem;
+    padding: 1.35rem;
     text-align: center;
-    color: var(--ava-muted);
-    border: 1px dashed rgba(148, 163, 184, 0.3);
-    border-radius: 12px;
+    font-style: italic;
+    color: var(--ava-ivory-dim);
+    border: 1px dashed rgba(212, 166, 74, 0.35);
+    border-radius: 10px;
     margin: 0;
   }
 
@@ -442,7 +644,7 @@
     padding: 0;
     margin: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
     gap: 0.5rem;
   }
 
@@ -451,29 +653,31 @@
     align-items: center;
     gap: 0.55rem;
     padding: 0.42rem 0.65rem;
-    background: rgba(15, 23, 42, 0.78);
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 11px;
+    background: rgba(16, 12, 8, 0.82);
+    border: 1px solid rgba(212, 166, 74, 0.3);
+    border-radius: 9px;
   }
 
   .ava-roster__item--off {
-    opacity: 0.55;
+    opacity: 0.5;
   }
 
   .ava-roster__seat {
+    font-family: var(--ava-font-caps);
     font-weight: 800;
-    font-size: 0.78rem;
-    color: var(--ava-gold);
+    font-size: 0.8rem;
+    color: var(--ava-brass);
     width: 18px;
   }
 
   .ava-roster__pawn {
     width: 32px;
-    height: 34px;
+    height: 35px;
   }
 
   .ava-roster__name {
     font-weight: 700;
+    font-size: 1.05rem;
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -494,7 +698,7 @@
   .ava-roles-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.6rem;
+    gap: 0.65rem;
   }
 
   @media (max-width: 680px) {
@@ -508,29 +712,30 @@
     text-align: left;
     display: flex;
     align-items: flex-start;
-    gap: 0.7rem;
-    padding: 0.7rem 0.85rem;
-    border-radius: 12px;
-    background: rgba(15, 23, 42, 0.65);
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    color: var(--ava-text);
+    gap: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 10px;
+    background: rgba(15, 11, 8, 0.78);
+    border: 1.5px solid rgba(184, 154, 98, 0.28);
+    color: var(--ava-ivory);
+    font-family: var(--ava-font-serif);
     cursor: pointer;
     transition: border-color 0.15s ease, background 0.15s ease;
   }
 
   .ava-rolecard--on.ava-rolecard--good {
-    border-color: #3b82f6;
-    background: rgba(30, 58, 138, 0.28);
+    border-color: #60a5fa;
+    background: linear-gradient(135deg, rgba(30, 58, 138, 0.42), rgba(20, 15, 10, 0.9));
   }
 
   .ava-rolecard--on.ava-rolecard--evil {
-    border-color: #ef4444;
-    background: rgba(127, 29, 29, 0.28);
+    border-color: #f87171;
+    background: linear-gradient(135deg, rgba(127, 29, 29, 0.45), rgba(20, 15, 10, 0.9));
   }
 
   .ava-rolecard__icon {
-    width: 42px;
-    height: 42px;
+    width: 48px;
+    height: 48px;
     flex-shrink: 0;
   }
 
@@ -544,28 +749,30 @@
     justify-content: space-between;
     gap: 0.4rem;
     margin-bottom: 0.2rem;
+    font-family: var(--ava-font-caps);
+    font-size: 0.95rem;
   }
 
   .ava-rolecard__desc {
-    font-size: 0.8rem;
-    color: #cbd5e1;
+    font-size: 0.92rem;
+    color: var(--ava-ivory-dim);
     margin: 0;
-    line-height: 1.35;
+    line-height: 1.32;
   }
 
   .ava-rolecard__warn {
-    font-size: 0.74rem;
+    font-size: 0.82rem;
     color: #fca5a5;
     margin: 0.25rem 0 0;
   }
 
   .ava-tip {
-    font-size: 0.84rem;
-    background: rgba(234, 179, 8, 0.12);
-    border: 1px solid rgba(234, 179, 8, 0.35);
-    color: #fef08a;
-    padding: 0.55rem 0.8rem;
-    border-radius: 10px;
+    font-size: 0.95rem;
+    background: rgba(66, 46, 14, 0.55);
+    border: 1px solid var(--ava-brass);
+    color: var(--ava-brass-bright);
+    padding: 0.55rem 0.85rem;
+    border-radius: 8px;
     margin: 0.5rem 0 0;
   }
 
@@ -579,7 +786,7 @@
   }
 
   .ava-night__card {
-    max-width: 820px;
+    max-width: 840px;
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -587,41 +794,45 @@
   }
 
   .ava-scriptbox {
-    background: rgba(8, 13, 26, 0.9);
-    border: 1px solid rgba(234, 179, 8, 0.45);
-    border-radius: 14px;
-    padding: 1.35rem 1.5rem;
+    background: #120d08;
+    border: 2px solid var(--ava-brass);
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
     text-align: center;
+    box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.85);
   }
 
   .ava-scriptbox__quote {
-    font-family: var(--ava-font-display);
-    font-size: clamp(1.2rem, 2.2vw, 1.65rem);
-    color: #fef9c3;
+    font-family: var(--ava-font-serif);
+    font-style: italic;
+    font-weight: 600;
+    font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+    color: var(--ava-brass-bright);
     margin: 0.9rem 0;
-    line-height: 1.45;
+    line-height: 1.4;
   }
 
   .ava-scriptbox__dots {
     display: flex;
     justify-content: center;
-    gap: 0.45rem;
+    gap: 0.5rem;
   }
 
   .ava-dot {
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: rgba(148, 163, 184, 0.3);
+    background: rgba(212, 166, 74, 0.25);
   }
 
   .ava-dot--done {
-    background: #22c55e;
+    background: var(--ava-brass);
   }
 
   .ava-dot--active {
-    background: var(--ava-gold-soft);
-    transform: scale(1.3);
+    background: var(--ava-brass-bright);
+    transform: scale(1.35);
+    box-shadow: 0 0 8px var(--ava-brass-bright);
   }
 
   .ava-ready-grid {
@@ -638,10 +849,10 @@
     align-items: center;
     gap: 0.45rem;
     padding: 0.45rem 0.65rem;
-    border-radius: 10px;
-    background: rgba(15, 23, 42, 0.75);
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    font-size: 0.85rem;
+    border-radius: 8px;
+    background: #16110b;
+    border: 1px solid rgba(212, 166, 74, 0.28);
+    font-size: 0.92rem;
   }
 
   .ava-ready-chip span {
@@ -652,18 +863,18 @@
   }
 
   .ava-ready-chip--done {
-    border-color: rgba(34, 197, 94, 0.55);
-    color: #86efac;
+    border-color: var(--ava-brass);
+    color: var(--ava-brass-bright);
   }
 
   /* Main TV Game Board */
   .ava-board {
-    max-width: 1440px;
+    max-width: 1460px;
     margin: 0 auto;
-    padding: 1.1rem 1.5rem;
+    padding: 1rem 1.5rem;
     display: grid;
     grid-template-columns: 1fr 350px;
-    gap: 1.15rem;
+    gap: 1.2rem;
     align-items: start;
   }
 
@@ -676,7 +887,7 @@
   .ava-board__main {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.95rem;
   }
 
   .ava-topbar {
@@ -696,9 +907,11 @@
 
   .ava-topbar__title {
     font-family: var(--ava-font-display);
-    font-size: 1.35rem;
+    font-size: 1.5rem;
+    font-weight: 900;
     letter-spacing: 0.1em;
-    color: var(--ava-gold-soft);
+    color: var(--ava-brass-bright);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85);
   }
 
   .ava-topbar__right {
@@ -708,148 +921,28 @@
   }
 
   .ava-roompill {
-    background: rgba(15, 23, 42, 0.85);
-    border: 1px solid var(--ava-panel-border);
-    padding: 0.32rem 0.75rem;
-    border-radius: 999px;
-    font-size: 0.85rem;
+    background: #1c150e;
+    border: 1.5px solid var(--ava-brass);
+    padding: 0.28rem 0.8rem;
+    border-radius: 8px;
+    font-family: var(--ava-font-caps);
+    font-size: 0.84rem;
   }
 
-  /* Quest Tableau */
-  .ava-tableau {
-    display: flex;
-    flex-direction: column;
-    gap: 0.85rem;
+  /* Painted Tableau Board Container */
+  .ava-tableau-wrap {
+    width: 100%;
+    border-radius: 22px;
+    box-shadow:
+      0 20px 48px rgba(0, 0, 0, 0.8),
+      0 0 0 3px #5c4928;
+    overflow: hidden;
   }
 
-  .ava-tableau__head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .ava-quests {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 0.75rem;
-  }
-
-  .ava-quest-slot {
-    background: rgba(10, 16, 30, 0.82);
-    border: 2px solid rgba(148, 163, 184, 0.25);
-    border-radius: 14px;
-    padding: 0.65rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.45rem;
-    text-align: center;
-  }
-
-  .ava-quest-slot--current {
-    border-color: var(--ava-gold-soft);
-    box-shadow: 0 0 18px rgba(234, 179, 8, 0.28);
-  }
-
-  .ava-quest-slot--good {
-    border-color: #3b82f6;
-    background: linear-gradient(180deg, rgba(30, 64, 175, 0.42), rgba(15, 23, 42, 0.85));
-  }
-
-  .ava-quest-slot--evil {
-    border-color: #ef4444;
-    background: linear-gradient(180deg, rgba(153, 27, 27, 0.45), rgba(15, 23, 42, 0.85));
-  }
-
-  .ava-quest-slot__top {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.1rem;
-  }
-
-  .ava-quest-slot__label {
-    font-family: var(--ava-font-display);
-    font-size: 0.82rem;
-    font-weight: 700;
-  }
-
-  .ava-quest-slot__twofail {
-    font-size: 0.68rem;
-    font-weight: 800;
-    color: #fde047;
-  }
-
-  .ava-quest-slot__circle {
-    width: 68px;
-    height: 68px;
-    border-radius: 50%;
-    border: 2px solid rgba(212, 175, 55, 0.45);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(15, 23, 42, 0.9);
-  }
-
-  .ava-quest-slot__num {
-    font-family: var(--ava-font-display);
-    font-size: 1.75rem;
-    color: #fef08a;
-  }
-
-  .ava-quest-slot__result {
-    display: flex;
-    flex-direction: column;
-    font-size: 0.72rem;
-    line-height: 1.2;
-  }
-
-  .ava-quest-slot__sub {
-    font-size: 0.76rem;
-    color: #cbd5e1;
-  }
-
-  /* Vote Track */
-  .ava-votetrack {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-    padding-top: 0.5rem;
-    border-top: 1px solid rgba(148, 163, 184, 0.18);
-  }
-
-  .ava-votetrack__steps {
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .ava-votetrack__pip {
-    min-width: 38px;
-    height: 32px;
-    padding: 0 0.5rem;
-    border-radius: 999px;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: rgba(15, 23, 42, 0.8);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: 0.82rem;
-  }
-
-  .ava-votetrack__pip--current {
-    border-color: var(--ava-gold-soft);
-    color: var(--ava-gold-soft);
-  }
-
-  .ava-votetrack__pip--rejected {
-    background: rgba(220, 38, 38, 0.3);
-    border-color: #ef4444;
-    color: #fca5a5;
+  .ava-tableau-svg {
+    display: block;
+    width: 100%;
+    height: auto;
   }
 
   /* Active Stage */
@@ -862,7 +955,7 @@
   }
 
   .ava-stage--assassinate {
-    border-color: rgba(239, 68, 68, 0.55);
+    border-color: #ef4444;
   }
 
   .ava-stage__pills {
@@ -877,28 +970,8 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 0.75rem;
+    gap: 1rem;
     margin: 0.5rem 0;
-  }
-
-  .ava-qcard {
-    padding: 0.85rem 1.35rem;
-    border-radius: 12px;
-    font-family: var(--ava-font-display);
-    font-size: 1rem;
-    border: 2px solid;
-  }
-
-  .ava-qcard--success {
-    background: rgba(30, 64, 175, 0.38);
-    border-color: #60a5fa;
-    color: #bfdbfe;
-  }
-
-  .ava-qcard--fail {
-    background: rgba(153, 27, 27, 0.45);
-    border-color: #f87171;
-    color: #fecaca;
   }
 
   /* Seating Ring */
@@ -912,80 +985,72 @@
   }
 
   .ava-seat {
-    background: rgba(12, 19, 34, 0.85);
-    border: 1.5px solid rgba(148, 163, 184, 0.22);
-    border-radius: 13px;
+    background: #16110b;
+    border: 1.5px solid rgba(184, 154, 98, 0.3);
+    border-radius: 11px;
     padding: 0.6rem;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.32rem;
     text-align: center;
   }
 
   .ava-seat--leader {
-    border-color: var(--ava-gold);
+    border-color: var(--ava-brass);
+    box-shadow: inset 0 0 12px rgba(212, 166, 74, 0.2);
   }
 
   .ava-seat--team {
-    background: rgba(234, 179, 8, 0.13);
-    border-color: var(--ava-gold-soft);
+    background: linear-gradient(180deg, rgba(92, 66, 18, 0.45), rgba(22, 17, 11, 0.92));
+    border-color: var(--ava-brass-bright);
   }
 
   .ava-seat--off {
-    opacity: 0.5;
+    opacity: 0.45;
   }
 
   .ava-seat__badges {
-    min-height: 20px;
+    min-height: 22px;
     display: flex;
     gap: 0.3rem;
     flex-wrap: wrap;
     justify-content: center;
-    font-size: 0.7rem;
-    font-weight: 800;
+    font-family: var(--ava-font-caps);
+    font-size: 0.68rem;
+    font-weight: 700;
   }
 
   .ava-seat__crown {
-    color: var(--ava-gold-soft);
+    color: var(--ava-brass-bright);
     display: inline-flex;
     align-items: center;
     gap: 0.2rem;
   }
 
   .ava-seat__shield {
-    color: #93c5fd;
+    background: rgba(212, 166, 74, 0.22);
+    border: 1px solid var(--ava-brass);
+    color: var(--ava-brass-bright);
+    padding: 0.05rem 0.4rem;
+    border-radius: 4px;
   }
 
   .ava-seat__name {
+    font-family: var(--ava-font-caps);
     font-size: 0.92rem;
   }
 
   .ava-seat__status {
-    font-size: 0.75rem;
-    color: var(--ava-muted);
+    font-size: 0.82rem;
+    font-style: italic;
+    color: var(--ava-ivory-dim);
   }
 
   .ava-seat__status--done {
-    color: #86efac;
+    color: var(--ava-brass-bright);
+    font-style: normal;
     font-weight: 700;
-  }
-
-  .ava-votetoken {
-    font-size: 0.72rem;
-    font-weight: 800;
-    padding: 0.18rem 0.55rem;
-    border-radius: 6px;
-  }
-
-  .ava-votetoken--approve {
-    background: #fef9c3;
-    color: #0f172a;
-  }
-
-  .ava-votetoken--reject {
-    background: #991b1b;
-    color: #fecaca;
   }
 
   /* Sidebar Chronicle */
@@ -999,7 +1064,7 @@
     list-style: none;
     padding: 0;
     margin: 0;
-    max-height: 520px;
+    max-height: 540px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -1007,18 +1072,18 @@
   }
 
   .ava-history__item {
-    background: rgba(10, 15, 28, 0.8);
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 10px;
+    background: #140f0a;
+    border: 1px solid rgba(184, 154, 98, 0.28);
+    border-radius: 8px;
     padding: 0.55rem 0.7rem;
   }
 
   .ava-history__item--good {
-    border-color: rgba(59, 130, 246, 0.5);
+    border-color: #3b82f6;
   }
 
   .ava-history__item--evil {
-    border-color: rgba(239, 68, 68, 0.5);
+    border-color: #ef4444;
   }
 
   .ava-history__row {
@@ -1026,7 +1091,8 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.4rem;
-    font-size: 0.82rem;
+    font-family: var(--ava-font-caps);
+    font-size: 0.78rem;
     margin-bottom: 0.2rem;
   }
 
@@ -1060,10 +1126,10 @@
   }
 
   .ava-reveal-card {
-    background: rgba(12, 18, 32, 0.9);
-    border: 2px solid rgba(148, 163, 184, 0.3);
-    border-radius: 14px;
-    padding: 0.8rem;
+    background: #140f0a;
+    border: 2px solid rgba(184, 154, 98, 0.35);
+    border-radius: 12px;
+    padding: 0.85rem;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1072,10 +1138,12 @@
 
   .ava-reveal-card--good {
     border-color: #3b82f6;
+    background: linear-gradient(180deg, rgba(30, 58, 138, 0.35), #140f0a);
   }
 
   .ava-reveal-card--evil {
     border-color: #ef4444;
+    background: linear-gradient(180deg, rgba(127, 29, 29, 0.38), #140f0a);
   }
 
   .ava-reveal-card__top {
@@ -1085,11 +1153,16 @@
   }
 
   .ava-reveal-card__emblem {
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
   }
 
-  /* Phone Screens */
+  .ava-reveal-card__player {
+    font-family: var(--ava-font-caps);
+    font-size: 0.95rem;
+  }
+
+  /* Phone Controller */
   .ava-phone {
     max-width: 480px;
     margin: 0 auto;
@@ -1109,11 +1182,12 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 0.25rem;
   }
 
   .ava-phone__crest {
-    width: 84px;
-    height: 90px;
+    width: 92px;
+    height: 98px;
   }
 
   .ava-joinform {
@@ -1130,30 +1204,32 @@
 
   .ava-input {
     width: 100%;
-    padding: 0.75rem 0.9rem;
-    border-radius: 10px;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: rgba(8, 13, 26, 0.9);
-    color: var(--ava-text);
-    font-size: 1rem;
-    font-family: var(--ava-font-sans);
+    padding: 0.72rem 0.9rem;
+    border-radius: 8px;
+    border: 1.5px solid #8c7651;
+    background: #120d08;
+    color: var(--ava-ivory);
+    font-size: 1.05rem;
+    font-family: var(--ava-font-serif);
   }
 
   .ava-input--code {
     font-family: var(--ava-font-display);
-    font-size: 1.5rem;
+    font-size: 1.55rem;
+    font-weight: 900;
     letter-spacing: 0.2em;
     text-align: center;
     text-transform: uppercase;
+    color: var(--ava-brass-bright);
   }
 
   .ava-error {
-    background: rgba(153, 27, 27, 0.35);
-    border: 1px solid #f87171;
-    color: #fecaca;
+    background: rgba(127, 29, 29, 0.55);
+    border: 1.5px solid #f87171;
+    color: #fee2e2;
     padding: 0.55rem 0.8rem;
-    border-radius: 10px;
-    font-size: 0.88rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
     margin: 0;
   }
 
@@ -1162,24 +1238,27 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.55rem 0.85rem;
-    background: rgba(15, 23, 42, 0.85);
-    border: 1px solid var(--ava-panel-border);
-    border-radius: 12px;
+    background: #1c150e;
+    border: 1.5px solid #8c7651;
+    border-radius: 10px;
   }
 
   .ava-phone__me {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    font-family: var(--ava-font-caps);
+    font-size: 0.95rem;
   }
 
   .ava-phone__room {
-    font-size: 0.8rem;
-    color: var(--ava-gold);
-    font-weight: 800;
+    font-family: var(--ava-font-caps);
+    font-size: 0.78rem;
+    color: var(--ava-brass);
+    font-weight: 700;
   }
 
-  /* Hold to Reveal Role Card */
+  /* Hold to Reveal Character Card */
   .ava-peek {
     display: flex;
     flex-direction: column;
@@ -1188,69 +1267,77 @@
 
   .ava-peek__btn {
     width: 100%;
-    padding: 0.8rem 1rem;
-    border-radius: 12px;
-    border: 1.5px dashed rgba(234, 179, 8, 0.55);
-    background: rgba(15, 23, 42, 0.9);
-    color: #fef08a;
-    font-weight: 800;
-    font-size: 0.92rem;
+    padding: 0.82rem 1rem;
+    border-radius: 10px;
+    border: 2px solid var(--ava-brass);
+    background: linear-gradient(180deg, #2d2215 0%, #1a130b 100%);
+    color: var(--ava-brass-bright);
+    font-family: var(--ava-font-caps);
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
     touch-action: manipulation;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.65);
   }
 
   .ava-peek__btn--active {
-    border-style: solid;
-    background: rgba(234, 179, 8, 0.2);
+    background: linear-gradient(180deg, #42311a 0%, #261b0e 100%);
+    border-color: var(--ava-brass-bright);
   }
 
   .ava-secret-card {
-    padding: 1rem;
-    border-radius: 14px;
-    border: 2px solid;
-    background: rgba(8, 13, 26, 0.96);
+    padding: 1.05rem;
+    border-radius: 12px;
+    border: 2.5px solid;
+    background: #140f0a;
     display: flex;
     flex-direction: column;
     gap: 0.65rem;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.85);
   }
 
   .ava-secret-card--good {
     border-color: #3b82f6;
+    background: radial-gradient(circle at 15% 15%, rgba(30, 58, 138, 0.45), #140f0a 70%);
   }
 
   .ava-secret-card--evil {
     border-color: #ef4444;
+    background: radial-gradient(circle at 15% 15%, rgba(127, 29, 29, 0.48), #140f0a 70%);
   }
 
   .ava-secret-card__header {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.8rem;
   }
 
   .ava-secret-card__emblem {
-    width: 54px;
-    height: 54px;
+    width: 60px;
+    height: 60px;
   }
 
   .ava-secret-card__name {
-    font-family: var(--ava-font-display);
-    font-size: 1.35rem;
+    font-family: var(--ava-font-caps);
+    font-size: 1.4rem;
+    color: var(--ava-ivory);
     margin: 0.2rem 0 0;
   }
 
   .ava-secret-card__power {
-    font-size: 0.88rem;
-    color: #e2e8f0;
+    font-size: 0.98rem;
+    color: var(--ava-ivory);
     margin: 0;
     line-height: 1.4;
   }
 
   .ava-secret-card__sightings {
     padding-top: 0.55rem;
-    border-top: 1px solid rgba(148, 163, 184, 0.2);
+    border-top: 1px solid rgba(212, 166, 74, 0.25);
   }
 
   .ava-seen-list {
@@ -1266,11 +1353,12 @@
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 0.3rem 0.65rem;
-    border-radius: 999px;
-    background: rgba(30, 41, 59, 0.9);
-    border: 1px solid rgba(234, 179, 8, 0.45);
-    font-size: 0.85rem;
+    padding: 0.28rem 0.7rem;
+    border-radius: 6px;
+    background: #241b12;
+    border: 1px solid var(--ava-brass);
+    font-family: var(--ava-font-caps);
+    font-size: 0.82rem;
   }
 
   .ava-phone-card {
@@ -1287,8 +1375,8 @@
   }
 
   .ava-selfie__pawn {
-    width: 68px;
-    height: 74px;
+    width: 72px;
+    height: 78px;
   }
 
   .ava-pick-grid {
@@ -1302,13 +1390,14 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    padding: 0.6rem 0.7rem;
-    border-radius: 10px;
-    background: rgba(15, 23, 42, 0.85);
-    border: 1.5px solid rgba(148, 163, 184, 0.28);
-    color: var(--ava-text);
+    padding: 0.62rem 0.72rem;
+    border-radius: 8px;
+    background: #16110b;
+    border: 1.5px solid rgba(184, 154, 98, 0.35);
+    color: var(--ava-ivory);
+    font-family: var(--ava-font-caps);
     font-weight: 700;
-    font-size: 0.9rem;
+    font-size: 0.86rem;
     cursor: pointer;
     text-align: left;
   }
@@ -1321,60 +1410,54 @@
   }
 
   .ava-pick-btn--on {
-    border-color: var(--ava-gold-soft);
-    background: rgba(234, 179, 8, 0.18);
+    border-color: var(--ava-brass-bright);
+    background: linear-gradient(180deg, #3d2c14, #21180b);
+    color: var(--ava-brass-bright);
   }
 
   .ava-pick-btn--danger {
     border-color: #ef4444;
-    background: rgba(220, 38, 38, 0.22);
+    background: linear-gradient(180deg, #5c1515, #290909);
   }
 
   .ava-vote-buttons {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.7rem;
+    gap: 0.75rem;
+    align-items: center;
   }
 
   .ava-vote-card {
     appearance: none;
-    padding: 1rem 0.75rem;
-    border-radius: 14px;
-    border: 2px solid rgba(148, 163, 184, 0.3);
-    background: rgba(15, 23, 42, 0.85);
-    color: var(--ava-text);
+    padding: 0.9rem 0.65rem;
+    border-radius: 12px;
+    border: 2px solid rgba(184, 154, 98, 0.35);
+    background: #16110b;
+    color: var(--ava-ivory);
+    font-family: var(--ava-font-serif);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.5rem;
     cursor: pointer;
     text-align: center;
   }
 
-  .ava-vote-card:disabled {
-    opacity: 0.38;
-    cursor: not-allowed;
-  }
-
-  .ava-vote-card__icon {
-    font-size: 1.6rem;
-  }
-
   .ava-vote-card--approve.ava-vote-card--selected {
-    border-color: #fde047;
-    background: rgba(234, 179, 8, 0.22);
+    border-color: var(--ava-brass-bright);
+    background: rgba(212, 166, 74, 0.18);
   }
 
   .ava-vote-card--reject.ava-vote-card--selected {
-    border-color: #ef4444;
-    background: rgba(220, 38, 38, 0.25);
+    border-color: #f87171;
+    background: rgba(185, 28, 28, 0.22);
   }
 
-  /* Overlay & HowTo */
+  /* Overlay & Rulebook Modal */
   .ava-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(3, 7, 18, 0.8);
+    background: rgba(8, 6, 4, 0.85);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1392,20 +1475,21 @@
 
   .ava-howto__body {
     line-height: 1.55;
-    color: #e2e8f0;
+    color: var(--ava-ivory);
     margin: 0.25rem 0 0.5rem;
   }
 
   .ava-drawer {
-    border-top: 1px solid rgba(148, 163, 184, 0.2);
+    border-top: 1px solid rgba(212, 166, 74, 0.25);
     padding-top: 0.5rem;
   }
 
   .ava-drawer__summary {
     cursor: pointer;
+    font-family: var(--ava-font-caps);
     font-weight: 700;
-    font-size: 0.88rem;
-    color: var(--ava-gold-soft);
+    font-size: 0.84rem;
+    color: var(--ava-brass-bright);
   }
 
   .ava-howto-list {
@@ -1414,12 +1498,13 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    font-size: 0.84rem;
-    color: #cbd5e1;
+    font-size: 0.92rem;
+    color: var(--ava-ivory-dim);
   }
 
   .ava-howto-list li strong {
     display: block;
-    color: #f8fafc;
+    font-family: var(--ava-font-caps);
+    color: var(--ava-ivory);
   }
 }

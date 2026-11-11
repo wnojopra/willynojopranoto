@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ensureSession, loadAvalonFonts, useGameSocket } from '../shared/useGameSocket';
-import { AvalonCrest, KnightPawn, LeaderCrown, RoleEmblem, Token } from './Art';
+import {
+  AvalonCrest,
+  KnightPawn,
+  LeaderCrown,
+  QuestChaliceCard,
+  RoleEmblem,
+  Token,
+  VoteTokenBadge,
+} from './Art';
 import { HowToList } from './HowTo';
 import type {
   AvaPlayer,
@@ -157,13 +165,11 @@ export function AvalonPlay() {
     attempt,
   );
 
-  // Clear transient notice on phase change
   const phaseKey = state ? `${state.phase}-${state.round}-${state.proposal}` : '';
   useEffect(() => {
     setNotice(null);
   }, [phaseKey]);
 
-  // Reconnect logic
   const lost = status === 'closed' && join !== null;
   useEffect(() => {
     if (status === 'open') setRetries(0);
@@ -209,7 +215,7 @@ export function AvalonPlay() {
         <main className="ava-phone ava-phone--join">
           <div className="ava-phone__hero">
             <AvalonCrest className="ava-phone__crest" />
-            <p className="ava-kicker">The Resistance</p>
+            <p className="ava-boxframe__eyebrow">don eskridge’s THE RESISTANCE</p>
             <h1 className="ava-logo ava-logo--phone">AVALON</h1>
           </div>
           <form className="ava-panel ava-joinform" onSubmit={onSubmit}>
@@ -233,7 +239,7 @@ export function AvalonPlay() {
               />
             </label>
             <label className="ava-field" htmlFor="ava-join-name">
-              <span className="ava-kicker">Knight Name</span>
+              <span className="ava-kicker">Your Name</span>
               <input
                 id="ava-join-name"
                 className="ava-input"
@@ -242,7 +248,7 @@ export function AvalonPlay() {
                 autoComplete="nickname"
                 required
                 maxLength={14}
-                placeholder="Your name"
+                placeholder="Knight’s name"
               />
             </label>
             {error && (
@@ -251,10 +257,10 @@ export function AvalonPlay() {
               </p>
             )}
             <button id="ava-join" type="submit" className="ava-btn ava-btn--primary ava-btn--big">
-              Take a Seat
+              Take Your Seat
             </button>
             <p className="ava-muted ava-tiny ava-text-center">
-              Hosting on a big screen? <a href="/avalon">Open the TV view</a>
+              Hosting on a monitor? <a href="/avalon">Open the TV Tableau</a>
             </p>
           </form>
         </main>
@@ -268,7 +274,7 @@ export function AvalonPlay() {
       <div className="ava-root ava-root--phone">
         <main className="ava-phone ava-center">
           <p className="ava-sub">
-            {lost && retries >= MAX_RETRIES ? 'Lost connection to Camelot.' : 'Entering Camelot…'}
+            {lost && retries >= MAX_RETRIES ? 'Lost connection to Camelot.' : 'Entering the Great Hall…'}
           </p>
           {lost && retries >= MAX_RETRIES && (
             <button
@@ -312,7 +318,7 @@ export function AvalonPlay() {
           <span className="ava-phone__room">Room {state.code}</span>
         </header>
 
-        {/* Secret Role Peek Bar (available in all in-game phases) */}
+        {/* Secret Character Card (Hold to Reveal) */}
         {secret && state.phase !== 'lobby' && (
           <RolePeekCard state={state} secret={secret} photos={photos} defaultPrompt={state.phase === 'night'} />
         )}
@@ -338,10 +344,6 @@ export function AvalonPlay() {
   );
 }
 
-/**
- * Peak-proof "Hold to Reveal Role" card so coworkers sitting next to you can't
- * accidentally glance at your screen and see your loyalty.
- */
 function RolePeekCard({
   state,
   secret,
@@ -384,7 +386,9 @@ function RolePeekCard({
         }}
         onKeyUp={() => setPeeking(false)}
       >
-        <span>{peeking ? '🔓 Release to Hide Identity' : '🔒 Hold to Reveal Secret Role & Sightings'}</span>
+        <span>
+          {peeking ? 'Release to Conceal Character Card' : 'Press & Hold to Inspect Character Card'}
+        </span>
       </button>
 
       {peeking && (
@@ -398,8 +402,8 @@ function RolePeekCard({
             <div>
               <span className={`ava-pill ava-pill--${secret.alignment}`}>
                 {secret.alignment === 'good'
-                  ? '🛡️ Loyal Servant of Arthur (Good)'
-                  : '🗡️ Minion of Mordred (Evil)'}
+                  ? 'Loyal Servant of Arthur (Good)'
+                  : 'Minion of Mordred (Evil)'}
               </span>
               <h2 className="ava-secret-card__name">{secret.name}</h2>
             </div>
@@ -476,7 +480,7 @@ function SelfiePicker({
           disabled={busy}
           onClick={() => input.current?.click()}
         >
-          {busy ? 'Saving…' : photo ? '📸 Retake Portrait' : '📸 Add Portrait Selfie'}
+          {busy ? 'Saving…' : photo ? 'Retake Portrait' : 'Add Portrait to Shield'}
         </button>
         {photo && (
           <button
@@ -517,15 +521,14 @@ function PhoneStage({
     return (
       <section className="ava-panel ava-phone-card">
         <SelfiePicker me={me} photo={photos[me.id]} send={send} setNotice={setNotice} />
-        <p className="ava-sub">
-          You are seated at <strong>Seat #{seatNum}</strong> ({state.players.length} /{' '}
-          {state.maxPlayers} players).
+        <p className="ava-sub ava-text-center">
+          Seated at <strong>Seat #{seatNum}</strong> ({state.players.length} / {state.maxPlayers} Knights).
         </p>
-        <p className="ava-muted ava-tiny">
-          Waiting for the host to start on the TV (requires 5–10 players)…
+        <p className="ava-muted ava-tiny ava-text-center">
+          Waiting for the host to deal Character Cards on the TV…
         </p>
         <details className="ava-drawer">
-          <summary className="ava-drawer__summary">📖 How to Play Avalon</summary>
+          <summary className="ava-drawer__summary">Rulebook Summary</summary>
           <HowToList />
         </details>
       </section>
@@ -536,14 +539,14 @@ function PhoneStage({
     const amReady = state.nightReadyIds.includes(me.id);
     return (
       <section className="ava-panel ava-phone-card">
-        <span className="ava-kicker">Step 1 · Role Review &amp; Night Phase</span>
-        <h2 className="ava-h2">Check Your Role &amp; Close Your Eyes</h2>
+        <span className="ava-kicker">Night Reveal Ceremony</span>
+        <h2 className="ava-h2">Inspect Your Loyalty &amp; Close Your Eyes</h2>
         <p className="ava-sub">
-          1. Press and hold the button above to secretly inspect your Character Card and Night sightings.
+          1. Press and hold the button above to secretly view your Character Card.
           <br />
-          2. Follow the TV narrator’s audio instructions with your eyes closed.
+          2. Close your eyes and extend your hand into a fist while the TV reads the script.
           <br />
-          3. Tap <strong>Ready for Quest 1</strong> once the ceremony concludes.
+          3. Tap <strong>Ready</strong> when the ceremony concludes.
         </p>
         <button
           id="ava-night-ready"
@@ -556,8 +559,8 @@ function PhoneStage({
           }}
         >
           {amReady
-            ? `✓ Ready (${state.nightReadyIds.length}/${state.players.length})`
-            : 'I Know My Role · Ready'}
+            ? `Ready (${state.nightReadyIds.length}/${state.players.length})`
+            : 'I Know My Loyalty · Ready'}
         </button>
       </section>
     );
@@ -570,17 +573,17 @@ function PhoneStage({
       return (
         <section className="ava-panel ava-phone-card">
           <span className="ava-kicker">
-            Quest {state.round} · Proposal {state.proposal} of 5
+            Quest {state.round} · Vote Track {state.proposal} of 5
           </span>
-          <h2 className="ava-h2">{leader?.name ?? 'The Leader'} is Choosing the Team</h2>
+          <h2 className="ava-h2">{leader?.name ?? 'The Leader'} Holds the Leader Token</h2>
           <p className="ava-sub">
-            Advise the Leader! Needs <strong>{state.questSize} Knights</strong> for this Quest.
+            The Leader is assigning <strong>{state.questSize} Team Tokens</strong> for this Quest.
           </p>
           {draftNames.length > 0 && (
             <div className="ava-stage__pills">
               {draftNames.map((n) => (
                 <span key={n} className="ava-pill ava-pill--gold">
-                  🛡️ {n}
+                  {n}
                 </span>
               ))}
             </div>
@@ -604,10 +607,10 @@ function PhoneStage({
     return (
       <section className="ava-panel ava-phone-card">
         <span className="ava-kicker">
-          👑 You are the Leader · Quest {state.round} (Proposal {state.proposal}/5)
+          You Hold the Leader Token · Quest {state.round}
         </span>
         <h2 className="ava-h2">
-          Select {state.questSize} Knights ({state.draftTeam.length}/{state.questSize})
+          Assign {state.questSize} Team Tokens ({state.draftTeam.length}/{state.questSize})
         </h2>
         <div className="ava-pick-grid">
           {state.players.map((p) => {
@@ -623,7 +626,7 @@ function PhoneStage({
               >
                 <Token color={p.color} photo={photos[p.id]} />
                 <span>{p.name}</span>
-                <strong>{picked ? '🛡️' : '+'}</strong>
+                <strong>{picked ? '✓' : '+'}</strong>
               </button>
             );
           })}
@@ -640,7 +643,7 @@ function PhoneStage({
         >
           {exact
             ? `Call for Team Vote (${state.questSize} Knights)`
-            : `Pick ${state.questSize - state.draftTeam.length} More`}
+            : `Assign ${state.questSize - state.draftTeam.length} More`}
         </button>
       </section>
     );
@@ -652,11 +655,11 @@ function PhoneStage({
     return (
       <section className="ava-panel ava-phone-card">
         <span className="ava-kicker">
-          Quest {state.round} · Proposal {state.proposal} of 5
+          Quest {state.round} · Vote Track {state.proposal} of 5
         </span>
-        <h2 className="ava-h2">Vote on the Proposed Team</h2>
+        <h2 className="ava-h2">Choose Your Vote Token</h2>
         <p className="ava-sub">
-          Proposed Knights: <strong>{teamNames.join(', ')}</strong>
+          Proposed Team: <strong>{teamNames.join(', ')}</strong>
         </p>
         <div className="ava-vote-buttons">
           <button
@@ -671,8 +674,7 @@ function PhoneStage({
               send({ type: 'vote', approve: true });
             }}
           >
-            <span className="ava-vote-card__icon">⚜️</span>
-            <strong>APPROVE</strong>
+            <VoteTokenBadge approve={true} size="lg" />
             <span className="ava-tiny">Accept this Quest Team</span>
           </button>
           <button
@@ -687,14 +689,13 @@ function PhoneStage({
               send({ type: 'vote', approve: false });
             }}
           >
-            <span className="ava-vote-card__icon">✖</span>
-            <strong>REJECT</strong>
-            <span className="ava-tiny">Pass leadership clockwise</span>
+            <VoteTokenBadge approve={false} size="lg" />
+            <span className="ava-tiny">Reject &amp; pass Leader Token</span>
           </button>
         </div>
         {myVote !== null && myVote !== undefined && (
           <p className="ava-muted ava-tiny ava-text-center">
-            ✓ Vote recorded ({state.votedIds.length}/{state.players.length} ready). You can change it until everyone votes.
+            Vote Token placed facedown ({state.votedIds.length}/{state.players.length} ready).
           </p>
         )}
       </section>
@@ -705,16 +706,16 @@ function PhoneStage({
     const rev = state.lastVoteReveal;
     return (
       <section className="ava-panel ava-phone-card">
-        <span className="ava-kicker">Vote Revealed</span>
+        <span className="ava-kicker">Vote Tokens Revealed</span>
         <h2 className="ava-h2">
           {rev.approved
-            ? `Team Approved (${rev.approves}–${rev.rejects})`
-            : `Team Rejected (${rev.approves}–${rev.rejects})`}
+            ? `Vote Approved (${rev.approves}–${rev.rejects})`
+            : `Vote Rejected (${rev.approves}–${rev.rejects})`}
         </h2>
         <p className="ava-sub">
           {rev.approved
-            ? 'The Quest Team now embarks!'
-            : 'Leadership passes to the next player clockwise.'}
+            ? 'The Quest Team embarks on the Quest!'
+            : 'The Leader Token passes clockwise.'}
         </p>
         {isLeader && (
           <button
@@ -723,7 +724,7 @@ function PhoneStage({
             className="ava-btn ava-btn--primary ava-btn--big"
             onClick={() => send({ type: 'advance' })}
           >
-            {rev.approved ? 'Start Quest →' : 'Pass Leader Token →'}
+            {rev.approved ? 'Begin Quest Phase →' : 'Pass Leader Token →'}
           </button>
         )}
       </section>
@@ -738,10 +739,10 @@ function PhoneStage({
     if (!onTeam) {
       return (
         <section className="ava-panel ava-phone-card">
-          <span className="ava-kicker">Quest {state.round} Underway</span>
-          <h2 className="ava-h2">Awaiting Quest Outcome…</h2>
+          <span className="ava-kicker">Quest {state.round} Phase</span>
+          <h2 className="ava-h2">Quest Cards Being Played…</h2>
           <p className="ava-sub">
-            The Quest Team is secretly selecting their Quest cards ({state.questSubmittedIds.length}/
+            The Quest Team is secretly placing their Quest Cards ({state.questSubmittedIds.length}/
             {state.proposedTeam.length} played).
           </p>
         </section>
@@ -752,7 +753,7 @@ function PhoneStage({
       return (
         <section className="ava-panel ava-phone-card">
           <span className="ava-kicker">Quest {state.round}</span>
-          <h2 className="ava-h2">✓ Quest Card Submitted</h2>
+          <h2 className="ava-h2">Quest Card Placed Facedown</h2>
           <p className="ava-sub">
             Waiting for the remaining Quest members ({state.questSubmittedIds.length}/
             {state.proposedTeam.length})…
@@ -763,43 +764,33 @@ function PhoneStage({
 
     return (
       <section className="ava-panel ava-phone-card">
-        <span className="ava-kicker">🛡️ You Are on the Quest Team!</span>
-        <h2 className="ava-h2">Play Your Secret Quest Card</h2>
+        <span className="ava-kicker">You Hold a Team Token · Quest {state.round}</span>
+        <h2 className="ava-h2">Select Your Quest Card</h2>
         <p className="ava-sub">
           {isEvil
-            ? 'As an agent of Evil, you may choose either Success or Fail.'
-            : 'As a Loyal Servant of Arthur, you must support the Quest with Success.'}
+            ? 'As an agent of Evil, you may play either Quest Success or Quest Fail.'
+            : 'Note: The Good players must select the Quest Success card.'}
         </p>
         <div className="ava-vote-buttons">
-          <button
+          <QuestChaliceCard
             id="ava-quest-success"
-            type="button"
-            className="ava-vote-card ava-vote-card--approve"
+            kind="success"
+            interactive
             onClick={() => {
               vibrate(35);
               send({ type: 'quest_card', success: true });
             }}
-          >
-            <span className="ava-vote-card__icon">⚜️</span>
-            <strong>QUEST SUCCESS</strong>
-            <span className="ava-tiny">For Arthur &amp; Camelot</span>
-          </button>
-          <button
+          />
+          <QuestChaliceCard
             id="ava-quest-fail"
-            type="button"
+            kind="fail"
+            interactive
             disabled={!isEvil}
-            className="ava-vote-card ava-vote-card--reject"
             onClick={() => {
               vibrate(35);
               send({ type: 'quest_card', success: false });
             }}
-          >
-            <span className="ava-vote-card__icon">💀</span>
-            <strong>QUEST FAIL</strong>
-            <span className="ava-tiny">
-              {isEvil ? 'Sabotage this Quest' : 'Evil players only'}
-            </span>
-          </button>
+          />
         </div>
       </section>
     );
@@ -809,9 +800,9 @@ function PhoneStage({
     const q = state.lastQuestReveal;
     return (
       <section className="ava-panel ava-phone-card">
-        <span className="ava-kicker">Quest {q.quest} Complete</span>
+        <span className="ava-kicker">Quest {q.quest} Resolved</span>
         <h2 className={`ava-h2 ${q.succeeded ? 'ava-text--good' : 'ava-text--evil'}`}>
-          {q.succeeded ? '⚜️ Quest Succeeded!' : '🔥 Quest Failed!'}
+          {q.succeeded ? 'Quest Succeeded!' : 'Quest Failed!'}
         </h2>
         <p className="ava-sub">
           {q.successCount} Success · {q.failCount} Fail
@@ -839,10 +830,10 @@ function PhoneStage({
       const assassinName = state.assassinId ? byId.get(state.assassinId)?.name : 'The Assassin';
       return (
         <section className="ava-panel ava-phone-card">
-          <span className="ava-kicker">Evil’s Last Chance</span>
-          <h2 className="ava-h2 ava-text--evil">🗡️ Assassinate Merlin</h2>
+          <span className="ava-kicker">Assassinate Merlin — Evil’s Last Chance</span>
+          <h2 className="ava-h2 ava-text--evil">The Assassin Hunts Merlin</h2>
           <p className="ava-sub">
-            <strong>{assassinName}</strong> is choosing who to assassinate! If they name Merlin, Evil wins.
+            <strong>{assassinName}</strong> is naming one Good player as Merlin!
           </p>
         </section>
       );
@@ -850,10 +841,10 @@ function PhoneStage({
 
     return (
       <section className="ava-panel ava-phone-card">
-        <span className="ava-kicker">🗡️ You Are the Assassin!</span>
-        <h2 className="ava-h2 ava-text--evil">Who is Merlin?</h2>
+        <span className="ava-kicker">You Hold the Assassin Card</span>
+        <h2 className="ava-h2 ava-text--evil">Name Merlin</h2>
         <p className="ava-sub">
-          Discuss with your fellow Minions of Mordred, then select one Good player to assassinate:
+          Consult with your fellow Minions of Mordred, then select one Good player to assassinate:
         </p>
         <div className="ava-pick-grid">
           {candidates.map((p) => {
@@ -869,7 +860,7 @@ function PhoneStage({
               >
                 <Token color={p.color} photo={photos[p.id]} />
                 <span>{p.name}</span>
-                <strong>{picked ? '🎯' : ''}</strong>
+                <strong>{picked ? '✓' : ''}</strong>
               </button>
             );
           })}
@@ -887,7 +878,7 @@ function PhoneStage({
         >
           {assassinPick
             ? `Assassinate ${byId.get(assassinPick)?.name ?? ''}`
-            : 'Select a Target'}
+            : 'Choose a Player'}
         </button>
       </section>
     );
@@ -899,7 +890,7 @@ function PhoneStage({
     return (
       <section className="ava-panel ava-phone-card">
         <span className={`ava-pill ava-pill--${state.winner ?? 'good'}`}>
-          {won ? '🏆 Victory!' : 'Defeat'}
+          {won ? 'Victory' : 'Defeat'}
         </span>
         <h2 className="ava-h2">
           {state.winner === 'good'
