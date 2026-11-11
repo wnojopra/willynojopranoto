@@ -15,6 +15,8 @@ Personal site and multiplayer party-game arcade for **Willy Nojopranoto**, hoste
 | `/spiritboard/claim/:token` | **👻 Spirit Board** — Scavenger hunt QR sticker landing page |
 | `/psychological` | **🧠 Psychological** — TV host screen |
 | `/psychological/play` | **🧠 Psychological** — Phone controller & join screen |
+| `/avalon` | **🛡️ Avalon** — TV host screen |
+| `/avalon/play` | **🛡️ Avalon** — Phone controller & join screen |
 
 ## Games
 
@@ -23,6 +25,9 @@ A Jackbox-style Halloween party game. The TV shows a Ouija board (`30 Hz` server
 
 ### 🧠 Psychological ([`docs/psychological.md`](docs/psychological.md))
 A digital version of PlayMonster's *Psychological*. Each turn pairs two trait cards on a 10×10 grid; the main player secretly marks where they see themself while everyone else takes turns guessing (and optionally placing a second "real opinion" marker). Supports custom phone selfies as pawns, multiple expansion card packs, and bowling-alley bullseye celebrations.
+
+### 🛡️ The Resistance: Avalon ([`docs/avalon.md`](docs/avalon.md))
+A digital adaptation of Don Eskridge's *The Resistance: Avalon* for 5–10 players. Features a configurable lobby with optional characters (Percival, Morgana, Mordred, Oberon), a Night Phase with a synthesized TV voice narrator and peak-proof "Hold to Reveal" role cards on phones, live Quest Team building, simultaneous voting, secret Quest cards, and the final Assassinate Merlin phase.
 
 ## Repository Layout
 
@@ -33,9 +38,11 @@ backend/                 Python 3.12+ / FastAPI
     shared/              Shared origin checks, __Host- cookies/CSRF, WebSocket rate limiter, room code/name utils
     spiritboard/         Spirit Board game logic, physics, decks, Relics, scavenger hunt store, /ws/spiritboard/* & /api/*
     psych/               Psychological turn logic, trait decks, /ws/psych/*
+    avalon/              Avalon role/sighting logic, quest state machine, /ws/avalon/*
   tests/
     spiritboard/         Spirit Board unit, hunt, reconnect, and WebSocket tests
     psych/               Psychological unit and WebSocket tests
+    avalon/              Avalon rules, rooms, and WebSocket tests
 frontend/                React + TypeScript + Vite
   src/
     App.tsx              Route dispatcher with React.lazy() per section
@@ -43,6 +50,7 @@ frontend/                React + TypeScript + Vite
     home/                HomePage.tsx + home.css (willynojopranoto.com landing page)
     spiritboard/         Spirit Board TV, phone, and scavenger hunt screens + spiritboard.css
     psych/               Psychological TV and phone screens + psych.css
+    avalon/              Avalon TV and phone screens, narrator audio, SVG art + avalon.css
 ```
 
 ## Run Locally
@@ -66,6 +74,7 @@ Open:
 - Homepage: <http://127.0.0.1:5173/>
 - Spirit Board (TV / Phone): <http://127.0.0.1:5173/spiritboard> / <http://127.0.0.1:5173/spiritboard/play>
 - Psychological (TV / Phone): <http://127.0.0.1:5173/psychological> / <http://127.0.0.1:5173/psychological/play>
+- Avalon (TV / Phone): <http://127.0.0.1:5173/avalon> / <http://127.0.0.1:5173/avalon/play>
 
 Or build the frontend once (`npm run build`) and serve everything from FastAPI at <http://127.0.0.1:8000/>.
 

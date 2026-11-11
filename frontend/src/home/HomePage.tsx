@@ -64,8 +64,26 @@ const GAMES: GameItem[] = [
     ],
   },
   {
-    id: 'battleweb',
+    id: 'avalon',
     index: '03',
+    title: 'Avalon',
+    badge: '5–10 players',
+    description:
+      'A digital edition of The Resistance: Avalon. Check your secret loyalty on your phone, listen to the Night Phase narrator with your eyes closed, propose Quest Teams, and deduce who serves Mordred—before the Assassin finds Merlin.',
+    image: {
+      src: '/images/avalon.svg',
+      alt: 'Avalon gameplay showing the Arthurian crest and 5-Quest tableau',
+      width: 1024,
+      height: 567,
+    },
+    actions: [
+      { id: 'home-avalon-tv', label: 'Host on TV', href: '/avalon', primary: true },
+      { id: 'home-avalon-play', label: 'Join on Phone', href: '/avalon/play' },
+    ],
+  },
+  {
+    id: 'battleweb',
+    index: '04',
     title: 'BattleWeb',
     badge: 'WIP',
     description: 'Top-down arena brawler in the browser, inspired by Battlerite. Still a work in progress.',

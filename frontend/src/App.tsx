@@ -13,6 +13,10 @@ const PrintSheet = lazy(() => import('./spiritboard/hunt/AdminPage').then((m) =>
 const PsychTv = lazy(() => import('./psych/PsychTv').then((m) => ({ default: m.PsychTv })));
 const PsychPlay = lazy(() => import('./psych/PsychPlay').then((m) => ({ default: m.PsychPlay })));
 
+// Avalon: loaded as its own chunk only on /avalon* pages.
+const AvalonTv = lazy(() => import('./avalon/AvalonTv').then((m) => ({ default: m.AvalonTv })));
+const AvalonPlay = lazy(() => import('./avalon/AvalonPlay').then((m) => ({ default: m.AvalonPlay })));
+
 export function App() {
   const path = location.pathname.replace(/\/+$/, '');
   if (path === '/spiritboard') return <Suspense fallback={null}><TvApp /></Suspense>;
@@ -24,5 +28,7 @@ export function App() {
   if (claim) return <Suspense fallback={null}><ClaimPage token={claim[1]} /></Suspense>;
   if (path === '/psychological') return <Suspense fallback={null}><PsychTv /></Suspense>;
   if (path === '/psychological/play') return <Suspense fallback={null}><PsychPlay /></Suspense>;
+  if (path === '/avalon') return <Suspense fallback={null}><AvalonTv /></Suspense>;
+  if (path === '/avalon/play') return <Suspense fallback={null}><AvalonPlay /></Suspense>;
   return <HomePage />;
 }

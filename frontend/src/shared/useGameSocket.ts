@@ -91,10 +91,17 @@ const SPIRIT_FONTS_URL =
 const PSYCH_FONTS_URL =
   'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Nunito:wght@400;600;800&display=swap';
 
+const AVALON_FONTS_URL =
+  'https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap';
+
 export function loadSpiritFonts(): void {
   loadFonts('sb-fonts', SPIRIT_FONTS_URL);
 }
 
 export function loadPsychFonts(): void {
   loadFonts('psy-fonts', PSYCH_FONTS_URL);
+}
+
+export function loadAvalonFonts(): void {
+  loadFonts('ava-fonts', AVALON_FONTS_URL);
 }

@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
+from app.avalon import api as avalon_api
 from app.psych import api as psych_api
 from app.shared.cookies import ensure_client_cookies
 from app.spiritboard import api as spiritboard_api, hunt_api
@@ -52,6 +53,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(hunt_api.router)
 app.include_router(spiritboard_api.router)
 app.include_router(psych_api.router)
+app.include_router(avalon_api.router)
 
 
 @app.get("/api/health")
@@ -81,6 +83,8 @@ _index = STATIC_DIR / "index.html"
 @app.api_route("/spiritboard/claim/{token}", methods=["GET", "HEAD"])
 @app.api_route("/psychological", methods=["GET", "HEAD"])
 @app.api_route("/psychological/play", methods=["GET", "HEAD"])
+@app.api_route("/avalon", methods=["GET", "HEAD"])
+@app.api_route("/avalon/play", methods=["GET", "HEAD"])
 async def spa_routes(request: Request) -> Response:
     if _index.is_file():
         response: Response = FileResponse(_index, headers={"Cache-Control": "no-store"})
