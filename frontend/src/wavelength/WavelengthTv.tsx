@@ -355,13 +355,90 @@ export function WavelengthTv() {
               )}
             </div>
 
-            <ul
-              className="wl-roster"
-              data-many={state.players.length > BIG_ROOM ? '' : undefined}
-            >
-              {state.players.map((p) => {
-                const pTeam = state.teams.find((t) => t.id === p.teamId);
-                return (
+            {state.mode === 'teams' ? (
+              <div className="wl-team-columns">
+                {state.teams.map((t, tIdx) => {
+                  const members = state.players.filter((p) => p.teamId === t.id);
+                  const nextTeam = state.teams[(tIdx + 1) % state.teams.length];
+                  return (
+                    <div
+                      key={t.id}
+                      className="wl-team-col"
+                      style={{ '--c': t.color } as React.CSSProperties}
+                    >
+                      <header className="wl-team-col__head">
+                        <span className="wl-dot" />
+                        <input
+                          type="text"
+                          className="wl-team-col__title"
+                          value={t.name}
+                          maxLength={20}
+                          aria-label="Team name"
+                          onChange={(e) =>
+                            send({ type: 'rename_team', teamId: t.id, name: e.target.value })
+                          }
+                        />
+                        <span className="wl-team-col__badge">{members.length}</span>
+                      </header>
+                      <ul className="wl-team-col__list">
+                        {members.map((p) => (
+                          <li
+                            key={p.id}
+                            className="wl-roster__item"
+                            data-offline={p.connected ? undefined : ''}
+                          >
+                            <span
+                              className="wl-roster__avatar"
+                              style={{ backgroundColor: p.color }}
+                            >
+                              {avatars[p.id] ? (
+                                <img src={avatars[p.id]} alt="" />
+                              ) : (
+                                p.name.slice(0, 2).toUpperCase()
+                              )}
+                            </span>
+                            <span className="wl-roster__name" title={p.name}>
+                              {p.name}
+                            </span>
+                            {p.isBot && <span className="wl-roster__tag">bot</span>}
+                            {!p.connected && <span className="wl-roster__tag">away</span>}
+                            {nextTeam && (
+                              <button
+                                type="button"
+                                className="wl-roster__swap"
+                                title={`Move ${p.name} to ${nextTeam.name}`}
+                                aria-label={`Move ${p.name} to ${nextTeam.name}`}
+                                onClick={() =>
+                                  send({ type: 'set_team', playerId: p.id, teamId: nextTeam.id })
+                                }
+                              >
+                                ⇄
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="wl-roster__kick"
+                              aria-label={`Remove ${p.name}`}
+                              onClick={() => send({ type: 'kick', playerId: p.id })}
+                            >
+                              ×
+                            </button>
+                          </li>
+                        ))}
+                        {members.length === 0 && (
+                          <li className="wl-team-col__empty">No players yet</li>
+                        )}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <ul
+                className="wl-roster"
+                data-many={state.players.length > BIG_ROOM ? '' : undefined}
+              >
+                {state.players.map((p) => (
                   <li
                     key={p.id}
                     className="wl-roster__item"
@@ -374,27 +451,11 @@ export function WavelengthTv() {
                         p.name.slice(0, 2).toUpperCase()
                       )}
                     </span>
-                    <span className="wl-roster__name">{p.name}</span>
+                    <span className="wl-roster__name" title={p.name}>
+                      {p.name}
+                    </span>
                     {p.isBot && <span className="wl-roster__tag">bot</span>}
                     {!p.connected && <span className="wl-roster__tag">away</span>}
-                    {state.mode === 'teams' && pTeam && (
-                      <button
-                        type="button"
-                        className="wl-roster__team"
-                        style={{ '--c': pTeam.color } as React.CSSProperties}
-                        title="Click to switch team"
-                        onClick={() => {
-                          const idx = state.teams.findIndex((t) => t.id === p.teamId);
-                          const next = state.teams[(idx + 1) % state.teams.length];
-                          if (next) {
-                            send({ type: 'set_team', playerId: p.id, teamId: next.id });
-                          }
-                        }}
-                      >
-                        <span className="wl-dot" />
-                        {pTeam.name}
-                      </button>
-                    )}
                     <button
                       type="button"
                       className="wl-roster__kick"
@@ -404,12 +465,12 @@ export function WavelengthTv() {
                       ×
                     </button>
                   </li>
-                );
-              })}
-              {state.players.length === 0 && (
-                <li className="wl-roster__empty">Waiting for the first telepath to join…</li>
-              )}
-            </ul>
+                ))}
+                {state.players.length === 0 && (
+                  <li className="wl-roster__empty">Waiting for the first telepath to join…</li>
+                )}
+              </ul>
+            )}
           </section>
 
           {/* Bottom Controls Bar (Left: Bots | Center: Big Start CTA | Right: Compact Segmented Mode + Toggles) */}

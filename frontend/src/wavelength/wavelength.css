@@ -373,16 +373,96 @@
     gap: 0.5rem;
   }
 
+  /* Side-by-Side Team Columns in Lobby */
+  .wl-team-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .wl-team-col {
+    --c: var(--wl-orange);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.85rem;
+    border-radius: 20px;
+    border: 1.5px solid var(--wl-border);
+    border-top: 4px solid var(--c);
+    background: rgba(11, 30, 50, 0.72);
+    box-shadow: 0 14px 32px -16px rgba(0, 0, 0, 0.7);
+  }
+
+  .wl-team-col__head {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0 0.25rem 0.45rem;
+    border-bottom: 1px solid var(--wl-border);
+  }
+
+  .wl-team-col__title {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    padding: 2px 4px;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--wl-cream);
+    font-family: var(--wl-font-display);
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  .wl-team-col__title:hover,
+  .wl-team-col__title:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .wl-team-col__badge {
+    min-width: 24px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--c);
+    color: var(--wl-navy-deep);
+    font-family: var(--wl-font-display);
+    font-size: 0.82rem;
+    font-weight: 800;
+    line-height: 22px;
+    text-align: center;
+  }
+
+  .wl-team-col__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .wl-team-col__empty {
+    padding: 1.1rem 0.5rem;
+    color: var(--wl-cream-dim);
+    font-size: 0.92rem;
+    font-style: italic;
+    text-align: center;
+  }
+
   .wl-roster__item {
     display: flex;
     align-items: center;
-    gap: 0.7rem;
-    padding: 0.7rem 0.95rem;
-    border-radius: 16px;
+    gap: 0.65rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 14px;
     border: 1px solid var(--wl-border);
-    background: rgba(16, 42, 69, 0.82);
-    box-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.7);
-    font-size: clamp(1rem, 1.6vw, 1.4rem);
+    background: rgba(16, 42, 69, 0.85);
+    box-shadow: 0 6px 16px -10px rgba(0, 0, 0, 0.7);
+    font-size: clamp(0.98rem, 1.35vw, 1.2rem);
     font-weight: 700;
   }
 
@@ -393,8 +473,8 @@
   .wl-roster__avatar {
     display: inline-grid;
     place-items: center;
-    inline-size: 1.7em;
-    block-size: 1.7em;
+    inline-size: 1.85em;
+    block-size: 1.85em;
     border-radius: 50%;
     overflow: hidden;
     color: var(--wl-navy-deep);
@@ -413,13 +493,15 @@
 
   .wl-roster__name {
     flex: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .wl-roster__tag {
-    padding: 0.12em 0.55em;
+    flex: none;
+    padding: 0.12em 0.5em;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.12);
     color: var(--wl-cream-dim);
@@ -428,28 +510,36 @@
     text-transform: uppercase;
   }
 
-  .wl-roster__team {
-    --c: var(--wl-orange);
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 0.2em 0.65em;
-    border-radius: 999px;
-    border: 1.5px solid var(--c);
+  .wl-roster__swap {
+    flex: none;
+    inline-size: 28px;
+    block-size: 28px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid var(--wl-border);
+    border-radius: 8px;
     background: rgba(255, 255, 255, 0.06);
-    font-size: 0.68em;
-    font-weight: 800;
+    color: var(--wl-cream-dim);
+    font-size: 0.9rem;
+    line-height: 1;
+    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+  }
+
+  .wl-roster__swap:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--wl-border-strong);
     color: var(--wl-cream);
   }
 
   .wl-roster__kick {
-    inline-size: 28px;
-    block-size: 28px;
+    flex: none;
+    inline-size: 26px;
+    block-size: 26px;
     border: 0;
     border-radius: 50%;
     background: transparent;
     color: var(--wl-cream-dim);
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     opacity: 0;
     transition: opacity 150ms ease;
   }
