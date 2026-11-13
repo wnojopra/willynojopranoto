@@ -17,6 +17,8 @@ Personal site and multiplayer party-game arcade for **Willy Nojopranoto**, hoste
 | `/psychological/play` | **🧠 Psychological** — Phone controller & join screen |
 | `/avalon` | **🛡️ Avalon** — TV host screen |
 | `/avalon/play` | **🛡️ Avalon** — Phone controller & join screen |
+| `/wavelength` | **🌊 Wavelength** — TV host screen |
+| `/wavelength/play` | **🌊 Wavelength** — Phone controller & join screen |
 
 ## Games
 
@@ -29,6 +31,9 @@ A digital version of PlayMonster's *Psychological*. Each turn pairs two trait ca
 ### 🛡️ The Resistance: Avalon ([`docs/avalon.md`](docs/avalon.md))
 A digital adaptation of Don Eskridge's *The Resistance: Avalon* for 5–10 players. Features a configurable lobby with optional characters (Percival, Morgana, Mordred, Oberon), a Night Phase with a synthesized TV voice narrator and peak-proof "Hold to Reveal" role cards on phones, live Quest Team building, simultaneous voting, secret Quest cards, and the final Assassinate Merlin phase.
 
+### 🌊 Wavelength ([`docs/wavelength.md`](docs/wavelength.md))
+A digital adaptation of *Wavelength* inspired by `mikeck1.github.io`. Features a rotating SVG shutter dial, 4 themed spectrum packs plus custom deck import/export, Teams mode (with Left/Right opposing bonus and Catch-Up rule), Free-for-All mode with selfie-tipped needles, Co-op mode, pass-and-play TV controls, and synthesized Web Audio sound effects.
+
 ## Repository Layout
 
 ```text
@@ -39,10 +44,12 @@ backend/                 Python 3.12+ / FastAPI
     spiritboard/         Spirit Board game logic, physics, decks, Relics, scavenger hunt store, /ws/spiritboard/* & /api/*
     psych/               Psychological turn logic, trait decks, /ws/psych/*
     avalon/              Avalon role/sighting logic, quest state machine, /ws/avalon/*
+    wavelength/          Wavelength angle scoring, spectrum decks, room state machine, /ws/wavelength/*
   tests/
     spiritboard/         Spirit Board unit, hunt, reconnect, and WebSocket tests
     psych/               Psychological unit and WebSocket tests
     avalon/              Avalon rules, rooms, and WebSocket tests
+    wavelength/          Wavelength rules, rooms, and WebSocket tests
 frontend/                React + TypeScript + Vite
   src/
     App.tsx              Route dispatcher with React.lazy() per section
@@ -51,6 +58,7 @@ frontend/                React + TypeScript + Vite
     spiritboard/         Spirit Board TV, phone, and scavenger hunt screens + spiritboard.css
     psych/               Psychological TV and phone screens + psych.css
     avalon/              Avalon TV and phone screens, narrator audio, SVG art + avalon.css
+    wavelength/          Wavelength TV and phone screens, SVG shutter dial, deck modal + wavelength.css
 ```
 
 ## Run Locally
@@ -75,6 +83,7 @@ Open:
 - Spirit Board (TV / Phone): <http://127.0.0.1:5173/spiritboard> / <http://127.0.0.1:5173/spiritboard/play>
 - Psychological (TV / Phone): <http://127.0.0.1:5173/psychological> / <http://127.0.0.1:5173/psychological/play>
 - Avalon (TV / Phone): <http://127.0.0.1:5173/avalon> / <http://127.0.0.1:5173/avalon/play>
+- Wavelength (TV / Phone): <http://127.0.0.1:5173/wavelength> / <http://127.0.0.1:5173/wavelength/play>
 
 Or build the frontend once (`npm run build`) and serve everything from FastAPI at <http://127.0.0.1:8000/>.
 

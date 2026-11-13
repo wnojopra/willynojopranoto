@@ -16,6 +16,7 @@ from app.avalon import api as avalon_api
 from app.psych import api as psych_api
 from app.shared.cookies import ensure_client_cookies
 from app.spiritboard import api as spiritboard_api, hunt_api
+from app.wavelength import api as wavelength_api
 
 logging.basicConfig(level=os.environ.get("SB_LOG_LEVEL", "INFO"))
 
@@ -54,6 +55,7 @@ app.include_router(hunt_api.router)
 app.include_router(spiritboard_api.router)
 app.include_router(psych_api.router)
 app.include_router(avalon_api.router)
+app.include_router(wavelength_api.router)
 
 
 @app.get("/api/health")
@@ -85,6 +87,8 @@ _index = STATIC_DIR / "index.html"
 @app.api_route("/psychological/play", methods=["GET", "HEAD"])
 @app.api_route("/avalon", methods=["GET", "HEAD"])
 @app.api_route("/avalon/play", methods=["GET", "HEAD"])
+@app.api_route("/wavelength", methods=["GET", "HEAD"])
+@app.api_route("/wavelength/play", methods=["GET", "HEAD"])
 async def spa_routes(request: Request) -> Response:
     if _index.is_file():
         response: Response = FileResponse(_index, headers={"Cache-Control": "no-store"})

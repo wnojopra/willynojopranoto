@@ -17,6 +17,10 @@ const PsychPlay = lazy(() => import('./psych/PsychPlay').then((m) => ({ default:
 const AvalonTv = lazy(() => import('./avalon/AvalonTv').then((m) => ({ default: m.AvalonTv })));
 const AvalonPlay = lazy(() => import('./avalon/AvalonPlay').then((m) => ({ default: m.AvalonPlay })));
 
+// Wavelength: loaded as its own chunk only on /wavelength* pages.
+const WavelengthTv = lazy(() => import('./wavelength/WavelengthTv').then((m) => ({ default: m.WavelengthTv })));
+const WavelengthPlay = lazy(() => import('./wavelength/WavelengthPlay').then((m) => ({ default: m.WavelengthPlay })));
+
 export function App() {
   const path = location.pathname.replace(/\/+$/, '');
   if (path === '/spiritboard') return <Suspense fallback={null}><TvApp /></Suspense>;
@@ -30,5 +34,7 @@ export function App() {
   if (path === '/psychological/play') return <Suspense fallback={null}><PsychPlay /></Suspense>;
   if (path === '/avalon') return <Suspense fallback={null}><AvalonTv /></Suspense>;
   if (path === '/avalon/play') return <Suspense fallback={null}><AvalonPlay /></Suspense>;
+  if (path === '/wavelength') return <Suspense fallback={null}><WavelengthTv /></Suspense>;
+  if (path === '/wavelength/play') return <Suspense fallback={null}><WavelengthPlay /></Suspense>;
   return <HomePage />;
 }

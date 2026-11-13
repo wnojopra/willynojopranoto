@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 567" width="1024" height="567">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#191340"/>
+      <stop offset="1" stop-color="#0c0922"/>
+    </linearGradient>
+    <radialGradient id="dialFace" cx="512" cy="390" r="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2a2268"/>
+      <stop offset="1" stop-color="#16123d"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff5d8f"/>
+      <stop offset="1" stop-color="#7c5cff"/>
+    </linearGradient>
+    <clipPath id="semi">
+      <path d="M 272 390 A 240 240 0 0 1 752 390 Z"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1024" height="567" fill="url(#bg)"/>
+  <circle cx="220" cy="110" r="240" fill="#ff5d8f" opacity="0.12"/>
+  <circle cx="820" cy="140" r="260" fill="#7c5cff" opacity="0.15"/>
+
+  <!-- Score chips -->
+  <g transform="translate(335, 36)">
+    <rect width="165" height="36" rx="18" fill="#252058" stroke="#ff5d8f" stroke-width="2"/>
+    <circle cx="20" cy="18" r="6" fill="#ff5d8f"/>
+    <text x="36" y="23" fill="#f5f2ff" font-family="sans-serif" font-size="14" font-weight="700">Mind Readers</text>
+    <rect x="130" y="6" width="28" height="24" rx="12" fill="#ff5d8f"/>
+    <text x="144" y="23" fill="#120e2e" font-family="sans-serif" font-size="14" font-weight="800" text-anchor="middle">8</text>
+  </g>
+  <g transform="translate(520, 36)">
+    <rect width="165" height="36" rx="18" fill="#1d1848" stroke="#4cc9f0" stroke-width="1.5"/>
+    <circle cx="20" cy="18" r="6" fill="#4cc9f0"/>
+    <text x="36" y="23" fill="#b9b2df" font-family="sans-serif" font-size="14" font-weight="700">Brainwaves</text>
+    <rect x="130" y="6" width="28" height="24" rx="12" fill="#2a2268"/>
+    <text x="144" y="23" fill="#f5f2ff" font-family="sans-serif" font-size="14" font-weight="800" text-anchor="middle">6</text>
+  </g>
+
+  <!-- Clue title -->
+  <text x="512" y="114" fill="#f5f2ff" font-family="sans-serif" font-size="28" font-weight="800" text-anchor="middle">
+    Clue: “Warm Soup”
+  </text>
+
+  <!-- Dial -->
+  <g clip-path="url(#semi)">
+    <path d="M 272 390 A 240 240 0 0 1 752 390 Z" fill="url(#dialFace)"/>
+    <path d="M 352 390 A 160 160 0 0 1 672 390" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="2"/>
+    <path d="M 432 390 A 80 80 0 0 1 592 390" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="2"/>
+
+    <!-- Target wedges rotated +22 deg -->
+    <g transform="rotate(22 512 390)">
+      <path d="M 512 390 L 418 166 A 242 242 0 0 1 454 155 Z" fill="#ff6b9a"/>
+      <path d="M 512 390 L 454 155 A 242 242 0 0 1 493 149 Z" fill="#ffb547"/>
+      <path d="M 512 390 L 493 149 A 242 242 0 0 1 531 149 Z" fill="#5ef0c4"/>
+      <path d="M 512 390 L 531 149 A 242 242 0 0 1 570 155 Z" fill="#ffb547"/>
+      <path d="M 512 390 L 570 155 A 242 242 0 0 1 606 166 Z" fill="#ff6b9a"/>
+      <text x="442" y="196" fill="#160f33" font-family="sans-serif" font-size="18" font-weight="800" text-anchor="middle">1</text>
+      <text x="477" y="186" fill="#160f33" font-family="sans-serif" font-size="18" font-weight="800" text-anchor="middle">3</text>
+      <text x="512" y="182" fill="#160f33" font-family="sans-serif" font-size="18" font-weight="800" text-anchor="middle">5</text>
+      <text x="547" y="186" fill="#160f33" font-family="sans-serif" font-size="18" font-weight="800" text-anchor="middle">3</text>
+      <text x="582" y="196" fill="#160f33" font-family="sans-serif" font-size="18" font-weight="800" text-anchor="middle">1</text>
+    </g>
+  </g>
+
+  <path d="M 272 390 A 240 240 0 0 1 752 390" fill="none" stroke="url(#rim)" stroke-width="9" stroke-linecap="round"/>
+  <rect x="256" y="388" width="512" height="16" rx="8" fill="#2b2463"/>
+
+  <!-- Needle rotated +20 deg -->
+  <g transform="rotate(20 512 390)">
+    <line x1="512" y1="390" x2="512" y2="178" stroke="#ff5d8f" stroke-width="14" stroke-linecap="round" opacity="0.35"/>
+    <line x1="512" y1="390" x2="512" y2="178" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="512" cy="178" r="8" fill="#ffffff"/>
+  </g>
+  <circle cx="512" cy="390" r="22" fill="#1f194c" stroke="#ffffff" stroke-opacity="0.25" stroke-width="2"/>
+  <circle cx="512" cy="390" r="9" fill="#ff5d8f"/>
+
+  <!-- Spectrum Card -->
+  <g transform="translate(262, 434)">
+    <rect width="235" height="86" rx="18" fill="#3e63dd"/>
+    <text x="22" y="32" fill="#ffffff" opacity="0.8" font-family="sans-serif" font-size="12" font-weight="800">◀ LEFT</text>
+    <text x="22" y="64" fill="#ffffff" font-family="sans-serif" font-size="26" font-weight="800">Cold</text>
+
+    <rect x="235" width="30" height="86" fill="#1a1542"/>
+    <text x="250" y="50" fill="#ffffff" font-family="sans-serif" font-size="18" font-weight="800" text-anchor="middle">↔</text>
+
+    <rect x="265" width="235" height="86" rx="18" fill="#e5484d"/>
+    <text x="478" y="32" fill="#ffffff" opacity="0.8" font-family="sans-serif" font-size="12" font-weight="800" text-anchor="end">RIGHT ▶</text>
+    <text x="478" y="64" fill="#ffffff" font-family="sans-serif" font-size="26" font-weight="800" text-anchor="end">Hot</text>
+  </g>
+</svg>

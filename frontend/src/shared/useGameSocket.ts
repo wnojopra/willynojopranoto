@@ -94,6 +94,9 @@ const PSYCH_FONTS_URL =
 const AVALON_FONTS_URL =
   'https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700;800&family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&display=swap';
 
+const WAVELENGTH_FONTS_URL =
+  'https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap';
+
 export function loadSpiritFonts(): void {
   loadFonts('sb-fonts', SPIRIT_FONTS_URL);
 }
@@ -104,4 +107,8 @@ export function loadPsychFonts(): void {
 
 export function loadAvalonFonts(): void {
   loadFonts('ava-fonts', AVALON_FONTS_URL);
+}
+
+export function loadWavelengthFonts(): void {
+  loadFonts('wl-fonts', WAVELENGTH_FONTS_URL);
 }

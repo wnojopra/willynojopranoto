@@ -82,8 +82,26 @@ const GAMES: GameItem[] = [
     ],
   },
   {
-    id: 'battleweb',
+    id: 'wavelength',
     index: '04',
+    title: 'Wavelength',
+    badge: '2–16 players',
+    description:
+      'Tune into your friends’ brainwaves. The Psychic peeks at a hidden target on their phone and gives one clue between two opposing concepts—then everyone turns the dial to find the bullseye.',
+    image: {
+      src: '/images/wavelength.svg',
+      alt: 'Wavelength gameplay showing the semicircle target dial, needle, and Cold to Hot spectrum card',
+      width: 1024,
+      height: 567,
+    },
+    actions: [
+      { id: 'home-wavelength-tv', label: 'Host on TV', href: '/wavelength', primary: true },
+      { id: 'home-wavelength-play', label: 'Join on Phone', href: '/wavelength/play' },
+    ],
+  },
+  {
+    id: 'battleweb',
+    index: '05',
     title: 'BattleWeb',
     badge: 'WIP',
     description: 'Top-down arena brawler in the browser, inspired by Battlerite. Still a work in progress.',
