@@ -10,6 +10,7 @@ import {
   cardColors,
   scoreBannerText,
   type Photos,
+  type WlMode,
   type WlServerMsg,
   type WlState,
 } from './protocol';
@@ -17,6 +18,7 @@ import './wavelength.css';
 
 const TV_ROOM_KEY = 'wl-tv-room';
 const MAX_RETRIES = 6;
+const BIG_ROOM = 10;
 
 function savedRoom(): string | null {
   try {
@@ -26,9 +28,10 @@ function savedRoom(): string | null {
   }
 }
 
-function saveRoom(code: string) {
+function saveRoom(code: string | null) {
   try {
-    sessionStorage.setItem(TV_ROOM_KEY, code);
+    if (code) sessionStorage.setItem(TV_ROOM_KEY, code);
+    else sessionStorage.removeItem(TV_ROOM_KEY);
   } catch {
     // ignore
   }
@@ -70,6 +73,37 @@ function ConfirmButton({
   );
 }
 
+/** Floating sound toggle in top-left corner, matching Spirit Board's SoundBar. */
+function SoundBar() {
+  useWlAudioState();
+  return (
+    <div className="wl-soundbar">
+      {wlSound.soundOn && !wlSound.awake && (
+        <button
+          type="button"
+          className="wl-soundbar__hint"
+          onClick={() => wlSound.wake()}
+        >
+          🔈 Click anywhere for sound
+        </button>
+      )}
+      <button
+        type="button"
+        className="wl-soundbar__btn"
+        aria-pressed={wlSound.soundOn}
+        aria-label={wlSound.soundOn ? 'Sound on' : 'Sound off'}
+        title={wlSound.soundOn ? 'Mute sound effects' : 'Unmute sound effects'}
+        onClick={() => {
+          wlSound.wake();
+          wlSound.setSound(!wlSound.soundOn);
+        }}
+      >
+        {wlSound.soundOn ? '🔊' : '🔇'}
+      </button>
+    </div>
+  );
+}
+
 export function WavelengthTv() {
   const [ready, setReady] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -88,11 +122,9 @@ export function WavelengthTv() {
   const [tvPeeking, setTvPeeking] = useState(false);
   const [tvClueInput, setTvClueInput] = useState('');
 
-  // Suspense pause when entering reveal phase (like mikeck1's 850ms shutter open)
+  // Suspense pause when entering reveal phase
   const [suspense, setSuspense] = useState(false);
   const lastPhaseRef = useRef<string | null>(null);
-
-  useWlAudioState();
 
   useEffect(() => {
     document.title = 'Wavelength — TV Host';
@@ -132,7 +164,6 @@ export function WavelengthTv() {
     attempt,
   );
 
-  // Sync saved custom cards once room is created
   const syncedCustomRef = useRef(false);
   useEffect(() => {
     if (status === 'open' && !syncedCustomRef.current && customCards.length > 0) {
@@ -188,7 +219,7 @@ export function WavelengthTv() {
     return (
       <div className="wl-root">
         <div className="wl-center-box">
-          <h2>Connection Issue</h2>
+          <h2>Signal Interrupted</h2>
           <p className="wl-muted">{error}</p>
           <button
             type="button"
@@ -199,7 +230,7 @@ export function WavelengthTv() {
               setAttempt((a) => a + 1);
             }}
           >
-            Try Again
+            Reconnect
           </button>
         </div>
       </div>
@@ -210,14 +241,14 @@ export function WavelengthTv() {
     return (
       <div className="wl-root">
         <div className="wl-center-box">
-          <div className="wl-spinner" />
           <p className="wl-muted">Tuning into Wavelength…</p>
         </div>
       </div>
     );
   }
 
-  const joinUrl = `${location.origin}/wavelength/play?code=${state.code}`;
+  const joinDisplayUrl = `${location.host}/wavelength/play`;
+  const joinQrUrl = `${location.origin}/wavelength/play?code=${state.code}`;
   const activeTeam = state.teams.find((t) => t.id === state.activeTeamId) ?? state.teams[0];
   const psychic = state.players.find((p) => p.id === state.psychicId) ?? null;
   const [cardLeftColor, cardRightColor] = state.card ? cardColors(state.card) : BRAND_COLORS;
@@ -226,7 +257,10 @@ export function WavelengthTv() {
       ? activeTeam.color
       : psychic
         ? psychic.color
-        : '#ff5d8f';
+        : '#f26430';
+
+  const botsCount = state.players.filter((p) => p.isBot).length;
+  const needed = Math.max(0, state.minPlayers - state.players.length);
 
   // Build extra needles for Free-for-All reveal
   const extraNeedles: ExtraNeedle[] = [];
@@ -268,47 +302,255 @@ export function WavelengthTv() {
         } as React.CSSProperties
       }
     >
-      <div className="wl-tv-shell">
-        {/* Top Bar */}
-        <header className="wl-topbar">
-          <div className="wl-brand-group">
-            <a className="wl-brand" href="/">
-              <span className="wl-brand-mark" aria-hidden="true">
-                〰️
-              </span>
-              <span className="wl-brand-name">Wavelength</span>
-            </a>
-            <span className="wl-room-pill" title="Join at /wavelength/play">
-              CODE: <strong>{state.code}</strong>
-            </span>
-          </div>
+      <SoundBar />
 
-          <nav className="wl-topbar-actions" aria-label="Host controls">
-            {!wlSound.awake && wlSound.soundOn && (
+      {/* ====================================================================
+         LOBBY PHASE (Modeled directly after Spirit Board's uncluttered layout)
+         ==================================================================== */}
+      {state.phase === 'lobby' && (
+        <main className="wl-lobby">
+          <header className="wl-lobby__head">
+            <div className="wl-spectrum-ribbon" aria-hidden="true" />
+            <h1 className="wl-tv-title">
+              Wavelength <span className="wl-byline">By Willy Nojopranoto</span>
+            </h1>
+            <p className="wl-tv-sub">Grab your phone. Tune into the same frequency.</p>
+          </header>
+
+          {/* Left Column: Scan QR & Big Room Code */}
+          <section className="wl-lobby__join" aria-label="How to join">
+            <div className="wl-lobby__scan">
+              <QrCode
+                value={joinQrUrl}
+                className="wl-lobby__qr"
+                label={`QR code to join room ${state.code}`}
+              />
+              <p className="wl-lobby__step">Scan to join</p>
+            </div>
+            <div className="wl-lobby__manual">
+              <p className="wl-lobby__step">
+                or go to <strong className="wl-lobby__url">{joinDisplayUrl}</strong>
+              </p>
+              <p className="wl-lobby__step">and enter the code</p>
+              <p className="wl-lobby__code" aria-label={`Room code ${state.code.split('').join(' ')}`}>
+                {state.code}
+              </p>
+            </div>
+          </section>
+
+          {/* Right Column: Players Roster */}
+          <section className="wl-lobby__players" aria-label="Players">
+            <div className="wl-lobby__players-head">
+              <h2 className="wl-lobby__count">
+                {state.players.length} / 16 telepaths tuned in
+              </h2>
+              {state.mode === 'teams' && state.players.length >= 2 && (
+                <button
+                  type="button"
+                  className="wl-btn wl-btn--ghost wl-btn--sm"
+                  onClick={() => send({ type: 'shuffle_teams' })}
+                >
+                  🔀 Shuffle teams
+                </button>
+              )}
+            </div>
+
+            <ul
+              className="wl-roster"
+              data-many={state.players.length > BIG_ROOM ? '' : undefined}
+            >
+              {state.players.map((p) => {
+                const pTeam = state.teams.find((t) => t.id === p.teamId);
+                return (
+                  <li
+                    key={p.id}
+                    className="wl-roster__item"
+                    data-offline={p.connected ? undefined : ''}
+                  >
+                    <span className="wl-roster__avatar" style={{ backgroundColor: p.color }}>
+                      {avatars[p.id] ? (
+                        <img src={avatars[p.id]} alt="" />
+                      ) : (
+                        p.name.slice(0, 2).toUpperCase()
+                      )}
+                    </span>
+                    <span className="wl-roster__name">{p.name}</span>
+                    {p.isBot && <span className="wl-roster__tag">bot</span>}
+                    {!p.connected && <span className="wl-roster__tag">away</span>}
+                    {state.mode === 'teams' && pTeam && (
+                      <button
+                        type="button"
+                        className="wl-roster__team"
+                        style={{ '--c': pTeam.color } as React.CSSProperties}
+                        title="Click to switch team"
+                        onClick={() => {
+                          const idx = state.teams.findIndex((t) => t.id === p.teamId);
+                          const next = state.teams[(idx + 1) % state.teams.length];
+                          if (next) {
+                            send({ type: 'set_team', playerId: p.id, teamId: next.id });
+                          }
+                        }}
+                      >
+                        <span className="wl-dot" />
+                        {pTeam.name}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="wl-roster__kick"
+                      aria-label={`Remove ${p.name}`}
+                      onClick={() => send({ type: 'kick', playerId: p.id })}
+                    >
+                      ×
+                    </button>
+                  </li>
+                );
+              })}
+              {state.players.length === 0 && (
+                <li className="wl-roster__empty">Waiting for the first telepath to join…</li>
+              )}
+            </ul>
+          </section>
+
+          {/* Bottom Controls Bar (Left: Bots | Center: Big Start CTA | Right: Compact Segmented Mode + Toggles) */}
+          <footer className="wl-lobby__controls">
+            <div className="wl-lobby__dev">
+              <button
+                id="wl-add-bot"
+                type="button"
+                className="wl-btn wl-btn--ghost"
+                disabled={state.players.length >= 16}
+                onClick={() => send({ type: 'add_bot' })}
+              >
+                + Add a bot
+              </button>
+              <button
+                id="wl-remove-bot"
+                type="button"
+                className="wl-btn wl-btn--ghost"
+                disabled={botsCount === 0}
+                onClick={() => send({ type: 'remove_bot' })}
+              >
+                − Remove a bot
+              </button>
+            </div>
+
+            <div className="wl-lobby__start">
+              <button
+                id="wl-start"
+                type="button"
+                className="wl-btn wl-btn--primary wl-btn--big"
+                disabled={!state.canStart}
+                onClick={() => send({ type: 'start' })}
+              >
+                Begin Wavelength
+              </button>
+              <button
+                id="wl-howto"
+                type="button"
+                className="wl-btn wl-btn--ghost"
+                onClick={() => setShowHowTo(true)}
+              >
+                📖 How to play
+              </button>
+              <a id="wl-to-phone" className="wl-btn wl-btn--ghost" href={`/wavelength/play?code=${state.code}`}>
+                📱 Join on this device
+              </a>
+              {needed > 0 && (
+                <p className="wl-lobby__hint">
+                  Need {needed} more {needed === 1 ? 'player' : 'players'} to begin.
+                </p>
+              )}
+            </div>
+
+            <div className="wl-lobby__settings">
+              <div className="wl-seg" role="radiogroup" aria-label="Game mode">
+                {(
+                  [
+                    { id: 'teams', name: 'Teams', sub: 'Left vs Right' },
+                    { id: 'ffa', name: 'Free-for-All', sub: 'Solo needles' },
+                    { id: 'coop', name: 'Co-op', sub: '7 cards' },
+                  ] as { id: WlMode; name: string; sub: string }[]
+                ).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className="wl-seg__btn"
+                    role="radio"
+                    aria-checked={state.mode === m.id}
+                    onClick={() => send({ type: 'set_mode', mode: m.id })}
+                  >
+                    <span className="wl-seg__name">{m.name}</span>
+                    <span className="wl-seg__sub">{m.sub}</span>
+                  </button>
+                ))}
+              </div>
+
+              {state.mode !== 'coop' && (
+                <button
+                  type="button"
+                  className="wl-btn wl-btn--ghost wl-lobby__toggle"
+                  onClick={() => {
+                    const targets = [10, 15, 20, 7];
+                    const curIdx = targets.indexOf(state.settings.targetScore);
+                    const nextTarget = targets[(curIdx + 1) % targets.length];
+                    send({ type: 'set_target', target: nextTarget });
+                  }}
+                  title="Click to cycle winning target score"
+                >
+                  🏆 First to {state.settings.targetScore} pts
+                </button>
+              )}
+
+              {state.mode === 'teams' && (
+                <button
+                  type="button"
+                  className="wl-btn wl-btn--ghost wl-lobby__toggle"
+                  aria-pressed={state.settings.leftRightBonus}
+                  onClick={() =>
+                    send({ type: 'set_left_right', on: !state.settings.leftRightBonus })
+                  }
+                >
+                  ◀▶ Left/Right bonus {state.settings.leftRightBonus ? 'on' : 'off'}
+                </button>
+              )}
+
               <button
                 type="button"
-                className="wl-tb-btn wl-tb-btn--warn"
-                onClick={() => wlSound.wake()}
+                className="wl-btn wl-btn--ghost wl-lobby__toggle"
+                onClick={() => setShowDeckModal(true)}
               >
-                🔇 Tap for Sound
+                🗂️ Decks ({state.settings.deckSize} cards)
               </button>
-            )}
-            <button
-              type="button"
-              className="wl-tb-btn"
-              onClick={() => wlSound.setSound(!wlSound.soundOn)}
-              title="Toggle sound effects"
-            >
-              {wlSound.soundOn ? '🔊 Sound' : '🔇 Muted'}
-            </button>
-            <button
-              type="button"
-              className="wl-tb-btn"
-              onClick={() => setShowDeckModal(true)}
-            >
-              🗂️ Deck <span className="wl-tb-badge">{state.settings.deckSize}</span>
-            </button>
-            {state.phase !== 'lobby' && (
+            </div>
+          </footer>
+        </main>
+      )}
+
+      {/* ====================================================================
+         ACTIVE GAMEPLAY & GAMEOVER
+         ==================================================================== */}
+      {state.phase !== 'lobby' && (
+        <div className="wl-tv-shell">
+          <header className="wl-topbar">
+            <div className="wl-brand-group">
+              <a className="wl-brand" href="/">
+                <span className="wl-brand-name">Wavelength</span>
+                <span className="wl-brand-byline">By Willy Nojopranoto</span>
+              </a>
+              <span className="wl-room-pill" title="Join at /wavelength/play">
+                CODE: <strong>{state.code}</strong>
+              </span>
+            </div>
+
+            <nav className="wl-topbar-actions" aria-label="Host controls">
+              <button
+                type="button"
+                className="wl-tb-btn"
+                onClick={() => setShowDeckModal(true)}
+              >
+                🗂️ Deck <span className="wl-tb-badge">{state.settings.deckSize}</span>
+              </button>
               <button
                 type="button"
                 className={`wl-tb-btn ${editingScores ? 'is-active' : ''}`}
@@ -316,394 +558,30 @@ export function WavelengthTv() {
               >
                 ✎ Scores
               </button>
-            )}
-            <button
-              type="button"
-              className="wl-tb-btn"
-              onClick={() => setShowHowTo(true)}
-            >
-              📖 How to Play
-            </button>
-            {state.phase !== 'lobby' && (
-              <>
-                <button
-                  type="button"
-                  className="wl-tb-btn"
-                  onClick={() => send({ type: 'skip' })}
-                  title="Skip current step"
-                >
-                  ⏭ Skip
-                </button>
-                <ConfirmButton
-                  label="↺ Lobby"
-                  confirmLabel="End Game?"
-                  className="wl-tb-btn"
-                  onConfirm={() => send({ type: 'play_again' })}
-                />
-              </>
-            )}
-          </nav>
-        </header>
+              <button
+                type="button"
+                className="wl-tb-btn"
+                onClick={() => setShowHowTo(true)}
+              >
+                📖 Rules
+              </button>
+              <button
+                type="button"
+                className="wl-tb-btn"
+                onClick={() => send({ type: 'skip' })}
+                title="Skip current step"
+              >
+                ⏭ Skip
+              </button>
+              <ConfirmButton
+                label="↺ Lobby"
+                confirmLabel="End Game?"
+                className="wl-tb-btn"
+                onConfirm={() => send({ type: 'play_again' })}
+              />
+            </nav>
+          </header>
 
-        {/* LOBBY PHASE */}
-        {state.phase === 'lobby' && (
-          <main className="wl-lobby-grid">
-            {/* Left Column: QR & Join */}
-            <section className="wl-panel wl-lobby-qr-panel">
-              <div className="wl-qr-box">
-                <QrCode
-                  value={joinUrl}
-                  className="wl-qr-svg"
-                  label={`Join room ${state.code} at ${joinUrl}`}
-                />
-              </div>
-              <div className="wl-join-meta">
-                <span className="wl-eyebrow">Scan or visit on your phone</span>
-                <div className="wl-big-code">{state.code}</div>
-                <p className="wl-join-url">
-                  {location.host}/wavelength/play
-                </p>
-              </div>
-              <div className="wl-lobby-cta">
-                <button
-                  type="button"
-                  className="wl-btn wl-btn--primary wl-btn--lg wl-btn--block"
-                  disabled={!state.canStart}
-                  onClick={() => send({ type: 'start' })}
-                >
-                  {state.canStart
-                    ? `Start Wavelength (${state.players.length} Players) →`
-                    : `Waiting for ${state.minPlayers - state.players.length} more…`}
-                </button>
-              </div>
-            </section>
-
-            {/* Center Column: Mode & Settings */}
-            <section className="wl-panel wl-lobby-settings">
-              <h2 className="wl-panel-title">Game Mode &amp; Rules</h2>
-
-              <div className="wl-mode-tabs" role="radiogroup" aria-label="Game mode">
-                {(
-                  [
-                    {
-                      id: 'teams',
-                      title: '⚡ Teams',
-                      desc: '2–6 teams take turns guessing + optional Left/Right bonus',
-                    },
-                    {
-                      id: 'ffa',
-                      title: '🎯 Free-for-All',
-                      desc: 'Everyone locks in their own needle; Psychic scores for hits',
-                    },
-                    {
-                      id: 'coop',
-                      title: '🤝 Co-op',
-                      desc: 'Work together across 7 cards for a cosmic mind-meld rating',
-                    },
-                  ] as const
-                ).map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    className={`wl-mode-card ${state.mode === m.id ? 'is-selected' : ''}`}
-                    onClick={() => send({ type: 'set_mode', mode: m.id })}
-                  >
-                    <strong>{m.title}</strong>
-                    <span>{m.desc}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="wl-settings-rows">
-                <div className="wl-setting-row">
-                  <div>
-                    <strong>Scoring Wedges</strong>
-                    <p className="wl-muted wl-small">Points for Bullseye / Close / Near</p>
-                  </div>
-                  <div className="wl-pill-group">
-                    <button
-                      type="button"
-                      className={`wl-pill-btn ${state.settings.preset === 'classic' ? 'is-on' : ''}`}
-                      onClick={() => send({ type: 'set_preset', preset: 'classic' })}
-                    >
-                      5 · 3 · 1 (mikeck1)
-                    </button>
-                    <button
-                      type="button"
-                      className={`wl-pill-btn ${state.settings.preset === 'board' ? 'is-on' : ''}`}
-                      onClick={() => send({ type: 'set_preset', preset: 'board' })}
-                    >
-                      4 · 3 · 2 (Board Game)
-                    </button>
-                  </div>
-                </div>
-
-                {state.mode !== 'coop' && (
-                  <div className="wl-setting-row">
-                    <div>
-                      <strong>Target Score</strong>
-                      <p className="wl-muted wl-small">First to reach this wins</p>
-                    </div>
-                    <div className="wl-stepper">
-                      <button
-                        type="button"
-                        className="wl-icon-btn"
-                        onClick={() =>
-                          send({ type: 'set_target', target: Math.max(5, state.settings.targetScore - 1) })
-                        }
-                      >
-                        −
-                      </button>
-                      <span className="wl-stepper-val">{state.settings.targetScore}</span>
-                      <button
-                        type="button"
-                        className="wl-icon-btn"
-                        onClick={() =>
-                          send({ type: 'set_target', target: Math.min(25, state.settings.targetScore + 1) })
-                        }
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {state.mode === 'teams' && (
-                  <>
-                    <div className="wl-setting-row">
-                      <div>
-                        <strong>Left / Right Opposing Bonus</strong>
-                        <p className="wl-muted wl-small">
-                          Opposing team votes whether target is Left or Right for +1 pt
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className={`wl-toggle-btn ${state.settings.leftRightBonus ? 'is-on' : ''}`}
-                        onClick={() =>
-                          send({ type: 'set_left_right', on: !state.settings.leftRightBonus })
-                        }
-                      >
-                        {state.settings.leftRightBonus ? 'ON' : 'OFF'}
-                      </button>
-                    </div>
-
-                    <div className="wl-setting-row">
-                      <div>
-                        <strong>Catch-Up Bonus Turn</strong>
-                        <p className="wl-muted wl-small">
-                          Bullseye while trailing by 4+ pts grants an immediate extra turn
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className={`wl-toggle-btn ${state.settings.catchupRule ? 'is-on' : ''}`}
-                        onClick={() =>
-                          send({ type: 'set_catchup', on: !state.settings.catchupRule })
-                        }
-                      >
-                        {state.settings.catchupRule ? 'ON' : 'OFF'}
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                <div className="wl-setting-row">
-                  <div>
-                    <strong>Active Card Packs ({state.settings.deckSize} cards)</strong>
-                    <p className="wl-muted wl-small">Tap packs to toggle, or add your own custom cards</p>
-                  </div>
-                  <button
-                    type="button"
-                    className="wl-btn wl-btn--secondary wl-btn--sm"
-                    onClick={() => setShowDeckModal(true)}
-                  >
-                    ✍️ Custom Deck ({state.settings.customCount})
-                  </button>
-                </div>
-
-                <div className="wl-pack-chips">
-                  {state.decks.map((d) => {
-                    const on = state.settings.packs.includes(d.id);
-                    return (
-                      <button
-                        key={d.id}
-                        type="button"
-                        className={`wl-pack-chip ${on ? 'is-on' : ''}`}
-                        onClick={() => send({ type: 'toggle_pack', pack: d.id })}
-                      >
-                        <span>{d.emoji}</span>
-                        <span>{d.name}</span>
-                        <span className="wl-pack-chip-cnt">{d.count}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
-
-            {/* Right Column: Players & Teams */}
-            <section className="wl-panel wl-lobby-players">
-              <div className="wl-panel-head">
-                <h2 className="wl-panel-title">
-                  Players ({state.players.length}/16)
-                </h2>
-                <div className="wl-row-gap">
-                  <button
-                    type="button"
-                    className="wl-btn wl-btn--secondary wl-btn--sm"
-                    onClick={() => send({ type: 'add_bot' })}
-                  >
-                    + Bot
-                  </button>
-                  {state.players.some((p) => p.isBot) && (
-                    <button
-                      type="button"
-                      className="wl-btn wl-btn--ghost wl-btn--sm"
-                      onClick={() => send({ type: 'remove_bot' })}
-                    >
-                      − Bot
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {state.mode === 'teams' && (
-                <div className="wl-teams-bar">
-                  <div className="wl-teams-chips">
-                    {state.teams.map((t) => (
-                      <div
-                        key={t.id}
-                        className="wl-team-lobby-pill"
-                        style={{ '--c': t.color } as React.CSSProperties}
-                      >
-                        <span className="wl-dot" />
-                        <input
-                          type="text"
-                          className="wl-team-name-input"
-                          value={t.name}
-                          maxLength={24}
-                          aria-label="Team name"
-                          onChange={(e) =>
-                            send({ type: 'rename_team', teamId: t.id, name: e.target.value })
-                          }
-                        />
-                        {state.teams.length > 2 && (
-                          <button
-                            type="button"
-                            className="wl-team-del"
-                            onClick={() => send({ type: 'remove_team', teamId: t.id })}
-                            title="Remove team"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="wl-row-gap">
-                    {state.teams.length < 6 && (
-                      <button
-                        type="button"
-                        className="wl-btn wl-btn--ghost wl-btn--sm"
-                        onClick={() => send({ type: 'add_team' })}
-                      >
-                        + Team
-                      </button>
-                    )}
-                    {state.players.length >= 2 && (
-                      <button
-                        type="button"
-                        className="wl-btn wl-btn--ghost wl-btn--sm"
-                        onClick={() => send({ type: 'shuffle_teams' })}
-                      >
-                        🔀 Shuffle
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {state.players.length === 0 ? (
-                <p className="wl-empty-players">
-                  Scan the QR code on your phone or add a few Bots to start!
-                </p>
-              ) : (
-                <ul className="wl-player-list">
-                  {state.players.map((p) => {
-                    const pTeam = state.teams.find((t) => t.id === p.teamId);
-                    return (
-                      <li key={p.id} className="wl-player-row">
-                        <div className="wl-player-avatar" style={{ borderColor: p.color }}>
-                          {avatars[p.id] ? (
-                            <img src={avatars[p.id]} alt={p.name} />
-                          ) : (
-                            <span style={{ background: p.color }}>
-                              {p.name.slice(0, 2).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                        <span className="wl-player-name">
-                          {p.name}
-                          {!p.connected && <em className="wl-offline"> (offline)</em>}
-                        </span>
-
-                        {state.mode === 'teams' && pTeam && (
-                          <button
-                            type="button"
-                            className="wl-player-team-btn"
-                            style={{ '--c': pTeam.color } as React.CSSProperties}
-                            title="Click to switch team"
-                            onClick={() => {
-                              const idx = state.teams.findIndex((t) => t.id === p.teamId);
-                              const next = state.teams[(idx + 1) % state.teams.length];
-                              if (next) {
-                                send({ type: 'set_team', playerId: p.id, teamId: next.id });
-                              }
-                            }}
-                          >
-                            <span className="wl-dot" />
-                            {pTeam.name}
-                          </button>
-                        )}
-
-                        <div className="wl-seat-btns">
-                          <button
-                            type="button"
-                            className="wl-icon-btn wl-icon-btn--sm"
-                            onClick={() => send({ type: 'move_seat', playerId: p.id, dir: -1 })}
-                            aria-label="Move up"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            className="wl-icon-btn wl-icon-btn--sm"
-                            onClick={() => send({ type: 'move_seat', playerId: p.id, dir: 1 })}
-                            aria-label="Move down"
-                          >
-                            ▼
-                          </button>
-                          <button
-                            type="button"
-                            className="wl-icon-btn wl-icon-btn--sm wl-danger-text"
-                            onClick={() => send({ type: 'kick', playerId: p.id })}
-                            aria-label={`Remove ${p.name}`}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
-          </main>
-        )}
-
-        {/* ACTIVE GAMEPLAY & GAMEOVER */}
-        {state.phase !== 'lobby' && (
           <main className="wl-stage">
             {/* Scoreboard */}
             <section className="wl-scoreboard" aria-label="Scoreboard">
@@ -791,7 +669,7 @@ export function WavelengthTv() {
 
               {state.mode === 'coop' && (
                 <div className="wl-coop-bar">
-                  <div className="wl-team-chip is-current" style={{ '--c': '#5ef0c4' } as React.CSSProperties}>
+                  <div className="wl-team-chip is-current" style={{ '--c': '#82d682' } as React.CSSProperties}>
                     <span className="wl-dot" />
                     <span className="wl-chip-name">Team Score</span>
                     <span className="wl-chip-pts">{state.coop.score}</span>
@@ -816,7 +694,7 @@ export function WavelengthTv() {
                       </span>
                     )}
                   </div>
-                  <div className="wl-team-chip" style={{ '--c': '#ffc94a' } as React.CSSProperties}>
+                  <div className="wl-team-chip" style={{ '--c': '#f7c942' } as React.CSSProperties}>
                     <span>🃏 Cards Left:</span>
                     <span className="wl-chip-pts">{state.coop.cardsRemaining}</span>
                   </div>
@@ -858,7 +736,7 @@ export function WavelengthTv() {
                   <p className="wl-turn-hint">
                     {state.mode === 'ffa'
                       ? `Everyone lock in your needle on your phone (${state.ffaLockedIds.length}/${Math.max(0, state.players.length - 1)} locked in)`
-                      : 'Debate where the clue sits and drag the dial needle on your phones (or right here on the TV)!'}
+                      : 'Debate where the clue sits and drag the red pointer on your phones (or right here on the TV)!'}
                   </p>
                 </>
               )}
@@ -990,13 +868,13 @@ export function WavelengthTv() {
                 }}
                 bands={state.settings.bands}
                 rimColors={[cardLeftColor, cardRightColor]}
-                hubColor={accentColor}
+                hubColor="#d62828"
                 extraNeedles={extraNeedles}
               />
 
               {!suspense && state.phase === 'reveal' && state.reveal?.bullseye && (
                 <div className="wl-bullseye-badge" aria-live="polite">
-                  🎯 BULLSEYE!
+                  🎯 4 PTS · BULLSEYE!
                 </div>
               )}
             </section>
@@ -1006,14 +884,14 @@ export function WavelengthTv() {
               <section className="wl-card" aria-label="Spectrum card">
                 <div className="wl-card-inner">
                   <div className="wl-card-side wl-card-left">
-                    <span className="wl-card-dir">◀ LEFT</span>
+                    <span className="wl-card-dir">←</span>
                     <strong>{state.card[0]}</strong>
                   </div>
                   <div className="wl-card-mid" aria-hidden="true">
-                    ↔
+                    <span className="wl-card-perf" />
                   </div>
                   <div className="wl-card-side wl-card-right">
-                    <span className="wl-card-dir">RIGHT ▶</span>
+                    <span className="wl-card-dir">→</span>
                     <strong>{state.card[1]}</strong>
                   </div>
                 </div>
@@ -1122,8 +1000,8 @@ export function WavelengthTv() {
               )}
             </section>
           </main>
-        )}
-      </div>
+        </div>
+      )}
 
       {showHowTo && (
         <HowToOverlay

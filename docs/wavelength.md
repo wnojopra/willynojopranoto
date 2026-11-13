@@ -15,9 +15,8 @@ A digital TV + Phone (and pass-and-play) edition of *Wavelength*, inspired by [`
   1. **⚡ Teams (2–6 Teams):** Active team members drag the needle on their phones (synced live on the TV) and lock in their guess. When **Left/Right Opposing Bonus** is enabled, the opposing team(s) vote whether the true target center is **◀ Left** or **Right ▶** of the locked needle for $+1$ bonus point. Optional **Catch-Up Rule** awards an immediate bonus turn when a team hits a Bullseye while trailing by $4+$ points.
   2. **🎯 Free-for-All:** Every non-Psychic player drags and locks in their own personal needle on their phone. On reveal, all player needles (with selfie avatars on the tips) appear simultaneously, and the Psychic earns $+1$ point per player who lands on the target (up to $+3$).
   3. **🤝 Co-op:** Everyone collaborates across $7$ cards (a Bullseye earns $+1$ bonus card) to achieve the highest end-of-game mind-meld rating.
-- **Scoring Presets:**
-  - **Classic (`mikeck1`):** `5 / 3 / 1` points for Bullseye ($\pm 4.5^\circ$), Close ($\pm 13.5^\circ$), and Near ($\pm 22.5^\circ$).
-  - **Board Game:** `4 / 3 / 2` points.
+- **Scoring Wedges:**
+  - **2 · 3 · 4 · 3 · 2** points for Bullseye ($\pm 4.5^\circ$, **4 pts**), Close ($\pm 13.5^\circ$, **3 pts**), and Near ($\pm 22.5^\circ$, **2 pts**).
 
 ## Card Packs & Custom Decks
 

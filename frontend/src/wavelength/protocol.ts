@@ -2,7 +2,6 @@
 
 export type WlPhase = 'lobby' | 'psychic' | 'guessing' | 'bonus' | 'reveal' | 'gameover';
 export type WlMode = 'teams' | 'ffa' | 'coop';
-export type WlPreset = 'classic' | 'board';
 export type WlBonusDir = 'left' | 'right';
 
 export interface WlPlayer {
@@ -31,8 +30,7 @@ export interface WlDeckInfo {
 }
 
 export interface WlSettings {
-  preset: WlPreset;
-  /** [bullseyePts, closePts, nearPts] */
+  /** [bullseyePts, closePts, nearPts] — always [4, 3, 2] */
   bands: [number, number, number];
   leftRightBonus: boolean;
   catchupRule: boolean;
@@ -109,19 +107,19 @@ export type WlServerMsg =
 
 export type Photos = Record<string, string>;
 
-// Left/right color pairs from mikeck1/mikeck1.github.io
+// Two-tone physical board game spectrum card colors (like the yellow/blush-pink "Dictatorship | Democracy" card in the photo)
 export const CARD_COLORS: readonly [string, string][] = [
-  ['#3e63dd', '#e5484d'],
-  ['#7b4dff', '#f76b15'],
-  ['#12a594', '#d6409f'],
-  ['#0091ff', '#e54666'],
-  ['#8e4ec6', '#30a46c'],
-  ['#0d9488', '#ea580c'],
-  ['#2563eb', '#db2777'],
-  ['#6e56cf', '#e5484d'],
+  ['#f7d047', '#f7b2c4'], // sunny yellow & blush pink (from the photo)
+  ['#8ce0a8', '#f58b60'], // mint green & tangerine coral
+  ['#80c8f8', '#f7c268'], // sky blue & warm amber
+  ['#f7a399', '#95d5b2'], // coral salmon & sage mint
+  ['#c8b6ff', '#ffd166'], // soft lavender & marigold
+  ['#90e0ef', '#f4a261'], // powder cyan & sandy orange
+  ['#ffcad4', '#a8dadc'], // pastel rose & seafoam blue
+  ['#fde282', '#9bf6ff'], // buttercream & ice blue
 ];
 
-export const BRAND_COLORS: [string, string] = ['#ff5d8f', '#7c5cff'];
+export const BRAND_COLORS: [string, string] = ['#f26430', '#68b5e8'];
 
 function hashStr(str: string): number {
   let h = 5381;
@@ -140,6 +138,6 @@ export function cardColors(card: [string, string] | null): [string, string] {
 export function scoreBannerText(pts: number, bullseye: boolean): string {
   if (bullseye) return 'Bullseye!';
   if (pts >= 3) return 'So close!';
-  if (pts >= 1) return 'On the target!';
+  if (pts >= 2) return 'On the target!';
   return 'Missed it!';
 }

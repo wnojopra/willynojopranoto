@@ -203,8 +203,8 @@ export function WavelengthPlay() {
         <div className="wl-phone-shell">
           <header className="wl-phone-header">
             <a className="wl-brand" href="/">
-              <span className="wl-brand-mark">〰️</span>
               <span className="wl-brand-name">Wavelength</span>
+              <span className="wl-brand-byline">By Willy Nojopranoto</span>
             </a>
           </header>
 
@@ -475,12 +475,14 @@ export function WavelengthPlay() {
                   <div className="wl-card wl-card--compact">
                     <div className="wl-card-inner">
                       <div className="wl-card-side wl-card-left">
-                        <span className="wl-card-dir">◀ LEFT</span>
+                        <span className="wl-card-dir">←</span>
                         <strong>{state.card[0]}</strong>
                       </div>
-                      <div className="wl-card-mid">↔</div>
+                      <div className="wl-card-mid">
+                        <span className="wl-card-perf" />
+                      </div>
                       <div className="wl-card-side wl-card-right">
-                        <span className="wl-card-dir">RIGHT ▶</span>
+                        <span className="wl-card-dir">→</span>
                         <strong>{state.card[1]}</strong>
                       </div>
                     </div>
@@ -530,12 +532,14 @@ export function WavelengthPlay() {
                   <div className="wl-card wl-card--compact">
                     <div className="wl-card-inner">
                       <div className="wl-card-side wl-card-left">
-                        <span className="wl-card-dir">◀ LEFT</span>
+                        <span className="wl-card-dir">←</span>
                         <strong>{state.card[0]}</strong>
                       </div>
-                      <div className="wl-card-mid">↔</div>
+                      <div className="wl-card-mid">
+                        <span className="wl-card-perf" />
+                      </div>
                       <div className="wl-card-side wl-card-right">
-                        <span className="wl-card-dir">RIGHT ▶</span>
+                        <span className="wl-card-dir">→</span>
                         <strong>{state.card[1]}</strong>
                       </div>
                     </div>
@@ -587,12 +591,14 @@ export function WavelengthPlay() {
                     <div className="wl-card wl-card--compact">
                       <div className="wl-card-inner">
                         <div className="wl-card-side wl-card-left">
-                          <span className="wl-card-dir">◀ LEFT</span>
+                          <span className="wl-card-dir">←</span>
                           <strong>{state.card[0]}</strong>
                         </div>
-                        <div className="wl-card-mid">↔</div>
+                        <div className="wl-card-mid">
+                          <span className="wl-card-perf" />
+                        </div>
                         <div className="wl-card-side wl-card-right">
-                          <span className="wl-card-dir">RIGHT ▶</span>
+                          <span className="wl-card-dir">→</span>
                           <strong>{state.card[1]}</strong>
                         </div>
                       </div>

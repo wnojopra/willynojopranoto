@@ -43,7 +43,7 @@ export interface DialProps {
   canDrag?: boolean;
   /** Called while dragging or adjusting via keyboard */
   onAngleChange?: (angle: number) => void;
-  /** Scoring band labels [bullseye, close, near] */
+  /** Scoring band labels [bullseye, close, near] — defaults to [4, 3, 2] */
   bands: [number, number, number];
   /** Gradient rim colors [leftColor, rightColor] */
   rimColors?: [string, string];
@@ -63,7 +63,7 @@ export function Dial({
   onAngleChange,
   bands,
   rimColors = BRAND_COLORS,
-  hubColor = '#ff5d8f',
+  hubColor = '#d62828',
   extraNeedles = [],
 }: DialProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -71,7 +71,7 @@ export function Dial({
 
   const [bullseyePts, closePts, nearPts] = bands;
   const bandPts = [nearPts, closePts, bullseyePts, closePts, nearPts];
-  const bandClasses = ['wl-band-1', 'wl-band-3', 'wl-band-5', 'wl-band-3', 'wl-band-1'];
+  const bandClasses = ['wl-band-2', 'wl-band-3', 'wl-band-4', 'wl-band-3', 'wl-band-2'];
   const tgt = targetAngle ?? 0;
 
   function angleFromPointer(clientX: number, clientY: number): number {
@@ -119,7 +119,16 @@ export function Dial({
   const clipId = `${idPrefix}-clip`;
   const faceGradId = `${idPrefix}-face`;
   const shutterGradId = `${idPrefix}-shutter`;
-  const rimGradId = `${idPrefix}-rim`;
+  const hubGradId = `${idPrefix}-hub`;
+
+  // Scalloped outer gear bumps along the semicircle (matching the white scalloped wheel of the real board game)
+  const scallops = Array.from({ length: 25 }, (_, i) => -90 + i * 7.5);
+  // Starry speckles on the dark navy shutter
+  const speckles = [
+    [-72, 140], [-58, 95], [-44, 165], [-31, 118], [-19, 75], [-8, 152],
+    [4, 110], [16, 172], [29, 88], [41, 145], [55, 115], [68, 160],
+    [-64, 178], [-24, 182], [12, 184], [48, 179], [76, 130], [-50, 62], [35, 64],
+  ];
 
   return (
     <svg
@@ -132,7 +141,7 @@ export function Dial({
       ]
         .filter(Boolean)
         .join(' ')}
-      viewBox="0 0 400 220"
+      viewBox="-12 -14 424 238"
       role="slider"
       tabIndex={canDrag ? 0 : -1}
       aria-label="Spectrum guess dial"
@@ -147,20 +156,22 @@ export function Dial({
     >
       <defs>
         <clipPath id={clipId}>
-          <path d="M 8 200 A 192 192 0 0 1 392 200 Z" />
+          <path d="M 10 200 A 190 190 0 0 1 390 200 Z" />
         </clipPath>
-        <radialGradient id={faceGradId} cx="200" cy="200" r="192" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#2a2268" />
-          <stop offset="1" stopColor="#16123d" />
+        <radialGradient id={faceGradId} cx="200" cy="200" r="190" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#fffdf7" />
+          <stop offset="0.82" stopColor="#f7f3e6" />
+          <stop offset="1" stopColor="#ebe4d1" />
         </radialGradient>
         <linearGradient id={shutterGradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#5a46d6" />
-          <stop offset="1" stopColor="#2f2491" />
+          <stop offset="0" stopColor="#8fd3de" />
+          <stop offset="1" stopColor="#5eb5c4" />
         </linearGradient>
-        <linearGradient id={rimGradId} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor={rimColors[0]} />
-          <stop offset="1" stopColor={rimColors[1]} />
-        </linearGradient>
+        <radialGradient id={hubGradId} cx="38%" cy="35%" r="65%">
+          <stop offset="0" stopColor="#ff4d4d" />
+          <stop offset="0.55" stopColor={hubColor} />
+          <stop offset="1" stopColor="#9e1919" />
+        </radialGradient>
         {extraNeedles.map((n) => (
           <clipPath key={`clip-${n.id}`} id={`${idPrefix}-av-${n.id}`}>
             <circle cx="200" cy="36" r="12" />
@@ -168,24 +179,48 @@ export function Dial({
         ))}
       </defs>
 
+      {/* White Scalloped Outer Gear Wheel (like the physical Wavelength board game) */}
+      <g className="wl-wheel-scallops">
+        <path
+          d="M -2 200 A 202 202 0 0 1 402 200 Z"
+          fill="#fbf8ef"
+          stroke="#0d2638"
+          strokeWidth="2.5"
+        />
+        {scallops.map((ang) => {
+          const [sx, sy] = polar(ang, 200);
+          return <circle key={ang} cx={sx.toFixed(2)} cy={sy.toFixed(2)} r="9" fill="#fbf8ef" />;
+        })}
+      </g>
+
+      {/* Deep Navy Outer Housing Ring */}
+      <path
+        className="wl-dial-casing"
+        d="M 4 200 A 196 196 0 0 1 396 200 Z"
+        fill="#0d2b45"
+      />
+
       <g clipPath={`url(#${clipId})`}>
-        <path className="wl-dial-face" d="M 8 200 A 192 192 0 0 1 392 200 Z" fill={`url(#${faceGradId})`} />
+        {/* Warm Cream / White Wheel Face */}
+        <path className="wl-dial-face" d="M 10 200 A 190 190 0 0 1 390 200 Z" fill={`url(#${faceGradId})`} />
+
         <g className="wl-dial-rings">
           <path d="M 80 200 A 120 120 0 0 1 320 200" />
           <path d="M 140 200 A 60 60 0 0 1 260 200" />
         </g>
 
+        {/* 5 Scoring Wedges: 2 - 3 - 4 - 3 - 2 */}
         {targetAngle !== null && (
           <g className="wl-target" transform={`rotate(${tgt.toFixed(2)} ${CX} ${CY})`}>
             {[0, 1, 2, 3, 4].map((i) => (
               <path
                 key={`w-${i}`}
                 className={bandClasses[i]}
-                d={wedgePath(TARGET_EDGES[i], TARGET_EDGES[i + 1], 196)}
+                d={wedgePath(TARGET_EDGES[i], TARGET_EDGES[i + 1], 190)}
               />
             ))}
-            {TARGET_EDGES.slice(1, -1).map((edge, i) => {
-              const [x, y] = polar(edge, 196);
+            {TARGET_EDGES.map((edge, i) => {
+              const [x, y] = polar(edge, 190);
               return (
                 <line
                   key={`l-${i}`}
@@ -199,7 +234,7 @@ export function Dial({
             })}
             {[0, 1, 2, 3, 4].map((i) => {
               const mid = (TARGET_EDGES[i] + TARGET_EDGES[i + 1]) / 2;
-              const [x, y] = polar(mid, 160);
+              const [x, y] = polar(mid, 162);
               return (
                 <text
                   key={`t-${i}`}
@@ -214,12 +249,13 @@ export function Dial({
           </g>
         )}
 
+        {/* Rotating Screen Shutter with Mint Lever Handle */}
         <g className="wl-shutter">
-          <path d="M 4 200 A 196 196 0 0 1 396 200 Z" fill={`url(#${shutterGradId})`} />
+          <path d="M 6 200 A 194 194 0 0 1 394 200 Z" fill={`url(#${shutterGradId})`} />
           <g className="wl-shutter-rays">
             {Array.from({ length: 17 }, (_, idx) => -80 + idx * 10).map((a) => {
               const [x1, y1] = polar(a, 44);
-              const [x2, y2] = polar(a, 200);
+              const [x2, y2] = polar(a, 190);
               return (
                 <line
                   key={a}
@@ -231,17 +267,16 @@ export function Dial({
               );
             })}
           </g>
-          <path className="wl-shutter-edge" d="M 4 200 A 196 196 0 0 1 396 200" />
+          <path className="wl-shutter-edge" d="M 6 200 A 194 194 0 0 1 394 200" />
         </g>
       </g>
 
-      <path className="wl-dial-rim" d="M 6 200 A 194 194 0 0 1 394 200" stroke={`url(#${rimGradId})`} />
-
+      {/* Subtle degree ticks along the navy rim */}
       <g className="wl-ticks">
         {Array.from({ length: 19 }, (_, idx) => -90 + idx * 10).map((a) => {
           const major = a % 45 === 0;
-          const [x1, y1] = polar(a, major ? 172 : 179);
-          const [x2, y2] = polar(a, 187);
+          const [x1, y1] = polar(a, major ? 181 : 185);
+          const [x2, y2] = polar(a, 191);
           return (
             <line
               key={a}
@@ -255,13 +290,26 @@ export function Dial({
         })}
       </g>
 
-      <rect className="wl-dial-base" x="0" y="199" width="400" height="14" rx="7" />
+      {/* Starry Navy Base Plate (matches the dark speckled navy housing in the board game) */}
+      <path
+        d="M 2 197 L 398 197 A 6 6 0 0 1 404 203 L 404 212 A 6 6 0 0 1 398 218 L 2 218 A 6 6 0 0 1 -4 212 L -4 203 A 6 6 0 0 1 2 197 Z"
+        fill="#0d2b45"
+      />
+      {speckles.slice(0, 8).map(([ang, r], idx) => {
+        const x = 40 + idx * 45 + (r % 11);
+        const y = 203 + (Math.abs(ang) % 10);
+        return <circle key={idx} cx={x} cy={y} r="1.1" fill="#d9f0ff" opacity="0.55" />;
+      })}
+
+      {/* Left/Right color indicator pips on base */}
+      <circle cx="22" cy="207.5" r="4.5" fill={rimColors[0]} />
+      <circle cx="378" cy="207.5" r="4.5" fill={rimColors[1]} />
 
       {/* Extra player needles for Free-for-All reveal */}
       {extraNeedles.map((n) => (
         <g key={n.id} className="wl-extra-needle" transform={`rotate(${n.angle.toFixed(2)} ${CX} ${CY})`}>
           <line x1="200" y1="200" x2="200" y2="48" stroke={n.color} strokeWidth="3.5" strokeLinecap="round" />
-          <circle cx="200" cy="36" r="13" fill={n.color} stroke="#120e2e" strokeWidth="2" />
+          <circle cx="200" cy="36" r="13" fill={n.color} stroke="#0d2b45" strokeWidth="2" />
           {n.avatarUrl ? (
             <image
               href={n.avatarUrl}
@@ -276,7 +324,7 @@ export function Dial({
             <text
               x="200"
               y="36"
-              fill="#120e2e"
+              fill="#0d2b45"
               fontSize="10"
               fontWeight="800"
               textAnchor="middle"
@@ -289,15 +337,17 @@ export function Dial({
         </g>
       ))}
 
-      {/* Main needle */}
+      {/* Main Red Pointer Arm & Big Red Central Knob (matching the physical dial) */}
       <g className="wl-needle" transform={`rotate(${needleAngle.toFixed(2)} ${CX} ${CY})`}>
-        <line className="wl-needle-glow" x1="200" y1="200" x2="200" y2="30" />
-        <line className="wl-needle-core" x1="200" y1="200" x2="200" y2="30" />
-        <circle className="wl-needle-tip" cx="200" cy="30" r="7" />
+        <line className="wl-needle-shadow" x1="200" y1="200" x2="200" y2="28" />
+        <line className="wl-needle-core" x1="200" y1="200" x2="200" y2="28" />
+        <circle className="wl-needle-tip" cx="200" cy="28" r="6.5" />
       </g>
 
-      <circle className="wl-hub" cx="200" cy="200" r="17" />
-      <circle className="wl-hub-dot" cx="200" cy="200" r="7" style={{ fill: hubColor }} />
+      {/* Tactile Red Dial Knob */}
+      <circle className="wl-hub-outer" cx="200" cy="200" r="24" fill={`url(#${hubGradId})`} />
+      <circle className="wl-hub-ring" cx="200" cy="200" r="17" fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="1.8" />
+      <circle className="wl-hub-dot" cx="200" cy="200" r="7" fill="#b81d1d" />
     </svg>
   );
 }

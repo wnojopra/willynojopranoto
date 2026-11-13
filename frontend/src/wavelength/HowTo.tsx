@@ -15,12 +15,12 @@ const STEPS = [
     body: 'The Psychic gives a single concept, word, or phrase that lands right on that spot between the two ends (for example, "Warm Soup" for slightly toward Hot). No numbers or percentages!',
   },
   {
-    title: '3. Turn the Dial',
-    body: 'The guessers debate where the clue sits and drag the dial needle on their phones (or on the TV) to lock in their guess.',
+    title: '3. Turn the Red Dial',
+    body: 'The guessers debate where the clue sits and drag the red pointer on their phones (or on the TV) to lock in their guess.',
   },
   {
     title: '4. Left/Right Bonus & Reveal',
-    body: 'In Teams mode, the other team can score +1 bonus point by calling whether the true target center is Left or Right of the needle before the shutter opens!',
+    body: 'In Teams mode, the opposing team can score +1 bonus point by calling whether the true 4-point center is Left or Right of the needle before the screen opens!',
   },
 ];
 
@@ -38,7 +38,7 @@ export function HowToList({ bands }: { bands: [number, number, number] }) {
       </ol>
       <div className="wl-legend">
         <div className="wl-legend-item">
-          <span className="wl-swatch wl-swatch--5" />
+          <span className="wl-swatch wl-swatch--4" />
           <strong>{bullseye} pts</strong> Bullseye
         </div>
         <div className="wl-legend-item">
@@ -46,8 +46,8 @@ export function HowToList({ bands }: { bands: [number, number, number] }) {
           <strong>{close} pts</strong> Close
         </div>
         <div className="wl-legend-item">
-          <span className="wl-swatch wl-swatch--1" />
-          <strong>{near} pt{near === 1 ? '' : 's'}</strong> Near
+          <span className="wl-swatch wl-swatch--2" />
+          <strong>{near} pts</strong> Near
         </div>
       </div>
     </div>
@@ -77,7 +77,7 @@ export function HowToOverlay({ bands, onClose }: HowToProps) {
           </div>
           <div className="wl-legend">
             <div className="wl-legend-item">
-              <span className="wl-swatch wl-swatch--5" />
+              <span className="wl-swatch wl-swatch--4" />
               <strong>{bullseye}</strong> Bullseye
             </div>
             <div className="wl-legend-item">
@@ -85,7 +85,7 @@ export function HowToOverlay({ bands, onClose }: HowToProps) {
               <strong>{close}</strong> Close
             </div>
             <div className="wl-legend-item">
-              <span className="wl-swatch wl-swatch--1" />
+              <span className="wl-swatch wl-swatch--2" />
               <strong>{near}</strong> Near
             </div>
             <div className="wl-legend-item">

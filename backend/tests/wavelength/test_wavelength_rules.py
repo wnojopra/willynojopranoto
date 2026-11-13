@@ -29,25 +29,22 @@ def test_clamp_angle(raw: object, expected: float | None) -> None:
 
 
 @pytest.mark.parametrize(
-    "needle,target,preset,expected",
+    "needle,target,expected",
     [
-        (10.0, 10.0, "classic", 5),
-        (14.5, 10.0, "classic", 5),
-        (14.6, 10.0, "classic", 3),
-        (23.5, 10.0, "classic", 3),
-        (23.6, 10.0, "classic", 1),
-        (32.5, 10.0, "classic", 1),
-        (32.6, 10.0, "classic", 0),
-        (10.0, 10.0, "board", 4),
-        (18.0, 10.0, "board", 3),
-        (28.0, 10.0, "board", 2),
-        (45.0, 10.0, "board", 0),
+        (10.0, 10.0, 4),
+        (14.5, 10.0, 4),
+        (14.6, 10.0, 3),
+        (23.5, 10.0, 3),
+        (23.6, 10.0, 2),
+        (32.5, 10.0, 2),
+        (32.6, 10.0, 0),
+        (45.0, 10.0, 0),
     ],
 )
 def test_score_angle(
-    needle: float, target: float, preset: rules.ScoringPreset, expected: int
+    needle: float, target: float, expected: int
 ) -> None:
-    assert rules.score_angle(needle, target, preset) == expected
+    assert rules.score_angle(needle, target) == expected
 
 
 def test_evaluate_bonus_direction() -> None:

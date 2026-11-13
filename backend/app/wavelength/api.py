@@ -117,8 +117,6 @@ async def tv_socket(ws: WebSocket) -> None:
                 room.move_seat(msg.get("playerId"), msg.get("dir"))
             elif kind == "set_mode":
                 room.set_mode(msg.get("mode"))
-            elif kind == "set_preset":
-                room.set_preset(msg.get("preset"))
             elif kind == "set_left_right":
                 room.set_left_right_bonus(msg.get("on"))
             elif kind == "set_catchup":

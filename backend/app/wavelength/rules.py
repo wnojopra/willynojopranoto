@@ -2,13 +2,9 @@
 
 Dial angles run from -90.0 (full Left) to +90.0 (full Right), with 0.0 straight up.
 The target sits anywhere in [-90.0, +90.0] and has 5 scoring wedges centered on it:
-  - Bullseye: within ±4.5°
-  - Close:    within ±13.5°
-  - Near:     within ±22.5°
-
-Two scoring presets are supported:
-  - "classic" (mikeck1): 5 / 3 / 1 points
-  - "board"   (CMYK physical board game): 4 / 3 / 2 points
+  - Bullseye (4 pts): within ±4.5°
+  - Close    (3 pts): within ±13.5°
+  - Near     (2 pts): within ±22.5°
 """
 
 from __future__ import annotations
@@ -23,14 +19,13 @@ BULLSEYE_HALF_DEG = 4.5
 CLOSE_HALF_DEG = 13.5
 NEAR_HALF_DEG = 22.5
 
-ScoringPreset = Literal["classic", "board"]
+BULLSEYE_PTS = 4
+CLOSE_PTS = 3
+NEAR_PTS = 2
+BANDS: tuple[int, int, int] = (BULLSEYE_PTS, CLOSE_PTS, NEAR_PTS)
+
 GameMode = Literal["teams", "ffa", "coop"]
 BonusDirection = Literal["left", "right"]
-
-PRESET_BANDS: dict[ScoringPreset, tuple[int, int, int]] = {
-    "classic": (5, 3, 1),
-    "board": (4, 3, 2),
-}
 
 
 def clamp_angle(angle: object) -> float | None:
@@ -44,25 +39,24 @@ def clamp_angle(angle: object) -> float | None:
     return round(clamped, 2)
 
 
-def band_values(preset: ScoringPreset = "classic") -> tuple[int, int, int]:
-    """Returns (bullseye_pts, close_pts, near_pts) for the given preset."""
-    return PRESET_BANDS.get(preset, PRESET_BANDS["classic"])
+def band_values() -> tuple[int, int, int]:
+    """Returns (bullseye_pts, close_pts, near_pts) = (4, 3, 2)."""
+    return BANDS
 
 
 def is_bullseye(needle: float, target: float) -> bool:
     return abs(needle - target) <= BULLSEYE_HALF_DEG
 
 
-def score_angle(needle: float, target: float, preset: ScoringPreset = "classic") -> int:
-    """Points scored for `needle` against `target` center angle."""
+def score_angle(needle: float, target: float) -> int:
+    """Points scored for `needle` against `target` center angle (4 / 3 / 2 / 0)."""
     diff = abs(needle - target)
-    bullseye, close, near = band_values(preset)
     if diff <= BULLSEYE_HALF_DEG:
-        return bullseye
+        return BULLSEYE_PTS
     if diff <= CLOSE_HALF_DEG:
-        return close
+        return CLOSE_PTS
     if diff <= NEAR_HALF_DEG:
-        return near
+        return NEAR_PTS
     return 0
 
 

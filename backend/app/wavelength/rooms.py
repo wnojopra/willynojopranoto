@@ -47,7 +47,7 @@ from app.wavelength.decks import (
     deck_catalog,
     normalize_custom_cards,
 )
-from app.wavelength.rules import BonusDirection, GameMode, ScoringPreset
+from app.wavelength.rules import BonusDirection, GameMode
 
 log = logging.getLogger(__name__)
 
@@ -71,42 +71,42 @@ AVATAR_PREFIX = "data:image/jpeg;base64,"
 MAX_AVATAR_BYTES = 18_000
 AVATAR_COOLDOWN_SECONDS = 2.0
 
-# mikeck1's 6 team colors
+# Physical board game pawn & stripe palette (coral orange, sunny gold, mint green, sky blue, blush pink, cobalt)
 TEAM_COLORS: tuple[str, ...] = (
-    "#ff5d8f",  # neon pink
-    "#4cc9f0",  # electric cyan
-    "#ffc94a",  # solar gold
-    "#3ee6b0",  # mint green
-    "#a78bfa",  # cosmic violet
-    "#ff8a5c",  # coral orange
+    "#f26430",  # coral orange pawn
+    "#f7c942",  # sunny yellow pawn
+    "#82d682",  # mint green stripe
+    "#68b5e8",  # sky blue stripe
+    "#f2a2ba",  # blush pink stripe
+    "#187bcd",  # cobalt tray blue
 )
 
 DEFAULT_TEAM_NAMES: tuple[str, ...] = (
+    "Left Brain",
+    "Right Brain",
     "Mind Readers",
     "Brainwaves",
     "Astral Signals",
     "Static Shifters",
-    "Frequency Five",
-    "Neon Psychics",
 )
 
 PLAYER_COLORS: tuple[str, ...] = (
-    "#ff5d8f",
-    "#4cc9f0",
-    "#ffc94a",
-    "#3ee6b0",
-    "#a78bfa",
-    "#ff8a5c",
-    "#f43f5e",
-    "#38bdf8",
-    "#facc15",
-    "#34d399",
-    "#c084fc",
-    "#fb923c",
-    "#e879f9",
-    "#2dd4bf",
-    "#a3e635",
-    "#fb7185",
+    "#f26430",
+    "#f7c942",
+    "#82d682",
+    "#68b5e8",
+    "#f2a2ba",
+    "#e03131",
+    "#38d9a9",
+    "#ff922b",
+    "#ffd43b",
+    "#4dabf7",
+    "#f783ac",
+    "#69db7c",
+    "#ffa94d",
+    "#74c0fc",
+    "#e599f7",
+    "#a9e34b",
 )
 
 BOT_NAMES: tuple[str, ...] = (
@@ -229,7 +229,6 @@ class WavelengthRoom:
 
         self.phase: str = "lobby"
         self.mode: GameMode = "teams"
-        self.preset: ScoringPreset = "classic"
         self.left_right_bonus: bool = True
         self.catchup_rule: bool = True
         self.target_score: int = DEFAULT_TARGET_SCORE
@@ -475,14 +474,6 @@ class WavelengthRoom:
         if self.phase != "lobby" or mode not in ("teams", "ffa", "coop"):
             return False
         self.mode = mode  # type: ignore[assignment]
-        self._dirty = True
-        self.touch()
-        return True
-
-    def set_preset(self, preset: object) -> bool:
-        if preset not in ("classic", "board"):
-            return False
-        self.preset = preset  # type: ignore[assignment]
         self._dirty = True
         self.touch()
         return True
@@ -924,7 +915,7 @@ class WavelengthRoom:
 
         if self.mode == "teams":
             active_team = self.teams[self.active_team_idx]
-            pts = rules.score_angle(self.needle, target, self.preset)
+            pts = rules.score_angle(self.needle, target)
             prev_score = active_team.score
             active_team.score = min(MAX_SCORE, active_team.score + pts)
             hit_bullseye = rules.is_bullseye(self.needle, target)
@@ -964,7 +955,7 @@ class WavelengthRoom:
             any_bullseye = False
             for p in self._ffa_guessers():
                 ang = self._ffa_guesses.get(p.id, 0.0)
-                pts = rules.score_angle(ang, target, self.preset)
+                pts = rules.score_angle(ang, target)
                 player_points[p.id] = pts
                 p.score = min(MAX_SCORE, p.score + pts)
                 if rules.is_bullseye(ang, target):
@@ -985,7 +976,7 @@ class WavelengthRoom:
             }
 
         else:  # coop
-            pts = rules.score_angle(self.needle, target, self.preset)
+            pts = rules.score_angle(self.needle, target)
             hit_bullseye = rules.is_bullseye(self.needle, target)
             self.coop_score = min(MAX_SCORE, self.coop_score + pts)
             self.coop_cards_remaining = max(0, self.coop_cards_remaining - 1)
@@ -1196,7 +1187,7 @@ class WavelengthRoom:
             if self.mode == "teams" and self.teams
             else None
         )
-        bullseye_pts, close_pts, near_pts = rules.band_values(self.preset)
+        bullseye_pts, close_pts, near_pts = rules.band_values()
         return {
             "type": "state",
             "code": self.code,
@@ -1215,7 +1206,6 @@ class WavelengthRoom:
             "ffaLockedIds": list(self._ffa_guesses.keys()),
             "bonusVotes": dict(self.bonus_votes),
             "settings": {
-                "preset": self.preset,
                 "bands": [bullseye_pts, close_pts, near_pts],
                 "leftRightBonus": self.left_right_bonus,
                 "catchupRule": self.catchup_rule,

@@ -94,12 +94,13 @@ def test_ffa_mode_and_gameover() -> None:
     assert room.submit_clue(psychic_id, "Exact spot")
 
     guessers = [pid for pid in ids if pid != psychic_id]
-    # First guesser hits bullseye (5 pts), second misses
+    # First guesser hits bullseye (4 pts), second misses -> adjust by +1 to hit 5 target
     assert room.lock_guess(guessers[0], target)
     assert room.phase == "guessing"
     far_angle = -85.0 if target > 0 else 85.0
     assert room.lock_guess(guessers[1], far_angle)
     assert room.phase == "reveal"
+    assert room.adjust_score(guessers[0], 1)
 
     # Advance turn -> guessers[0] reached 5 points, so game over!
     assert room.next_turn()
