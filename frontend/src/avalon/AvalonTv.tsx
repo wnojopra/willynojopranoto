@@ -272,75 +272,44 @@ function LobbyScreen({
 
   return (
     <main className="ava-lobby">
-      {/* Left Column: Box-Cover Stone Frame */}
-      <section className="ava-boxframe">
-        <p className="ava-boxframe__eyebrow">don eskridge’s THE RESISTANCE</p>
+      {/* Top Header: Title, Byline, and Tagline */}
+      <header className="ava-lobby__head">
+        <p className="ava-lobby__eyebrow">don eskridge’s THE RESISTANCE</p>
         <h1 className="ava-logo">AVALON</h1>
-        <div className="ava-boxframe__window">
-          <AvalonCrest className="ava-boxframe__crest" />
-          <div className="ava-joinbox">
-            <div className="ava-joinbox__info">
-              <span className="ava-kicker">Join on Your Phone</span>
-              <p className="ava-joinbox__url">
-                {location.host}
-                <wbr />
-                /avalon/play
-              </p>
-              <span className="ava-kicker">Room Code</span>
-              <p className="ava-code" id="ava-code">
-                {state.code}
-              </p>
-            </div>
-            <QrCode value={joinUrl} className="ava-qr" label={`Scan to join room ${state.code}`} />
-          </div>
+        <div className="ava-byline">By Willy Nojopranoto</div>
+        <p className="ava-lobby__tagline">Secret Identities • Deduction • Deception</p>
+      </header>
+
+      {/* Left Column: Dedicated Join Section */}
+      <section className="ava-lobby__join" aria-label="How to join">
+        <AvalonCrest className="ava-lobby__crest" />
+        <div className="ava-lobby__scan">
+          <QrCode value={joinUrl} className="ava-lobby__qr" label={`Scan to join room ${state.code}`} />
+          <p className="ava-lobby__step">Scan to join</p>
         </div>
-        <p className="ava-boxframe__tagline">Secret Identities • Deduction • Deception</p>
-        <div className="ava-row ava-row--center">
-          <button id="ava-howto" type="button" className="ava-btn ava-btn--ghost" onClick={onHowTo}>
-            Rulebook
-          </button>
-          <a id="ava-to-phone" className="ava-btn ava-btn--ghost" href={`/avalon/play?code=${state.code}`}>
-            Join on This Device
-          </a>
+        <div className="ava-lobby__manual">
+          <p className="ava-lobby__step">
+            or go to <strong className="ava-lobby__url">{location.host}/avalon/play</strong>
+          </p>
+          <p className="ava-lobby__step">and enter the code</p>
+          <p className="ava-lobby__code" id="ava-code" aria-label={`Room code ${state.code.split('').join(' ')}`}>
+            {state.code}
+          </p>
         </div>
-        <AudioToolbar />
       </section>
 
-      {/* Right Column: Dark Parchment Setup Scroll */}
-      <section className="ava-panel ava-lobby__config">
-        <div className="ava-panel__head">
-          <div>
-            <h2 className="ava-h2">
-              Council of Camelot{' '}
-              <span className="ava-muted">
-                ({n} / {state.maxPlayers} Knights)
-              </span>
-            </h2>
-            <p className="ava-muted ava-tiny">
-              Arrange seats in clockwise order around the table.
-            </p>
-          </div>
-          <div className="ava-row">
-            <button
-              id="ava-add-bot"
-              type="button"
-              className="ava-btn ava-btn--ghost ava-btn--small"
-              disabled={n >= state.maxPlayers}
-              onClick={() => send({ type: 'add_bot' })}
-            >
-              + Add Bot
-            </button>
-            {hasBots && (
-              <button
-                id="ava-remove-bot"
-                type="button"
-                className="ava-btn ava-btn--ghost ava-btn--small"
-                onClick={() => send({ type: 'remove_bot' })}
-              >
-                − Remove Bot
-              </button>
-            )}
-          </div>
+      {/* Right Column: Council of Camelot Setup */}
+      <section className="ava-panel ava-lobby__council" aria-label="Council of Camelot">
+        <div className="ava-lobby__players-head">
+          <h2 className="ava-h2">
+            Council of Camelot{' '}
+            <span className="ava-muted">
+              ({n} / {state.maxPlayers} Knights)
+            </span>
+          </h2>
+          <span className="ava-muted ava-tiny">
+            Clockwise table order
+          </span>
         </div>
 
         {n === 0 ? (
@@ -354,10 +323,11 @@ function LobbyScreen({
               >
                 <span className="ava-roster__seat">{i + 1}</span>
                 <KnightPawn color={p.color} photo={photos[p.id]} className="ava-roster__pawn" />
-                <span className="ava-roster__name">
+                <span className="ava-roster__name" title={p.name}>
                   {p.name}
-                  {p.isBot && <span className="ava-muted"> (bot)</span>}
                 </span>
+                {p.isBot && <span className="ava-roster__tag">bot</span>}
+                {!p.connected && <span className="ava-roster__tag ava-roster__tag--away">away</span>}
                 <span className="ava-roster__tools">
                   <button
                     type="button"
@@ -393,15 +363,18 @@ function LobbyScreen({
 
         <div className="ava-splitbar">
           <span className="ava-badge ava-badge--good">
-            {state.alignmentCount.good} Loyal Servants of Arthur (includes Merlin)
+            🛡️ {state.alignmentCount.good} Loyal Servants of Arthur (incl. Merlin)
           </span>
           <span className="ava-badge ava-badge--evil">
-            {state.alignmentCount.evil} Minions of Mordred (includes Assassin)
+            🗡️ {state.alignmentCount.evil} Minions of Mordred (incl. Assassin)
           </span>
         </div>
 
         <div className="ava-roles-picker">
-          <h3 className="ava-h3">Optional Character Cards</h3>
+          <div className="ava-roles-picker__head">
+            <h3 className="ava-h3">Optional Character Cards</h3>
+            <span className="ava-muted ava-tiny">Click to toggle special roles into the deck</span>
+          </div>
           <div className="ava-roles-grid">
             {OPTIONAL_ROLE_CATALOG.map((item) => {
               const checked = state.optionalRoles.includes(item.id);
@@ -421,7 +394,7 @@ function LobbyScreen({
                   <RoleEmblem role={item.id} alignment={item.alignment} className="ava-rolecard__icon" />
                   <div className="ava-rolecard__body">
                     <div className="ava-rolecard__head">
-                      <strong>{item.name}</strong>
+                      <strong className="ava-rolecard__title">{item.name}</strong>
                       <span className={`ava-pill ava-pill--${item.alignment}`}>
                         {item.alignment === 'good' ? 'Good' : 'Evil'}
                       </span>
@@ -429,7 +402,7 @@ function LobbyScreen({
                     <p className="ava-rolecard__desc">{item.summary}</p>
                     {checked && !active && (
                       <p className="ava-rolecard__warn">
-                        Requires 7+ players when other Evil roles are active.
+                        Requires 7+ players
                       </p>
                     )}
                   </div>
@@ -443,22 +416,66 @@ function LobbyScreen({
             </p>
           )}
         </div>
-
-        <button
-          id="ava-start"
-          type="button"
-          className="ava-btn ava-btn--primary ava-btn--big"
-          disabled={!state.canStart}
-          onClick={() => {
-            avalonSound.wake();
-            send({ type: 'start' });
-          }}
-        >
-          {state.canStart
-            ? `Deal Character Cards (${n} Players)`
-            : `Requires ${state.minPlayers}–${state.maxPlayers} Players (${n} Seated)`}
-        </button>
       </section>
+
+      {/* Bottom Controls Bar (Left: Bots | Center: Start CTA & Links | Right: Audio Toolbar) */}
+      <footer className="ava-lobby__controls">
+        <div className="ava-lobby__dev">
+          <button
+            id="ava-add-bot"
+            type="button"
+            className="ava-btn ava-btn--ghost"
+            disabled={n >= state.maxPlayers}
+            onClick={() => send({ type: 'add_bot' })}
+          >
+            + Add Bot
+          </button>
+          {hasBots && (
+            <button
+              id="ava-remove-bot"
+              type="button"
+              className="ava-btn ava-btn--ghost"
+              onClick={() => send({ type: 'remove_bot' })}
+            >
+              − Remove Bot
+            </button>
+          )}
+        </div>
+
+        <div className="ava-lobby__start">
+          <button
+            id="ava-start"
+            type="button"
+            className="ava-btn ava-btn--primary ava-btn--big"
+            disabled={!state.canStart}
+            onClick={() => {
+              avalonSound.wake();
+              send({ type: 'start' });
+            }}
+          >
+            {state.canStart
+              ? `Deal Character Cards (${n} Players)`
+              : `Requires ${state.minPlayers}–${state.maxPlayers} Players (${n} Seated)`}
+          </button>
+          <div className="ava-row ava-row--center">
+            <button id="ava-howto" type="button" className="ava-btn ava-btn--ghost" onClick={onHowTo}>
+              📖 Rulebook
+            </button>
+            <a id="ava-to-phone" className="ava-btn ava-btn--ghost" href={`/avalon/play?code=${state.code}`}>
+              📱 Join on This Device
+            </a>
+          </div>
+          {!state.canStart && n > 0 && n < state.minPlayers && (
+            <p className="ava-lobby__hint">
+              Need at least {state.minPlayers} knights to play ({state.minPlayers - n} more needed)
+            </p>
+          )}
+        </div>
+
+        <div className="ava-lobby__settings">
+          <AudioToolbar />
+        </div>
+      </footer>
     </main>
   );
 }
