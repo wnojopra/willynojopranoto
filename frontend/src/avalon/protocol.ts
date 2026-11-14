@@ -140,6 +140,49 @@ export type AvaServerMsg =
 
 export type Photos = Record<string, string>;
 
+export interface CharacterCardCatalogItem {
+  id: RoleId;
+  name: string;
+  alignment: Alignment;
+  summary: string;
+  locked?: boolean;
+}
+
+export const CHARACTER_CARD_CATALOG: CharacterCardCatalogItem[] = [
+  {
+    id: 'merlin',
+    name: 'Merlin',
+    alignment: 'good',
+    summary: 'Knows who the Minions of Mordred are (except Mordred).',
+    locked: true,
+  },
+  {
+    id: 'percival',
+    name: 'Percival',
+    alignment: 'good',
+    summary: 'Knows who Merlin is at the start (helps protect Merlin’s identity).',
+  },
+  {
+    id: 'mordred',
+    name: 'Mordred',
+    alignment: 'evil',
+    summary: 'His identity is hidden from Merlin during the Night reveal.',
+    locked: true,
+  },
+  {
+    id: 'morgana',
+    name: 'Morgana',
+    alignment: 'evil',
+    summary: 'Appears as Merlin to Percival during the Night reveal.',
+  },
+  {
+    id: 'oberon',
+    name: 'Oberon',
+    alignment: 'evil',
+    summary: 'Does not reveal himself to other Evil players, nor see who they are.',
+  },
+];
+
 export interface OptionalRoleCatalogItem {
   id: OptionalRoleId;
   name: string;
@@ -152,7 +195,7 @@ export const OPTIONAL_ROLE_CATALOG: OptionalRoleCatalogItem[] = [
     id: 'percival',
     name: 'Percival',
     alignment: 'good',
-    summary: 'Knows who Merlin is at the start ( helps protect Merlin’s identity).',
+    summary: 'Knows who Merlin is at the start (helps protect Merlin’s identity).',
   },
   {
     id: 'morgana',

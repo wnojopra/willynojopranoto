@@ -19,7 +19,7 @@ import {
 } from './audio';
 import { HowToOverlay } from './HowTo';
 import {
-  OPTIONAL_ROLE_CATALOG,
+  CHARACTER_CARD_CATALOG,
   type AvaPlayer,
   type AvaServerMsg,
   type AvaState,
@@ -264,20 +264,13 @@ function LobbyScreen({
   const joinUrl = `${location.origin}/avalon/play?code=${state.code}`;
   const hasBots = state.players.some((p) => p.isBot);
   const n = state.players.length;
-  const percivalAloneIn5 =
-    n === 5 &&
-    state.optionalRoles.includes('percival') &&
-    !state.optionalRoles.includes('morgana') &&
-    !state.optionalRoles.includes('mordred');
 
   return (
     <main className="ava-lobby">
-      {/* Top Header: Title, Byline, and Tagline */}
+      {/* Top Header: Title and Byline */}
       <header className="ava-lobby__head">
-        <p className="ava-lobby__eyebrow">don eskridge’s THE RESISTANCE</p>
         <h1 className="ava-logo">AVALON</h1>
         <div className="ava-byline">By Willy Nojopranoto</div>
-        <p className="ava-lobby__tagline">Secret Identities • Deduction • Deception</p>
       </header>
 
       {/* Left Column: Dedicated Join Section */}
@@ -366,19 +359,20 @@ function LobbyScreen({
             🛡️ {state.alignmentCount.good} Loyal Servants of Arthur (incl. Merlin)
           </span>
           <span className="ava-badge ava-badge--evil">
-            🗡️ {state.alignmentCount.evil} Minions of Mordred (incl. Assassin)
+            🗡️ {state.alignmentCount.evil} Minions of Mordred (incl. Mordred)
           </span>
         </div>
 
         <div className="ava-roles-picker">
           <div className="ava-roles-picker__head">
-            <h3 className="ava-h3">Optional Character Cards</h3>
-            <span className="ava-muted ava-tiny">Click to toggle special roles into the deck</span>
+            <h3 className="ava-h3">Character Cards</h3>
+            <span className="ava-muted ava-tiny">Click to toggle optional roles</span>
           </div>
           <div className="ava-roles-grid">
-            {OPTIONAL_ROLE_CATALOG.map((item) => {
-              const checked = state.optionalRoles.includes(item.id);
-              const active = state.activeOptionalRoles.includes(item.id);
+            {CHARACTER_CARD_CATALOG.map((item) => {
+              const isLocked = item.locked;
+              const checked = isLocked || state.optionalRoles.includes(item.id as OptionalRoleId);
+              const active = isLocked || state.activeOptionalRoles.includes(item.id as OptionalRoleId);
               return (
                 <button
                   key={item.id}
@@ -386,10 +380,15 @@ function LobbyScreen({
                   type="button"
                   role="switch"
                   aria-checked={checked}
+                  aria-disabled={isLocked ? true : undefined}
                   className={`ava-rolecard ava-rolecard--${item.alignment} ${
                     checked ? 'ava-rolecard--on' : ''
-                  }`}
-                  onClick={() => send({ type: 'toggle_role', role: item.id as OptionalRoleId })}
+                  } ${isLocked ? 'ava-rolecard--locked' : ''}`}
+                  onClick={() => {
+                    if (!isLocked) {
+                      send({ type: 'toggle_role', role: item.id as OptionalRoleId });
+                    }
+                  }}
                 >
                   <RoleEmblem role={item.id} alignment={item.alignment} className="ava-rolecard__icon" />
                   <div className="ava-rolecard__body">
@@ -397,10 +396,11 @@ function LobbyScreen({
                       <strong className="ava-rolecard__title">{item.name}</strong>
                       <span className={`ava-pill ava-pill--${item.alignment}`}>
                         {item.alignment === 'good' ? 'Good' : 'Evil'}
+                        {isLocked ? ' · Always Active' : ''}
                       </span>
                     </div>
                     <p className="ava-rolecard__desc">{item.summary}</p>
-                    {checked && !active && (
+                    {checked && !active && !isLocked && (
                       <p className="ava-rolecard__warn">
                         Requires 7+ players
                       </p>
@@ -410,11 +410,6 @@ function LobbyScreen({
               );
             })}
           </div>
-          {n === 5 && percivalAloneIn5 && (
-            <p className="ava-tip">
-              <em>Note: For games of 5, be sure to add either Mordred or Morgana when playing with Percival.</em>
-            </p>
-          )}
         </div>
       </section>
 

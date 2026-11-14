@@ -138,7 +138,7 @@ class AvalonRoom:
         self.phase = "lobby"
 
         # Optional roles enabled by host in lobby: subset of OPTIONAL_ROLES
-        self.optional_roles: set[str] = {"percival", "morgana"}
+        self.optional_roles: set[str] = {"percival", "morgana", "mordred"}
 
         # Secret per-game state (never leaked in public state_dict until gameover)
         self.roles: dict[str, str] = {}
@@ -277,6 +277,8 @@ class AvalonRoom:
         """Lobby only: toggles an optional character card."""
         if self.phase != "lobby" or not isinstance(role, str) or role not in rules.OPTIONAL_ROLES:
             return False
+        if role == "mordred":
+            return False  # Mordred is always selected and cannot be toggled off
         if role in self.optional_roles:
             self.optional_roles.remove(role)
         else:

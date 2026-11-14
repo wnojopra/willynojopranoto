@@ -145,7 +145,7 @@ def effective_optional_roles(num_players: int, enabled: set[str] | list[str]) ->
         active.append("percival")
 
     # Prioritize optional Evil roles in a predictable order if more are toggled than fit
-    for r in ("morgana", "mordred", "oberon"):
+    for r in ("mordred", "morgana", "oberon"):
         if r in enabled and len([x for x in active if role_alignment(x) == "evil"]) < evil_extra:
             active.append(r)
     return active
