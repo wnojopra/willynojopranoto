@@ -262,3 +262,24 @@ async def admin_delete_question(qid: str, request: Request) -> dict:
     if not hunt.valid_question_id(qid) or not await store.delete_question(qid):
         raise HTTPException(404, "No such question.")
     return {"ok": True}
+
+
+# ---- Usage analytics (/admin) ------------------------------------------------
+
+
+@router.get("/admin/analytics")
+async def admin_analytics(request: Request) -> dict:
+    _require_admin(request)
+    from app.shared.telemetry import tracker
+
+    stats = await tracker.store.get_stats(
+        now_ts=tracker.clock(),
+        days=30,
+        months=12,
+        recent_limit=25,
+    )
+    return {
+        "timezone": "America/Los_Angeles",
+        "live": tracker.live_snapshot(),
+        **stats,
+    }

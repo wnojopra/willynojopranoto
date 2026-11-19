@@ -1363,7 +1363,9 @@ class RoomManager:
         self.rooms: dict[str, Room] = {}
         self._tasks: dict[str, asyncio.Task] = {}
 
-    def create_room(self) -> Room:
+    def create_room(self, *, headers: Any = None) -> Room:
+        from app.shared.telemetry import tracker
+
         if len(self.rooms) >= MAX_ROOMS:
             raise RoomLimitError()
         for _ in range(50):
@@ -1375,18 +1377,21 @@ class RoomManager:
         room = Room(code)
         self.rooms[code] = room
         self._tasks[code] = asyncio.create_task(self._run(room))
-        log.info("room created (%d active)", len(self.rooms))
+        tracker.on_room_created("spiritboard", room, headers=headers)
         return room
 
     def get(self, raw_code: object) -> Room | None:
         code = normalize_code(raw_code)
         return self.rooms.get(code) if code else None
 
-    def close_room(self, code: str) -> None:
-        self.rooms.pop(code, None)
-        task = self._tasks.pop(code, None)
-        if task and task is not asyncio.current_task():
-            task.cancel()
+    def close_room(self, code: str, *, reason: str = "closed") -> None:
+        from app.shared.rooms_util import cancel_room_task
+        from app.shared.telemetry import tracker
+
+        room = self.rooms.pop(code, None)
+        if room is not None:
+            tracker.on_room_closed("spiritboard", room, reason=reason)
+        cancel_room_task(self._tasks.pop(code, None))
 
     async def _run(self, room: Room) -> None:
         dt = 1.0 / TICK_HZ
@@ -1406,11 +1411,10 @@ class RoomManager:
                     n += 1
                     await room.broadcast_tick(include_phones=n % PHONE_TICK_EVERY == 0)
                 if not room.tv_conns and now - room.last_activity > ROOM_IDLE_SECONDS:
-                    log.info("closing idle room")
-                    self.close_room(room.code)
+                    self.close_room(room.code, reason="idle")
                     return
         except asyncio.CancelledError:
             pass
         except Exception:  # pragma: no cover - keep one room from killing others
             log.exception("room loop crashed")
-            self.close_room(room.code)
+            self.close_room(room.code, reason="error")

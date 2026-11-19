@@ -7,9 +7,10 @@ import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.avalon.rooms import AvalonRoomManager, JoinError, RoomLimitError
+from app.avalon.rooms import AvalonRoomManager, JoinError, MAX_ROOMS, RoomLimitError
 from app.shared.cookies import device_of
 from app.shared.origins import ws_origin_allowed as _origin_allowed
+from app.shared.telemetry import tracker
 from app.shared.ws import ClientGone, RateLimiter, recv_message as _shared_recv, send_error
 
 log = logging.getLogger("avalon")
@@ -23,6 +24,7 @@ MAX_DROPPED_BEFORE_CLOSE = 200
 
 router = APIRouter()
 manager = AvalonRoomManager()
+tracker.register_manager("avalon", manager, max_rooms=MAX_ROOMS)
 
 
 def _new_limiter() -> RateLimiter:
@@ -61,7 +63,7 @@ async def tv_socket(ws: WebSocket) -> None:
             room = old
         else:
             try:
-                room = manager.create_room()
+                room = manager.create_room(headers=ws.headers)
             except RoomLimitError:
                 await send_error(ws, "Too many games right now. Try again later.")
                 await ws.close()
@@ -79,9 +81,13 @@ async def tv_socket(ws: WebSocket) -> None:
                 continue
             kind = msg["type"]
             if kind == "start":
-                room.start()
+                if room.start():
+                    tracker.on_game_started("avalon", room, host_device=device)
             elif kind == "advance":
+                prev_round = room.round_num
                 room.advance()
+                if room.round_num > prev_round:
+                    tracker.on_round_started("avalon", room)
             elif kind == "skip":
                 room.skip_unresponsive()
             elif kind == "move_seat":
@@ -140,14 +146,16 @@ async def play_socket(ws: WebSocket) -> None:
             await send_error(ws, "No game with that code.")
             await ws.close()
             return
+        device = device_of(ws.cookies)
         try:
-            player = room.add_player(msg.get("name"), device=device_of(ws.cookies))
+            player = room.add_player(msg.get("name"), device=device)
         except JoinError as e:
             await send_error(ws, str(e))
             await ws.close()
             return
         stale = room.player_conns.get(player.id)
         room.player_conns[player.id] = ws
+        tracker.on_player_joined("avalon", room, device=device, is_bot=player.is_bot)
         if stale is not None and stale is not ws:
             try:
                 await send_error(stale, "You rejoined from another tab.")
@@ -169,7 +177,10 @@ async def play_socket(ws: WebSocket) -> None:
             if kind == "ready":
                 changed = room.mark_night_ready(player.id)
             elif kind == "advance":
+                prev_round = room.round_num
                 changed = room.advance(by_player_id=player.id)
+                if room.round_num > prev_round:
+                    tracker.on_round_started("avalon", room)
             elif kind == "select_team":
                 changed = room.select_team(player.id, msg.get("teamIds"))
             elif kind == "propose_team":

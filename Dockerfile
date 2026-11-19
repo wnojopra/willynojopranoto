@@ -27,4 +27,4 @@ USER app
 
 # Cloud Run injects $PORT. Binding 0.0.0.0 is required inside the container;
 # local dev still binds 127.0.0.1 (see README).
-CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*'
+CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*' --no-access-log

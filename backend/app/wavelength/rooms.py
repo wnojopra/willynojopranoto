@@ -1279,7 +1279,9 @@ class WavelengthRoomManager:
                 return code
         raise RoomLimitError("Could not allocate room code.")
 
-    def create_room(self) -> WavelengthRoom:
+    def create_room(self, *, headers: Any = None) -> WavelengthRoom:
+        from app.shared.telemetry import tracker
+
         self.reap_idle()
         if len(self.rooms) >= MAX_ROOMS:
             raise RoomLimitError("Too many active rooms.")
@@ -1291,6 +1293,7 @@ class WavelengthRoomManager:
             self._tasks[code] = loop.create_task(self._room_loop(room))
         except RuntimeError:
             pass
+        tracker.on_room_created("wavelength", room, headers=headers)
         return room
 
     def get(self, raw_code: object) -> WavelengthRoom | None:
@@ -1307,20 +1310,23 @@ class WavelengthRoomManager:
             if not r.tv_conns and (now - r.last_active) > ROOM_IDLE_SECONDS
         ]
         for code in stale:
-            self.close_room(code)
+            self.close_room(code, reason="idle")
 
-    def close_room(self, code: str) -> None:
-        self.rooms.pop(code, None)
-        task = self._tasks.pop(code, None)
-        if task:
-            task.cancel()
+    def close_room(self, code: str, *, reason: str = "closed") -> None:
+        from app.shared.rooms_util import cancel_room_task
+        from app.shared.telemetry import tracker
+
+        room = self.rooms.pop(code, None)
+        if room is not None:
+            tracker.on_room_closed("wavelength", room, reason=reason)
+        cancel_room_task(self._tasks.pop(code, None))
 
     async def _room_loop(self, room: WavelengthRoom) -> None:
         try:
             while room.code in self.rooms:
                 await asyncio.sleep(LOOP_SECONDS)
                 if not room.tv_conns and (self.clock() - room.last_active) > ROOM_IDLE_SECONDS:
-                    self.close_room(room.code)
+                    self.close_room(room.code, reason="idle")
                     return
                 if room.tick_bots() or room._dirty:
                     await room.broadcast_state()

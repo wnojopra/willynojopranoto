@@ -608,7 +608,9 @@ class PsychRoomManager:
         self.rooms: dict[str, PsychRoom] = {}
         self._tasks: dict[str, asyncio.Task] = {}
 
-    def create_room(self) -> PsychRoom:
+    def create_room(self, *, headers: Any = None) -> PsychRoom:
+        from app.shared.telemetry import tracker
+
         if len(self.rooms) >= MAX_ROOMS:
             raise RoomLimitError()
         for _ in range(50):
@@ -620,18 +622,21 @@ class PsychRoomManager:
         room = PsychRoom(code)
         self.rooms[code] = room
         self._tasks[code] = asyncio.create_task(self._run(room))
-        log.info("psych room created (%d active)", len(self.rooms))
+        tracker.on_room_created("psych", room, headers=headers)
         return room
 
     def get(self, raw_code: object) -> PsychRoom | None:
         code = normalize_code(raw_code)
         return self.rooms.get(code) if code else None
 
-    def close_room(self, code: str) -> None:
-        self.rooms.pop(code, None)
-        task = self._tasks.pop(code, None)
-        if task and task is not asyncio.current_task():
-            task.cancel()
+    def close_room(self, code: str, *, reason: str = "closed") -> None:
+        from app.shared.rooms_util import cancel_room_task
+        from app.shared.telemetry import tracker
+
+        room = self.rooms.pop(code, None)
+        if room is not None:
+            tracker.on_room_closed("psych", room, reason=reason)
+        cancel_room_task(self._tasks.pop(code, None))
 
     async def _run(self, room: PsychRoom) -> None:
         try:
@@ -641,11 +646,10 @@ class PsychRoomManager:
                     await room.broadcast_state()
                     await room.send_private()
                 if not room.tv_conns and time.monotonic() - room.last_activity > ROOM_IDLE_SECONDS:
-                    log.info("closing idle psych room")
-                    self.close_room(room.code)
+                    self.close_room(room.code, reason="idle")
                     return
         except asyncio.CancelledError:
             pass
         except Exception:  # pragma: no cover - keep one room from killing others
             log.exception("psych room loop crashed")
-            self.close_room(room.code)
+            self.close_room(room.code, reason="error")

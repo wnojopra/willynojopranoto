@@ -261,7 +261,7 @@ export function HomePage() {
                           className={`wn-btn ${a.primary ? 'wn-btn--primary' : 'wn-btn--secondary'}`}
                           href={a.href}
                           target={a.external ? '_blank' : undefined}
-                          rel={a.external ? 'noreferrer' : undefined}
+                          rel={a.external ? 'noreferrer nofollow' : 'nofollow'}
                         >
                           <span>{a.label}</span>
                           {!a.external && <span aria-hidden="true">→</span>}

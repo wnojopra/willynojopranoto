@@ -10,9 +10,10 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.shared.cookies import device_of
 from app.shared.origins import ws_origin_allowed
 from app.shared.rooms_util import JoinError, RoomLimitError
+from app.shared.telemetry import tracker
 from app.shared.ws import ClientGone, RateLimiter, recv_message, send_error
 from app.spiritboard import hunt_api
-from app.spiritboard.rooms import RoomManager
+from app.spiritboard.rooms import MAX_ROOMS, RoomManager
 
 log = logging.getLogger("spiritboard")
 
@@ -25,6 +26,7 @@ JOIN_TIMEOUT_SECONDS = 30
 
 router = APIRouter()
 manager = RoomManager()
+tracker.register_manager("spiritboard", manager, max_rooms=MAX_ROOMS)
 
 
 def _new_limiter() -> RateLimiter:
@@ -61,10 +63,9 @@ async def tv_socket(ws: WebSocket) -> None:
         old = manager.get(msg.get("resume"))
         if old is not None and old.is_host(device):
             room = old
-            log.info("TV reattached to its room")
         else:
             try:
-                room = manager.create_room()
+                room = manager.create_room(headers=ws.headers)
             except RoomLimitError:
                 await send_error(ws, "Too many s\u00e9ances right now. Try again later.")
                 await ws.close()
@@ -87,7 +88,8 @@ async def tv_socket(ws: WebSocket) -> None:
                     room
                 )  # a new game picks up the host's latest questions
             if kind == "start_round":
-                room.start_round()
+                if room.start_round():
+                    tracker.on_round_started("spiritboard", room)
             elif kind == "add_bot":
                 room.add_bot()
             elif kind == "remove_bot":
@@ -95,7 +97,8 @@ async def tv_socket(ws: WebSocket) -> None:
             elif kind == "back_to_lobby":
                 room.back_to_lobby()
             elif kind == "new_game":
-                room.new_game()
+                if room.new_game():
+                    tracker.on_game_started("spiritboard", room, host_device=device)
             elif kind == "restart_game":
                 room.restart_game()
             elif kind == "set_length":
@@ -168,6 +171,7 @@ async def play_socket(ws: WebSocket) -> None:
             return
         stale = room.player_conns.get(player.id)
         room.player_conns[player.id] = ws
+        tracker.on_player_joined("spiritboard", room, device=device, is_bot=player.is_bot)
         if stale is not None and stale is not ws:
             # Same phone, new tab or refresh: the old socket loses its seat.
             # The error stops that tab from auto-rejoining and stealing it back.

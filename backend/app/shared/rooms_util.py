@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
 import unicodedata
 
@@ -37,3 +38,21 @@ def normalize_code(raw: object) -> str | None:
     if len(code) != CODE_LENGTH or any(c not in CODE_ALPHABET for c in code):
         return None
     return code
+
+
+def cancel_room_task(task: asyncio.Task | None) -> None:
+    """Cancels a background room task safely from inside or outside an event loop."""
+    if task is None or task.done():
+        return
+    try:
+        current = asyncio.current_task()
+    except RuntimeError:
+        current = None
+    if task is current:
+        return
+    try:
+        if task.get_loop().is_closed():
+            return
+    except Exception:
+        pass
+    task.cancel()

@@ -841,7 +841,9 @@ class AvalonRoomManager:
         self.rooms: dict[str, AvalonRoom] = {}
         self._tasks: dict[str, asyncio.Task] = {}
 
-    def create_room(self) -> AvalonRoom:
+    def create_room(self, *, headers: Any = None) -> AvalonRoom:
+        from app.shared.telemetry import tracker
+
         if len(self.rooms) >= MAX_ROOMS:
             raise RoomLimitError()
         for _ in range(50):
@@ -853,18 +855,21 @@ class AvalonRoomManager:
         room = AvalonRoom(code)
         self.rooms[code] = room
         self._tasks[code] = asyncio.create_task(self._run(room))
-        log.info("avalon room created (%d active)", len(self.rooms))
+        tracker.on_room_created("avalon", room, headers=headers)
         return room
 
     def get(self, raw_code: object) -> AvalonRoom | None:
         code = normalize_code(raw_code)
         return self.rooms.get(code) if code else None
 
-    def close_room(self, code: str) -> None:
-        self.rooms.pop(code, None)
-        task = self._tasks.pop(code, None)
-        if task and task is not asyncio.current_task():
-            task.cancel()
+    def close_room(self, code: str, *, reason: str = "closed") -> None:
+        from app.shared.rooms_util import cancel_room_task
+        from app.shared.telemetry import tracker
+
+        room = self.rooms.pop(code, None)
+        if room is not None:
+            tracker.on_room_closed("avalon", room, reason=reason)
+        cancel_room_task(self._tasks.pop(code, None))
 
     async def _run(self, room: AvalonRoom) -> None:
         try:
@@ -877,11 +882,10 @@ class AvalonRoomManager:
                     not room.tv_conns
                     and time.monotonic() - room.last_activity > ROOM_IDLE_SECONDS
                 ):
-                    log.info("closing idle avalon room")
-                    self.close_room(room.code)
+                    self.close_room(room.code, reason="idle")
                     return
         except asyncio.CancelledError:
             pass
         except Exception:  # pragma: no cover
             log.exception("avalon room loop crashed")
-            self.close_room(room.code)
+            self.close_room(room.code, reason="error")

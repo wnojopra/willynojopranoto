@@ -9,8 +9,9 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.shared.cookies import device_of
 from app.shared.origins import ws_origin_allowed as _origin_allowed
+from app.shared.telemetry import tracker
 from app.shared.ws import ClientGone, RateLimiter, recv_message as _shared_recv, send_error
-from app.wavelength.rooms import JoinError, RoomLimitError, WavelengthRoomManager
+from app.wavelength.rooms import JoinError, MAX_ROOMS, RoomLimitError, WavelengthRoomManager
 
 log = logging.getLogger("wavelength")
 
@@ -25,6 +26,7 @@ MAX_DROPPED_BEFORE_CLOSE = 300
 
 router = APIRouter()
 manager = WavelengthRoomManager()
+tracker.register_manager("wavelength", manager, max_rooms=MAX_ROOMS)
 
 
 def _new_limiter() -> RateLimiter:
@@ -66,7 +68,7 @@ async def tv_socket(ws: WebSocket) -> None:
             room = old
         else:
             try:
-                room = manager.create_room()
+                room = manager.create_room(headers=ws.headers)
             except RoomLimitError:
                 await send_error(ws, "Too many games right now. Try again later.")
                 await ws.close()
@@ -84,9 +86,11 @@ async def tv_socket(ws: WebSocket) -> None:
                 continue
             kind = msg["type"]
             if kind == "start":
-                room.start()
+                if room.start():
+                    tracker.on_game_started("wavelength", room, host_device=device)
             elif kind == "next_turn":
-                room.next_turn()
+                if room.next_turn():
+                    tracker.on_round_started("wavelength", room)
             elif kind == "skip":
                 room.skip()
             elif kind == "redraw":
@@ -195,14 +199,16 @@ async def play_socket(ws: WebSocket) -> None:
             await send_error(ws, "No game with that code.")
             await ws.close()
             return
+        device = device_of(ws.cookies)
         try:
-            player = room.add_player(msg.get("name"), device=device_of(ws.cookies))
+            player = room.add_player(msg.get("name"), device=device)
         except JoinError as e:
             await send_error(ws, str(e))
             await ws.close()
             return
         stale = room.player_conns.get(player.id)
         room.player_conns[player.id] = ws
+        tracker.on_player_joined("wavelength", room, device=device, is_bot=player.is_bot)
         if stale is not None and stale is not ws:
             try:
                 await send_error(stale, "You rejoined from another tab.")

@@ -6,7 +6,8 @@ Personal site and multiplayer party-game arcade for **Willy Nojopranoto**, hoste
 
 | Path | Purpose |
 |---|---|
-| `/` | Personal homepage (about me, party games showcase, projects & links) |
+| `/` | Personal homepage (about me, party games showcase, projects & links; search-indexable) |
+| `/admin` | **📊 Usage & Capacity Dashboard** — Passcode-protected live rooms/sockets, DAU/MAU & room charts |
 | `/spiritboard` | **👻 Spirit Board** — TV host screen |
 | `/spiritboard/play` | **👻 Spirit Board** — Phone controller & join screen |
 | `/spiritboard/relics` | **👻 Spirit Board** — This phone's scavenger hunt Relic collection |
@@ -19,6 +20,8 @@ Personal site and multiplayer party-game arcade for **Willy Nojopranoto**, hoste
 | `/avalon/play` | **🛡️ Avalon** — Phone controller & join screen |
 | `/wavelength` | **🌊 Wavelength** — TV host screen |
 | `/wavelength/play` | **🌊 Wavelength** — Phone controller & join screen |
+
+All non-`/` routes send `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex` (paired with `robots.txt` and `rel="nofollow"` on game buttons) so Google, Bing, and AI/bulk scrapers do not index game lobbies.
 
 ## Games
 
@@ -39,8 +42,8 @@ A digital adaptation of *Wavelength* inspired by `mikeck1.github.io`. Features a
 ```text
 backend/                 Python 3.12+ / FastAPI
   app/
-    main.py              FastAPI entrypoint, CSP/security headers, SPA static routing
-    shared/              Shared origin checks, __Host- cookies/CSRF, WebSocket rate limiter, room code/name utils
+    main.py              FastAPI entrypoint, CSP/X-Robots-Tag headers, SPA static routing
+    shared/              Shared origin checks, __Host- cookies/CSRF, WS rate limiter, DAU/MAU telemetry
     spiritboard/         Spirit Board game logic, physics, decks, Relics, scavenger hunt store, /ws/spiritboard/* & /api/*
     psych/               Psychological turn logic, trait decks, /ws/psych/*
     avalon/              Avalon role/sighting logic, quest state machine, /ws/avalon/*
@@ -53,12 +56,15 @@ backend/                 Python 3.12+ / FastAPI
 frontend/                React + TypeScript + Vite
   src/
     App.tsx              Route dispatcher with React.lazy() per section
+    admin/               Passcode-protected /admin analytics & live capacity dashboard
     shared/              QrCode.tsx, useGameSocket.ts (WebSocket hook, session cookie init, font loader)
     home/                HomePage.tsx + home.css (willynojopranoto.com landing page)
     spiritboard/         Spirit Board TV, phone, and scavenger hunt screens + spiritboard.css
     psych/               Psychological TV and phone screens + psych.css
     avalon/              Avalon TV and phone screens, narrator audio, SVG art + avalon.css
     wavelength/          Wavelength TV and phone screens, SVG shutter dial, deck modal + wavelength.css
+scripts/
+  setup-alerts.sh        One-time gcloud script for $10/mo billing budget & concurrency spike alerts
 ```
 
 ## Run Locally
@@ -80,6 +86,7 @@ npm run dev
 
 Open:
 - Homepage: <http://127.0.0.1:5173/>
+- Usage Dashboard: <http://127.0.0.1:5173/admin>
 - Spirit Board (TV / Phone): <http://127.0.0.1:5173/spiritboard> / <http://127.0.0.1:5173/spiritboard/play>
 - Psychological (TV / Phone): <http://127.0.0.1:5173/psychological> / <http://127.0.0.1:5173/psychological/play>
 - Avalon (TV / Phone): <http://127.0.0.1:5173/avalon> / <http://127.0.0.1:5173/avalon/play>
@@ -94,13 +101,16 @@ cd backend && .venv/bin/python -m pytest -q
 cd frontend && npm run typecheck
 ```
 
-## Deploy (Cloud Run)
+## Deploy & Budget Alerts (Cloud Run)
 
 ```bash
 ./deploy.sh                  # build with Cloud Build + deploy (scales to zero)
 MIN_INSTANCES=1 ./deploy.sh  # party night: keep one instance warm
+
+# One-time GCP $10/mo budget email alert + >50 concurrent WebSocket spike alert:
+ALERT_EMAIL="you@example.com" ./scripts/setup-alerts.sh
 ```
 
 Defaults: project `nojo-client`, region `us-west1`, service `spirit-board` (override with `PROJECT`, `REGION`, `SERVICE`). The service runs as a single instance (`--max-instances 1`) because active game rooms live in memory, with session affinity and a 60-minute WebSocket timeout.
 
-**Admin passcode** (for `/spiritboard/admin`) lives in Secret Manager (`spirit-board-admin-passcode`). Locally, set `SB_ADMIN_PASSCODE=...` before starting uvicorn.
+**Admin passcode** (for `/admin` and `/spiritboard/admin`) lives in Secret Manager (`spirit-board-admin-passcode`). Locally, set `SB_ADMIN_PASSCODE=...` before starting uvicorn.

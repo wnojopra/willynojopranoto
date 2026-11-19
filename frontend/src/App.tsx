@@ -1,5 +1,10 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { HomePage } from './home/HomePage';
+
+// Admin analytics: loaded as its own chunk only on /admin.
+const AdminDashboard = lazy(() =>
+  import('./admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })),
+);
 
 // Spirit Board: loaded as its own chunk only on /spiritboard* pages.
 const TvApp = lazy(() => import('./spiritboard/tv/TvApp').then((m) => ({ default: m.TvApp })));
@@ -23,6 +28,24 @@ const WavelengthPlay = lazy(() => import('./wavelength/WavelengthPlay').then((m)
 
 export function App() {
   const path = location.pathname.replace(/\/+$/, '');
+
+  useEffect(() => {
+    const id = 'wn-robots-meta';
+    let el = document.getElementById(id) as HTMLMetaElement | null;
+    if (path !== '') {
+      if (!el) {
+        el = document.createElement('meta');
+        el.id = id;
+        el.name = 'robots';
+        document.head.appendChild(el);
+      }
+      el.content = 'noindex, nofollow, noarchive, nosnippet';
+    } else if (el) {
+      el.remove();
+    }
+  }, [path]);
+
+  if (path === '/admin') return <Suspense fallback={null}><AdminDashboard /></Suspense>;
   if (path === '/spiritboard') return <Suspense fallback={null}><TvApp /></Suspense>;
   if (path === '/spiritboard/play') return <Suspense fallback={null}><PlayApp /></Suspense>;
   if (path === '/spiritboard/relics') return <Suspense fallback={null}><RelicsPage /></Suspense>;

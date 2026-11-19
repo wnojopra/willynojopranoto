@@ -34,6 +34,9 @@ CSP = (
 )
 
 
+NOINDEX_ROBOTS_TAG = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
@@ -44,6 +47,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = (
             "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
         )
+        if request.url.path not in ("/", "/robots.txt"):
+            response.headers["X-Robots-Tag"] = NOINDEX_ROBOTS_TAG
         if request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
         return response
@@ -74,9 +79,20 @@ async def session(request: Request) -> JSONResponse:
 # ---- Static frontend (production) -------------------------------------------
 
 _index = STATIC_DIR / "index.html"
+_robots = STATIC_DIR / "robots.txt"
+_fallback_robots = Path(__file__).resolve().parents[2] / "frontend" / "public" / "robots.txt"
+
+
+@app.api_route("/robots.txt", methods=["GET", "HEAD"])
+async def robots_txt() -> Response:
+    for candidate in (_robots, _fallback_robots):
+        if candidate.is_file():
+            return FileResponse(candidate, media_type="text/plain; charset=utf-8")
+    return Response("User-agent: *\nDisallow: /api/\n", media_type="text/plain; charset=utf-8")
 
 
 @app.api_route("/", methods=["GET", "HEAD"])
+@app.api_route("/admin", methods=["GET", "HEAD"])
 @app.api_route("/spiritboard", methods=["GET", "HEAD"])
 @app.api_route("/spiritboard/play", methods=["GET", "HEAD"])
 @app.api_route("/spiritboard/relics", methods=["GET", "HEAD"])

@@ -181,6 +181,9 @@ function AdminConsole({ logout }: { logout: () => void }) {
         <a id="admin-print" className="btn btn--primary" href="/spiritboard/admin/print">
           🖨️ Print stickers
         </a>
+        <a id="admin-analytics" className="btn btn--ghost" href="/admin">
+          📊 Usage analytics
+        </a>
         <button id="admin-logout" className="btn btn--ghost" onClick={logout}>
           Log out
         </button>
