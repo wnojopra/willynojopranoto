@@ -317,7 +317,9 @@ export function HomePage() {
 
         <footer className="wn-footer">
           <span>© {new Date().getFullYear()} Willy Nojopranoto</span>
-          <span>willynojopranoto.com</span>
+          <a className="wn-footer__domain" href="/admin" rel="nofollow" tabIndex={-1}>
+            willynojopranoto.com
+          </a>
         </footer>
       </div>
     </div>
