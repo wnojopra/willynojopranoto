@@ -491,3 +491,131 @@ def test_firestore_telemetry_store_batches_merges_and_reads_async_streams():
     assert len(stats["recentRooms"]) == 1
     assert stats["recentRooms"][0]["durationSec"] == 900
 
+
+# ---- Phase 5: Historical Cloud Run log backfill script ----------------------
+
+
+def test_backfill_script_reconstructs_sessions_lanes_and_idempotent_merges():
+    import importlib.util
+    from pathlib import Path
+    import sys
+
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "backfill-analytics.py"
+    spec = importlib.util.spec_from_file_location("backfill_analytics", script_path)
+    assert spec and spec.loader
+    bf = importlib.util.module_from_spec(spec)
+    sys.modules["backfill_analytics"] = bf
+    spec.loader.exec_module(bf)
+
+    # Mirror real Cloud Run logs from Nov 14-15 (PT evenings Nov 13 & Nov 14):
+    # - Nov 13 PT (73.170.205.147): Windows host + 2 simultaneous iPhones with identical UA
+    #   (one of which reconnects sequentially) -> 3 DAU, 1 room created & started!
+    # - Nov 14 PT (76.226.71.167): Mac TV open for two consecutive 1h segments (2s reconnect gap)
+    #   -> merged into 1 room created & started, 1 DAU!
+    entries = [
+        # Nov 13 evening PT: Windows TV open 04:41Z -> 06:36Z
+        {
+            "timestamp": "2026-11-14T06:36:00.123456789Z",
+            "httpRequest": {
+                "status": 101,
+                "requestUrl": "https://willynojopranoto.com/ws/wavelength/tv",
+                "remoteIp": "73.170.205.147",
+                "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/157.0.0.0",
+                "latency": "6900.0s",
+            },
+        },
+        # Friend 1 iPhone: 04:45Z -> 05:15Z, then sequential reconnect 05:16Z -> 06:00Z
+        {
+            "timestamp": "2026-11-14T05:15:00Z",
+            "httpRequest": {
+                "status": 101,
+                "requestUrl": "https://willynojopranoto.com/ws/wavelength/play",
+                "remoteIp": "73.170.205.147",
+                "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 27_2_1 like Mac OS X)",
+                "latency": "1800.0s",
+            },
+        },
+        {
+            "timestamp": "2026-11-14T06:00:00Z",
+            "httpRequest": {
+                "status": 101,
+                "requestUrl": "https://willynojopranoto.com/ws/wavelength/play",
+                "remoteIp": "73.170.205.147",
+                "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 27_2_1 like Mac OS X)",
+                "latency": "2640.0s",
+            },
+        },
+        # Friend 2 iPhone (same Wi-Fi IP + identical UA, overlapping 04:50Z -> 05:50Z -> lane 1!)
+        {
+            "timestamp": "2026-11-14T05:50:00Z",
+            "httpRequest": {
+                "status": 101,
+                "requestUrl": "https://willynojopranoto.com/ws/wavelength/play",
+                "remoteIp": "73.170.205.147",
+                "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 27_2_1 like Mac OS X)",
+                "latency": "3600.0s",
+            },
+        },
+        # Nov 14 evening PT: Mac TV hits 3600s Cloud Run timeout twice (2s gap -> 1 room!)
+        {
+            "timestamp": "2026-11-15T01:22:29.998242Z",
+            "httpRequest": {
+                "status": 101,
+                "requestUrl": "https://willynojopranoto.com/ws/wavelength/tv",
+                "remoteIp": "76.226.71.167",
+                "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/158.0.0.0",
+                "latency": "3600.0s",
+            },
+        },
+        {
+            "timestamp": "2026-11-15T02:22:31.987476Z",
+            "httpRequest": {
+                "status": 101,
+                "requestUrl": "https://willynojopranoto.com/ws/wavelength/tv",
+                "remoteIp": "76.226.71.167",
+                "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/158.0.0.0",
+                "latency": "3600.0s",
+            },
+        },
+    ]
+
+    spans = bf.parse_ws_request_entries(entries)
+    res = bf.reconstruct_analytics(spans)
+
+    fri = res["daily"]["2026-11-13"]
+    assert len(fri["activeUsers"]) == 3  # Windows host + 2 simultaneous iPhones (reconnect deduplicated)
+    assert fri["roomsCreated"] == 1
+    assert fri["roomsStarted"] == 1
+
+    sat = res["daily"]["2026-11-14"]
+    assert len(sat["activeUsers"]) == 1  # Mac pass-and-play host
+    assert sat["roomsCreated"] == 1
+    assert sat["roomsStarted"] == 1
+
+    nov = res["monthly"]["2026-11"]
+    assert len(nov["activeUsers"]) == 4
+    assert nov["roomsCreated"] == 2
+    assert nov["roomsStarted"] == 2
+
+    # Verify idempotency when merging onto a doc that already has 1 live room:
+    live_existing = {
+        "date": "2026-11-13",
+        "activeUsers": ["liveuser12345678"],
+        "activeUsersByGame": {"spiritboard": ["liveuser12345678"], "psych": [], "avalon": [], "wavelength": []},
+        "roomsCreated": 1,
+        "roomsCreatedByGame": {"spiritboard": 1, "psych": 0, "avalon": 0, "wavelength": 0},
+        "roomsStarted": 1,
+        "roomsStartedByGame": {"spiritboard": 1, "psych": 0, "avalon": 0, "wavelength": 0},
+        "roundsPlayed": 4,
+        "roundsPlayedByGame": {"spiritboard": 4, "psych": 0, "avalon": 0, "wavelength": 0},
+        "peakConcurrentRooms": 1,
+        "peakConcurrentPlayers": 2,
+    }
+    merged_once = bf.merge_bucket_with_existing("date", "2026-11-13", fri, live_existing, 1_763_500_000.0)
+    merged_twice = bf.merge_bucket_with_existing("date", "2026-11-13", fri, merged_once, 1_763_500_100.0)
+    assert merged_once["roomsCreated"] == 2  # 1 live + 1 backfilled
+    assert merged_twice["roomsCreated"] == 2  # re-running never double-counts!
+    assert len(merged_twice["activeUsers"]) == 4  # 1 live + 3 backfilled
+    assert merged_twice["roundsPlayed"] == 4  # live rounds preserved
+
+
