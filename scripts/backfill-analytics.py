@@ -547,7 +547,7 @@ def _fs_commit_writes(base_url: str, token: str, writes: list[dict[str, Any]]) -
         chunk = writes[i : i + 200]
         data = json.dumps({"writes": chunk}).encode("utf-8")
         req = urllib.request.Request(
-            f"{base_url}:commit",
+            f"{base_url}/documents:commit",
             data=data,
             headers={
                 "Authorization": f"Bearer {token}",

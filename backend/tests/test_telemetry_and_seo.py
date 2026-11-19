@@ -618,4 +618,34 @@ def test_backfill_script_reconstructs_sessions_lanes_and_idempotent_merges():
     assert len(merged_twice["activeUsers"]) == 4  # 1 live + 3 backfilled
     assert merged_twice["roundsPlayed"] == 4  # live rounds preserved
 
+    # Verify Firestore REST commit endpoint uses /documents:commit (not :commit on the DB root):
+    seen_urls: list[str] = []
 
+    class _FakeResp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b"{}"
+
+    def _fake_urlopen(req, timeout=30):
+        seen_urls.append(req.full_url)
+        return _FakeResp()
+
+    orig_urlopen = bf.urllib.request.urlopen
+    bf.urllib.request.urlopen = _fake_urlopen
+    try:
+        bf._fs_commit_writes(
+            "https://firestore.googleapis.com/v1/projects/nojo-client/databases/spirit-board",
+            "tok",
+            [{"update": {"name": "projects/nojo-client/databases/spirit-board/documents/analytics_daily/2026-11-13", "fields": {}}}],
+        )
+    finally:
+        bf.urllib.request.urlopen = orig_urlopen
+
+    assert seen_urls == [
+        "https://firestore.googleapis.com/v1/projects/nojo-client/databases/spirit-board/documents:commit"
+    ]
